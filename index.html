@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'none'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Repair damaged Word, Excel and PowerPoint files. Files are processed on this device and never uploaded.">
+<title>Seam — repair damaged Office files</title>
+<link rel="icon" href="brand/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/themes.css">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/app.css">
+<script src="js/theme-init.js"></script>
+</head>
+<body>
+<div class="seam-line" aria-hidden="true"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="./">
+      <img src="brand/favicon.svg" width="28" height="28" alt="">
+      <span class="wordmark" data-copy="title"></span>
+    </a>
+    <div class="header-actions">
+      <button type="button" class="link-btn" id="open-scope">
+        <span class="wide" data-copy="link.scope"></span>
+        <span class="narrow" data-copy="link.scopeShort"></span>
+      </button>
+      <label class="theme-field">
+        <span class="sr-only" data-copy="theme.label"></span>
+        <select id="theme-select" class="theme-select"></select>
+      </label>
+    </div>
+  </div>
+</header>
+<main class="wrap" id="main">
+  <h1 class="headline" data-copy="headline"></h1>
+  <p class="privacy" data-copy="privacy"></p>
+  <section class="drop" id="drop">
+    <input type="file" id="file-input" class="file-input" multiple accept=".docx,.docm,.xlsx,.xlsm,.pptx,.pptm,.doc,.xls,.ppt" tabindex="-1">
+    <div class="drop-body">
+      <p class="drop-label" id="drop-label"></p>
+      <p class="drop-action"><span class="drop-or" id="drop-or" data-copy="drop.or"></span><button type="button" class="btn" id="choose" data-copy="drop.button"></button></p>
+    </div>
+  </section>
+  <p class="notice" id="notice" hidden></p>
+  <section class="results" id="results" hidden>
+    <div class="summary-bar">
+      <p class="summary" id="summary"></p>
+      <div class="summary-actions">
+        <button type="button" class="btn primary" id="download-all" data-copy="btn.downloadAll" disabled></button>
+        <button type="button" class="btn" id="clear" data-copy="btn.clear"></button>
+      </div>
+    </div>
+    <ul class="list" id="list"></ul>
+  </section>
+</main>
+<footer class="site-footer">
+  <p data-copy="footer"></p>
+</footer>
+<div class="sr-only" id="live" aria-live="polite"></div>
+<dialog class="sheet" id="scope" aria-labelledby="scope-title">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2 id="scope-title" data-copy="scope.title"></h2>
+      <button type="button" class="btn" id="close-scope" data-copy="btn.close"></button>
+    </div>
+    <div class="sheet-body" id="scope-body"></div>
+  </div>
+</dialog>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

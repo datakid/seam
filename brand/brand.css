@@ -1,0 +1,76 @@
+/* Identity board styles only. Not part of the app. */
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--font-ui); font-size: var(--fs-md); line-height: var(--lh-body);
+}
+.seam-top { height: var(--seam-thickness); background: var(--seam); }
+.wrap { max-width: 960px; margin: 0 auto; padding: var(--s-7) var(--s-6) var(--s-8); }
+.eyebrow { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-3); letter-spacing: .04em; text-transform: uppercase; margin: 0 0 var(--s-3); }
+h1 { font-size: var(--fs-2xl); line-height: var(--lh-tight); letter-spacing: -0.02em; font-weight: 600; margin: 0 0 var(--s-2); }
+h2 { font-size: var(--fs-lg); font-weight: 600; margin: 0 0 var(--s-4); }
+p { margin: 0; color: var(--ink-2); }
+section { margin-top: var(--s-7); }
+
+.hero { display: grid; grid-template-columns: 220px 1fr; gap: var(--s-6); align-items: center; }
+.hero img { width: 220px; height: 220px; filter: drop-shadow(0 12px 28px oklch(60% 0.21 280 / .14)); }
+.sizes { display: flex; gap: var(--s-5); align-items: flex-end; margin-top: var(--s-5); }
+.sizes img { display: block; }
+.wordmark { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 22px; letter-spacing: -0.01em; }
+
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s-3); }
+.sw { border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; background: var(--surface); }
+.sw i { display: block; height: 64px; }
+.sw span { display: block; padding: var(--s-2) var(--s-3); font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-2); }
+.seam-bar { height: 12px; border-radius: 6px; background: var(--seam); margin-bottom: var(--s-4); }
+
+.mock { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-2); overflow: hidden; }
+.mock header { display: flex; justify-content: space-between; align-items: center; padding: 0 var(--s-5); height: 56px; border-bottom: 1px solid var(--line); }
+.mock header a { font-size: var(--fs-sm); color: var(--ink-2); }
+.mock .body { padding: var(--s-6) var(--s-5); background: var(--paper); }
+.drop { margin-top: var(--s-5); border: 1.5px dashed var(--line-strong); border-radius: var(--r-xl); background: var(--tint-violet); min-height: 140px; display: grid; place-items: center; text-align: center; color: var(--ink-2); }
+.btn { display: inline-flex; align-items: center; height: 36px; padding: 0 16px; border-radius: var(--r-md); font: 500 var(--fs-sm) var(--font-ui); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.summary { display: flex; justify-content: space-between; align-items: center; margin: var(--s-5) 0 var(--s-2); font-size: var(--fs-sm); color: var(--ink-2); gap: var(--s-3); flex-wrap: wrap; }
+.summary div { display: flex; gap: var(--s-2); }
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.row { display: grid; grid-template-columns: 56px 1fr 80px 170px; align-items: center; gap: var(--s-3); min-height: 56px; padding: 0 var(--s-4); border-bottom: 1px solid var(--line); position: relative; }
+.row:last-child { border-bottom: 0; }
+.chip { font-family: var(--font-mono); font-size: var(--fs-xs); background: var(--neutral-tint); color: var(--ink-2); border-radius: var(--r-sm); padding: 2px 6px; justify-self: start; }
+.name { font-family: var(--font-mono); font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.size { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); font-weight: 500; padding: 2px 8px; border-radius: var(--r-sm); justify-self: start; }
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.b-ok { background: var(--ok-tint); color: var(--ok); }
+.b-partial { background: var(--partial-tint); color: var(--partial); }
+.b-salvage { background: var(--salvage-tint); color: var(--salvage); }
+.b-fail { background: var(--fail-tint); color: var(--fail); }
+.b-neutral { background: var(--neutral-tint); color: var(--neutral); }
+.b-clean { background: var(--ok-tint); color: var(--ok); }
+.b-clean::before { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
+.progress { position: absolute; left: 0; bottom: -1px; height: var(--seam-thickness); width: 62%; background: var(--seam); }
+.report { background: var(--paper-2); padding: var(--s-5); border-bottom: 1px solid var(--line); }
+.report h3 { font-size: var(--fs-xs); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); margin: var(--s-4) 0 var(--s-2); font-weight: 400; }
+.report ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.report li { display: grid; grid-template-columns: 6px 1fr; gap: 10px; align-items: baseline; font-size: var(--fs-sm); }
+.report li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; transform: translateY(-1px); }
+.report li.loss::before { background: var(--fail); }
+.report li.rep::before { background: var(--ok); }
+.report li.note::before { background: var(--neutral); }
+.report code { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-3); }
+.report .actions { display: flex; gap: var(--s-2); margin-top: var(--s-4); flex-wrap: wrap; }
+
+.voice { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+.voice div { border-radius: var(--r-lg); padding: var(--s-5); }
+.voice .yes { background: var(--tint-mint); }
+.voice .no { background: var(--tint-coral); }
+.voice ul { margin: var(--s-2) 0 0; padding-left: 18px; font-size: var(--fs-sm); }
+.voice .no li { text-decoration: line-through; color: var(--ink-3); }
+
+@media (max-width: 680px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero img { width: 140px; height: 140px; }
+  .row { grid-template-columns: 52px 1fr; padding: var(--s-2) var(--s-3); }
+  .size, .row .badge { grid-column: 2; }
+  .voice { grid-template-columns: 1fr; }
+}

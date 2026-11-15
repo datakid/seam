@@ -1,0 +1,35 @@
+:root {
+  --scrim: color-mix(in oklch, var(--ink) 45%, transparent);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper:        oklch(19% 0.018 272);
+  --paper-2:      oklch(22.5% 0.02 272);
+  --surface:      oklch(25% 0.022 272);
+  --line:         oklch(33% 0.02 272);
+  --line-strong:  oklch(44% 0.025 272);
+
+  --ink:   oklch(95.5% 0.008 95);
+  --ink-2: oklch(80% 0.012 272);
+  --ink-3: oklch(69% 0.014 272);
+
+  --tint-coral:  oklch(27% 0.04 28);
+  --tint-amber:  oklch(27% 0.04 85);
+  --tint-mint:   oklch(27% 0.035 165);
+  --tint-violet: oklch(27.5% 0.05 280);
+
+  --ok:           oklch(80% 0.14 160);  --ok-tint:      oklch(29% 0.05 160);
+  --partial:      oklch(82% 0.13 80);   --partial-tint: oklch(30% 0.05 80);
+  --salvage:      oklch(80% 0.13 285);  --salvage-tint: oklch(30% 0.06 285);
+  --fail:         oklch(78% 0.15 27);   --fail-tint:    oklch(29% 0.06 27);
+  --neutral:      oklch(80% 0.012 272); --neutral-tint: oklch(31% 0.012 272);
+
+  --focus: oklch(72% 0.17 280);
+
+  --shadow-1: 0 1px 0 oklch(0% 0 0 / 0.25), 0 1px 3px oklch(0% 0 0 / 0.35);
+  --shadow-2: 0 2px 4px oklch(0% 0 0 / 0.25), 0 8px 24px oklch(0% 0 0 / 0.45);
+
+  --scrim: color-mix(in oklch, var(--paper) 72%, transparent);
+}

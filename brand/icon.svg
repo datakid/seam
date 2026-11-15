@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="seam-title">
+  <title id="seam-title">Seam</title>
+  <defs>
+    <linearGradient id="seam-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF5EE"/>
+      <stop offset="1" stop-color="#F0EFFF"/>
+    </linearGradient>
+    <linearGradient id="seam-line" gradientUnits="userSpaceOnUse" x1="112" y1="0" x2="400" y2="0">
+      <stop offset="0" stop-color="#FF5E4D"/>
+      <stop offset="0.35" stop-color="#FFB627"/>
+      <stop offset="0.66" stop-color="#1FC79A"/>
+      <stop offset="1" stop-color="#6A5BFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App tile -->
+  <rect width="512" height="512" rx="116" fill="url(#seam-bg)"/>
+
+  <!-- Upper half of the torn sheet -->
+  <path d="M164 92H310L380 162V250L334 228L292 258L250 230L208 260L170 234L132 256V124Q132 92 164 92Z"
+        fill="#FFFFFF" stroke="#1F2133" stroke-width="12" stroke-linejoin="round"/>
+  <!-- Folded corner -->
+  <path d="M310 92V138Q310 162 334 162H380Z"
+        fill="#ECEAF6" stroke="#1F2133" stroke-width="12" stroke-linejoin="round"/>
+  <!-- Text lines, upper -->
+  <g stroke="#C9CBDC" stroke-width="12" stroke-linecap="round">
+    <path d="M170 140H262"/>
+    <path d="M170 172H300"/>
+    <path d="M170 204H340"/>
+  </g>
+
+  <!-- Lower half of the torn sheet -->
+  <path d="M132 282L170 260L208 286L250 256L292 284L334 254L380 276V388Q380 420 348 420H164Q132 420 132 388Z"
+        fill="#FFFFFF" stroke="#1F2133" stroke-width="12" stroke-linejoin="round"/>
+  <!-- Text lines, lower -->
+  <g stroke="#C9CBDC" stroke-width="12" stroke-linecap="round">
+    <path d="M170 324H342"/>
+    <path d="M170 356H316"/>
+    <path d="M170 388H276"/>
+  </g>
+
+  <!-- The seam: a chromatic line joining the tear -->
+  <path d="M112 281L132 269L170 247L208 273L250 243L292 271L334 241L380 263L400 275"
+        fill="none" stroke="url(#seam-line)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

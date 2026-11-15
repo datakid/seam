@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seam — identity board</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="brand.css">
+</head>
+<body>
+<div class="seam-top"></div>
+<main class="wrap">
+
+  <section class="hero" style="margin-top:0">
+    <img src="icon.svg" alt="Seam app icon: a torn document joined by a chromatic line">
+    <div>
+      <p class="eyebrow">Identity board · v1</p>
+      <h1>Seam</h1>
+      <p>Repairs damaged Word, Excel and PowerPoint files in the browser. The name comes from the line where two torn edges are joined. The icon shows exactly that: one sheet, torn across, held together by a single chromatic line.</p>
+      <div class="sizes">
+        <img src="icon.svg" width="64" height="64" alt="">
+        <img src="icon.svg" width="40" height="40" alt="">
+        <img src="favicon.svg" width="24" height="24" alt="">
+        <img src="favicon.svg" width="16" height="16" alt="">
+        <span class="wordmark"><img src="favicon.svg" width="26" height="26" alt="">Seam</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The seam spectrum</h2>
+    <div class="seam-bar"></div>
+    <p>Full-chroma colour appears in one place only: the seam line (header rule, progress, the icon). Everything else uses soft tints of it.</p>
+  </section>
+
+  <section>
+    <h2>Palette</h2>
+    <div class="swatches">
+      <div class="sw"><i style="background:var(--paper)"></i><span>paper</span></div>
+      <div class="sw"><i style="background:var(--paper-2)"></i><span>paper-2</span></div>
+      <div class="sw"><i style="background:var(--ink)"></i><span>ink</span></div>
+      <div class="sw"><i style="background:var(--ink-2)"></i><span>ink-2</span></div>
+      <div class="sw"><i style="background:var(--seam-coral)"></i><span>seam-coral</span></div>
+      <div class="sw"><i style="background:var(--seam-amber)"></i><span>seam-amber</span></div>
+      <div class="sw"><i style="background:var(--seam-mint)"></i><span>seam-mint</span></div>
+      <div class="sw"><i style="background:var(--seam-violet)"></i><span>seam-violet</span></div>
+      <div class="sw"><i style="background:var(--tint-coral)"></i><span>tint-coral</span></div>
+      <div class="sw"><i style="background:var(--tint-amber)"></i><span>tint-amber</span></div>
+      <div class="sw"><i style="background:var(--tint-mint)"></i><span>tint-mint</span></div>
+      <div class="sw"><i style="background:var(--tint-violet)"></i><span>tint-violet</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Interface reference</h2>
+    <div class="mock">
+      <div class="seam-top"></div>
+      <header>
+        <span class="wordmark"><img src="favicon.svg" width="24" height="24" alt="">Seam</span>
+        <a>What Seam can repair</a>
+      </header>
+      <div class="body">
+        <h1 style="font-size:var(--fs-xl)">Repair damaged Word, Excel and PowerPoint files.</h1>
+        <p>Files are processed on this device and never uploaded.</p>
+        <div class="drop"><div>Drop .docx, .xlsx or .pptx files here<br><span style="font-size:var(--fs-sm)">or</span> <span class="btn">Choose files</span></div></div>
+
+        <div class="summary">
+          <span>5 files · 1 repaired · 1 partially repaired · 1 salvaged · 1 could not be repaired</span>
+          <div><span class="btn primary">Download all</span><span class="btn">Clear</span></div>
+        </div>
+
+        <div class="list">
+          <div class="row"><span class="chip">DOCX</span><span class="name">Quarterly report.docx</span><span class="size">1.2 MB</span><span class="badge b-ok">Repaired</span></div>
+          <div class="row"><span class="chip">XLSX</span><span class="name">Budget.xlsx</span><span class="size">380 KB</span><span class="badge b-partial">Partially repaired</span></div>
+          <div class="report">
+            <p style="color:var(--ink)">Repaired the file structure. Some content could not be recovered. See Lost below.</p>
+            <h3>Lost</h3>
+            <ul><li class="loss"><span>Sheet "Q3" was removed because its data part was unreadable. <code>xl/worksheets/sheet3.xml</code></span></li></ul>
+            <h3>Repaired</h3>
+            <ul>
+              <li class="rep"><span>Rebuilt the ZIP directory from 41 recovered entries.</span></li>
+              <li class="rep"><span>Removed 3 relationships pointing to missing parts. <code>xl/_rels/workbook.xml.rels</code></span></li>
+            </ul>
+            <h3>Noted</h3>
+            <ul><li class="note"><span>Removed the calculation chain. Excel rebuilds it on open. <code>xl/calcChain.xml</code></span></li></ul>
+            <div class="actions"><span class="btn primary">Download repaired file</span><span class="btn">Copy report</span><span class="btn">Save report (.txt)</span></div>
+          </div>
+          <div class="row"><span class="chip">PPTX</span><span class="name">Pitch final v7.pptx</span><span class="size">14.6 MB</span><span class="badge b-salvage">Salvaged text</span></div>
+          <div class="row"><span class="chip">DOCX</span><span class="name">Contract draft.docx</span><span class="size">212 KB</span><span class="badge b-neutral">Checking</span><span class="progress"></span></div>
+          <div class="row"><span class="chip">CFB</span><span class="name">Payroll.xlsx</span><span class="size">96 KB</span><span class="badge b-neutral">Not supported</span></div>
+          <div class="row"><span class="chip">PPTX</span><span class="name">Template.pptx</span><span class="size">2.1 MB</span><span class="badge b-clean">No problems found</span></div>
+          <div class="row"><span class="chip">ZIP</span><span class="name">Notes.docx</span><span class="size">4 KB</span><span class="badge b-fail">Could not repair</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Voice</h2>
+    <div class="voice">
+      <div class="yes"><strong>Seam says</strong>
+        <ul>
+          <li>Repaired 4 structural problems. No content loss was detected.</li>
+          <li>This file is password-protected. Seam can't open encrypted files.</li>
+          <li>Passed structural checks.</li>
+        </ul>
+      </div>
+      <div class="no"><strong>Seam never says</strong>
+        <ul>
+          <li>All fixed! Your file is good as new.</li>
+          <li>Oops, something went wrong</li>
+          <li>Guaranteed to open in Word</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>

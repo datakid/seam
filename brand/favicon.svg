@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="96 76 320 360">
+  <defs>
+    <linearGradient id="f-seam" gradientUnits="userSpaceOnUse" x1="112" y1="0" x2="400" y2="0">
+      <stop offset="0" stop-color="#FF5E4D"/>
+      <stop offset="0.35" stop-color="#FFB627"/>
+      <stop offset="0.66" stop-color="#1FC79A"/>
+      <stop offset="1" stop-color="#6A5BFF"/>
+    </linearGradient>
+  </defs>
+  <path d="M164 92H310L380 162V250L334 228L292 258L250 230L208 260L170 234L132 256V124Q132 92 164 92Z" fill="#FFFFFF" stroke="#1F2133" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M310 92V138Q310 162 334 162H380Z" fill="#ECEAF6" stroke="#1F2133" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M132 282L170 260L208 286L250 256L292 284L334 254L380 276V388Q380 420 348 420H164Q132 420 132 388Z" fill="#FFFFFF" stroke="#1F2133" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M112 281L132 269L170 247L208 273L250 243L292 271L334 241L380 263L400 275" fill="none" stroke="url(#f-seam)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
