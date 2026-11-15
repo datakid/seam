@@ -27,10 +27,14 @@
         <span class="wide" data-copy="link.scope"></span>
         <span class="narrow" data-copy="link.scopeShort"></span>
       </button>
-      <label class="theme-field">
-        <span class="sr-only" data-copy="theme.label"></span>
-        <select id="theme-select" class="theme-select"></select>
-      </label>
+      <div class="theme-menu">
+        <button type="button" class="theme-button" id="theme-button" aria-haspopup="menu" aria-expanded="false" aria-controls="theme-list">
+          <span class="sr-only" data-copy="theme.label"></span>
+          <span id="theme-current"></span>
+          <span class="theme-caret" aria-hidden="true"></span>
+        </button>
+        <div class="theme-list" id="theme-list" role="menu" aria-labelledby="theme-button" hidden></div>
+      </div>
     </div>
   </div>
 </header>

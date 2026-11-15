@@ -307,23 +307,76 @@ test('ui: the scope sheet opens as a modal dialog and closes again', async () =>
   }
 });
 
-test('ui: the theme control sets and stores light, dark and system', async () => {
+test('ui: the theme control is a custom menu that sets and stores light, dark and system', async () => {
   const app = await openApp();
   try {
-    const select = app.doc.getElementById('theme-select');
-    eq(Array.from(select.options).map((o) => o.textContent), ['System', 'Light', 'Dark']);
-    eq(select.value, 'system');
-    select.value = 'dark';
-    select.dispatchEvent(new app.w.Event('change'));
+    const button = app.doc.getElementById('theme-button');
+    const list = app.doc.getElementById('theme-list');
+    const items = Array.from(list.querySelectorAll('[role="menuitemradio"]'));
+    eq(items.map((i) => i.textContent), ['System', 'Light', 'Dark']);
+    eq(app.doc.getElementById('theme-current').textContent, 'System');
+    assert(list.hidden, 'closed at start');
+    const pick = (label) => {
+      button.click();
+      assert(!list.hidden, 'opens');
+      eq(button.getAttribute('aria-expanded'), 'true');
+      items.find((i) => i.textContent === label).click();
+      assert(list.hidden, 'closes after a choice');
+    };
+    pick('Dark');
     eq(app.doc.documentElement.getAttribute('data-theme'), 'dark');
     eq(app.w.localStorage.getItem('seam-theme'), 'dark');
-    select.value = 'light';
-    select.dispatchEvent(new app.w.Event('change'));
+    eq(items.map((i) => i.getAttribute('aria-checked')), ['false', 'false', 'true']);
+    pick('Light');
     eq(app.doc.documentElement.getAttribute('data-theme'), 'light');
-    select.value = 'system';
-    select.dispatchEvent(new app.w.Event('change'));
+    pick('System');
     const expected = app.w.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     eq(app.doc.documentElement.getAttribute('data-theme'), expected);
+  } finally {
+    app.close();
+  }
+});
+
+test('ui: the theme menu works from the keyboard and Escape returns focus to the button', async () => {
+  const app = await openApp();
+  try {
+    const button = app.doc.getElementById('theme-button');
+    const list = app.doc.getElementById('theme-list');
+    const key = (target, name) => target.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }));
+    button.focus();
+    key(button, 'ArrowDown');
+    assert(!list.hidden, 'opened by ArrowDown');
+    eq(app.doc.activeElement.textContent, 'System');
+    key(app.doc.activeElement, 'ArrowDown');
+    eq(app.doc.activeElement.textContent, 'Light');
+    key(app.doc.activeElement, 'End');
+    eq(app.doc.activeElement.textContent, 'Dark');
+    key(app.doc.activeElement, 'ArrowDown');
+    eq(app.doc.activeElement.textContent, 'System');
+    key(app.doc.activeElement, 'Escape');
+    assert(list.hidden, 'closed by Escape');
+    eq(app.doc.activeElement, button);
+    button.click();
+    app.doc.body.dispatchEvent(new app.w.Event('pointerdown', { bubbles: true }));
+    assert(list.hidden, 'closed by an outside press');
+  } finally {
+    app.close();
+  }
+});
+
+test('ui: no browser-native controls are shown (no select, no title tooltips, file input hidden)', async () => {
+  const app = await openApp();
+  try {
+    add(app, mixed().slice(0, 2));
+    await settled(app, 2);
+    eq(app.doc.querySelectorAll('select, option, datalist, progress, meter').length, 0);
+    eq(app.doc.querySelectorAll('[title]').length, 0);
+    const input = app.doc.getElementById('file-input');
+    eq(input.getAttribute('tabindex'), '-1');
+    assert(app.w.getComputedStyle(input).opacity === '0', 'file input invisible');
+    const dl = rows(app)[0].querySelector('.dl');
+    assert(dl.dataset.tip && dl.getAttribute('aria-label'), 'custom tooltip text and accessible name');
+    assert(rows(app)[0].querySelector('.report-file').textContent === 'Letter.docx', 'full file name in the report');
   } finally {
     app.close();
   }
@@ -334,7 +387,7 @@ test('ui: a stored theme choice is applied before the app starts', async () => {
   const app = await openApp();
   try {
     eq(app.doc.documentElement.getAttribute('data-theme'), 'dark');
-    eq(app.doc.getElementById('theme-select').value, 'dark');
+    eq(app.doc.getElementById('theme-current').textContent, 'Dark');
   } finally {
     localStorage.removeItem('seam-theme');
     app.close();

@@ -112,7 +112,6 @@ export function createRenderer(list, actions) {
     main.type = 'button';
     main.setAttribute('aria-expanded', 'false');
     main.setAttribute('aria-controls', `report-${item.id}`);
-    main.title = item.name;
     const chip = el('span', 'chip');
     const name = el('span', 'name');
     const [start, end] = splitName(item.name);
@@ -152,6 +151,7 @@ export function createRenderer(list, actions) {
     const result = item.result;
     const panel = ref.report;
     panel.textContent = '';
+    panel.appendChild(el('p', 'report-file', item.name));
     panel.appendChild(el('p', 'report-summary', result.sentence));
     const groups = groupFindings(result.findings);
     for (const key of ['loss', 'repaired', 'noted']) {
@@ -211,7 +211,7 @@ export function createRenderer(list, actions) {
       if (hasOutput) {
         const label = result.outcome === 'salvaged' ? copy.btn.downloadSalvage : copy.btn.download;
         ref.dl.setAttribute('aria-label', label);
-        ref.dl.title = label;
+        ref.dl.dataset.tip = label;
       }
       ref.progress.dataset.p = '100';
       ref.progress.classList.add('done');

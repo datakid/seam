@@ -7,7 +7,7 @@ import { textReport, baseName, finding } from './core/report.js';
 const $ = (id) => document.getElementById(id);
 
 applyCopy(document);
-initTheme($('theme-select'));
+initTheme($('theme-button'), $('theme-list'), $('theme-current'));
 buildScope($('scope-body'));
 setupScope($('open-scope'), $('close-scope'), $('scope'));
 

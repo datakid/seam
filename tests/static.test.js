@@ -39,6 +39,12 @@ test('index.html: no inline scripts, no inline styles, no third-party origins', 
   assert(html.includes('<title>Seam — repair damaged Office files</title>'), 'title');
 });
 
+test('index.html: no native select or progress controls in the markup', async () => {
+  const html = await text('../index.html');
+  assert(!/<(select|datalist|progress|meter)\b/i.test(html), 'native control in markup');
+  assert(!/\stitle=/.test(html.replace(/<title>[^<]*<\/title>/, '')), 'title attribute in markup');
+});
+
 test('index.html: one module script, css order, landmarks, dialog', async () => {
   const html = await text('../index.html');
   assert((html.match(/type="module"/g) || []).length === 1, 'exactly one module script');

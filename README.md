@@ -20,7 +20,8 @@ Manual verification in Office: pending owner (checklist at the end of this file)
 - Verifies every output with structural checks. An output that fails verification is discarded and the outcome drops a level.
 - Salvages text into a new file when the structure cannot be rebuilt.
 - Reports every change as a finding, grouped as Lost, Repaired and Noted, with the part it concerns. Reports can be copied or saved as .txt.
-- Light, dark and system themes. The theme control is in the header. System is the default and follows the operating system setting.
+- Light, dark and system themes. The theme control is a custom menu in the header. System is the default and follows the operating system setting.
+- No browser-native controls are shown: no select element, no title tooltips (a styled tooltip is used), thin token-coloured scrollbars. The only native UI is the operating system file picker, which opens when you choose files and cannot be replaced by a web page.
 
 Outcomes: No problems found, Repaired, Partially repaired, Salvaged text, Could not repair, Not supported, Not processed.
 
@@ -100,7 +101,7 @@ Every user-facing string lives in `js/copy.js`.
 
 Departures from PLAN.md, with the reason for each.
 
-1. **Light, dark and system themes (owner request).** Added `css/themes.css`, `js/theme.js` and `js/theme-init.js`. `tokens.css` stays verbatim. Dark colours are overrides under `:root[data-theme="dark"]`, written in the same OKLCH style as the tokens. `theme-init.js` is a small classic script in the head so the page does not flash the wrong theme; it is a second script besides the one module. `<meta name="color-scheme" content="light dark">` was added.
+1. **Light, dark and system themes (owner request).** Added `css/themes.css`, `js/theme.js` and `js/theme-init.js`. `tokens.css` stays verbatim. Dark colours are overrides under `:root[data-theme="dark"]`, written in the same OKLCH style as the tokens. `theme-init.js` is a small classic script in the head so the page does not flash the wrong theme; it is a second script besides the one module. `<meta name="color-scheme" content="light dark">` was added. The theme control is a custom menu button with arrow-key, Home, End, Escape and outside-press handling, not a select element.
 2. **Storage.** The theme choice (`light`, `dark` or `system`) is kept in localStorage under `seam-theme`. No file data is stored.
 3. **No code comments (owner request).** None in code written for this project. `css/tokens.css` and `vendor/` are copied unchanged and keep their own comments.
 4. **DOMParser runs on the main thread.** Web Workers do not have DOMParser. The worker sends each part's text to the page, which checks it with DOMParser and replies. Parsing and repair still run in the worker. Before asking, the worker runs a light scan of its own; text it already knows is ill-formed is not sent, because Chrome builds an inline-styled error document for ill-formed input and the strict CSP reports that as a violation. DOMParser remains the only authority for "well-formed".
