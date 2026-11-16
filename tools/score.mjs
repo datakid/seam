@@ -1,0 +1,304 @@
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve, join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { extractText, recall } from './text-extract.mjs';
+import { loadManifest, cachePath } from './corpus-fetch.mjs';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const args = process.argv.slice(2);
+const flag = (name, fallback) => {
+  const at = args.indexOf(`--${name}`);
+  return at >= 0 ? args[at + 1] : fallback;
+};
+
+const healthyDir = resolve(root, flag('healthy', 'results/work/healthy'));
+const damagedDirs = flag('damaged', 'results/work/damaged').split(',').map((d) => resolve(root, d));
+const outDir = resolve(root, flag('out', 'results'));
+const label = flag('label', 'local');
+const gate = args.includes('--gate');
+const triage = (() => {
+  const path = join(root, 'corpus', 'manifest', 'triage.json');
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {};
+})();
+
+function readJson(path, fallback = null) {
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : fallback;
+}
+
+function readJsonl(path) {
+  if (!existsSync(path)) return {};
+  const out = {};
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const row = JSON.parse(line);
+      out[row.id] = row;
+    } catch {}
+  }
+  return out;
+}
+
+function median(values) {
+  if (values.length === 0) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function percentile(values, p) {
+  if (values.length === 0) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length))];
+}
+
+const pct = (n, d) => (d === 0 ? 'n/a' : `${Math.round((n / d) * 1000) / 10}%`);
+const num = (v, digits = 2) => (v === null || v === undefined ? 'n/a' : String(Math.round(v * 10 ** digits) / 10 ** digits));
+
+const manifest = Object.fromEntries(loadManifest('healthy').map((e) => [e.id, e]));
+const pristineCache = new Map();
+
+function pristineTokens(sourceId) {
+  if (!pristineCache.has(sourceId)) {
+    const entry = manifest[sourceId];
+    const path = entry ? cachePath(entry) : null;
+    pristineCache.set(sourceId, path && existsSync(path) ? extractText(new Uint8Array(readFileSync(path))).tokens : []);
+  }
+  return pristineCache.get(sourceId);
+}
+
+function tokensOfFile(path) {
+  return existsSync(path) ? extractText(new Uint8Array(readFileSync(path))).tokens : [];
+}
+
+const healthySeam = readJson(join(healthyDir, 'seam.json'), { cases: {} });
+const healthyLoIn = readJsonl(join(healthyDir, 'judge-lo-in', 'lo.jsonl'));
+const healthyRows = Object.entries(healthySeam.cases).map(([id, s]) => ({
+  id,
+  family: manifest[id] ? manifest[id].family : null,
+  producerClass: manifest[id] ? manifest[id].producerClass : 'unknown',
+  producer: manifest[id] ? manifest[id].producer : 'unknown',
+  label: s.outcome,
+  findings: s.findings.map((f) => f.code),
+  loLoads: healthyLoIn[id] ? healthyLoIn[id].load : null,
+  ms: s.ms,
+  peakMB: s.peakMB
+}));
+for (const r of healthyRows) r.triage = triage[r.id] ? triage[r.id].status : null;
+const quarantine = healthyRows.filter((r) => r.loLoads === false).map((r) => r.id);
+const falseAlarms = healthyRows.filter((r) => r.label !== 'noProblems');
+const falseAlarmsLoadable = falseAlarms.filter((r) => r.loLoads !== false);
+
+const healthyOxml = readJson(join(healthyDir, 'judge-oxml.json'), {});
+const rows = [];
+const damagedSeam = { cases: {}, browser: null, browserVersion: null };
+const anyJudge = { oxml: false, office: false };
+
+function judgeVerdict(judges) {
+  const reasons = [];
+  if (judges.lo && judges.lo.load === false) reasons.push('lo');
+  if (judges.oxml) {
+    const worse = typeof judges.oxml.baselineErrors === 'number' && judges.oxml.errors > judges.oxml.baselineErrors;
+    if (judges.oxml.opens === false || worse) reasons.push('oxml');
+  }
+  if (judges.office && judges.office.verdict && judges.office.verdict !== 'open') reasons.push('office');
+  return reasons;
+}
+
+for (const damagedDir of damagedDirs) {
+  const seam = readJson(join(damagedDir, 'seam.json'), { cases: {} });
+  damagedSeam.browser = damagedSeam.browser || seam.browser || null;
+  damagedSeam.browserVersion = damagedSeam.browserVersion || seam.browserVersion || null;
+  Object.assign(damagedSeam.cases, seam.cases);
+  const cases = readJson(join(damagedDir, 'cases.json'), {});
+  const loOut = readJsonl(join(damagedDir, 'judge-lo-out', 'lo.jsonl'));
+  const loIn = readJsonl(join(damagedDir, 'judge-lo-in', 'lo.jsonl'));
+  const oxml = readJson(join(damagedDir, 'judge-oxml.json'), {});
+  const office = readJson(join(damagedDir, 'judge-office.json'), {});
+  if (Object.keys(oxml).length > 0) anyJudge.oxml = true;
+  if (Object.keys(office).length > 0) anyJudge.office = true;
+  for (const [id, s] of Object.entries(seam.cases)) {
+    const c = cases[id];
+    if (!c) continue;
+    const pristine = pristineTokens(c.source);
+    const out = s.outputs && s.outputs.output ? join(damagedDir, 'outputs', s.outputs.output.file) : null;
+    let outTokens = [];
+    if (out) outTokens = tokensOfFile(out);
+    else if (s.outcome === 'noProblems') outTokens = tokensOfFile(join(damagedDir, 'files', `${id}.${c.ext}`));
+    const textRecall = recall(pristine, outTokens);
+    let baselineRecall = 0;
+    const lo = loIn[id];
+    if (lo && lo.rtFile) baselineRecall = recall(pristine, tokensOfFile(join(damagedDir, 'judge-lo-in', 'rt', lo.rtFile)));
+    const oxmlRow = out && oxml[id] ? { ...oxml[id], baselineErrors: healthyOxml[c.source] ? healthyOxml[c.source].errors : undefined } : null;
+    const judges = {
+      lo: out && loOut[id] ? { load: loOut[id].load, roundtrip: loOut[id].roundtrip } : null,
+      oxml: oxmlRow,
+      office: out && office[id] ? office[id] : null
+    };
+    rows.push({
+      file: id,
+      source: c.source,
+      family: c.family,
+      producer: c.producerClass,
+      kind: c.kind,
+      seed: c.seed,
+      seamLabel: s.outcome,
+      findings: s.findings.map((f) => f.code),
+      judges,
+      rejectedBy: out ? judgeVerdict(judges) : [],
+      judged: out ? Boolean(judges.lo || judges.oxml || judges.office) : false,
+      textRecall: Math.round(textRecall * 1000) / 1000,
+      baselineRecall: lo ? Math.round(baselineRecall * 1000) / 1000 : null,
+      ms: s.ms,
+      peakMB: s.peakMB
+    });
+  }
+}
+
+const LABELS = ['noProblems', 'repaired', 'partial', 'salvaged', 'failed', 'notSupported', 'timeout'];
+const kinds = [...new Set(rows.map((r) => r.kind))].sort();
+const perKind = kinds.map((kind) => {
+  const list = rows.filter((r) => r.kind === kind);
+  const labels = Object.fromEntries(LABELS.map((l) => [l, list.filter((r) => r.seamLabel === l).length]));
+  const repaired = list.filter((r) => r.seamLabel === 'repaired' && r.judged);
+  const withBase = list.filter((r) => r.baselineRecall !== null);
+  return {
+    kind,
+    n: list.length,
+    labels,
+    repairedJudged: repaired.length,
+    repairedPass: repaired.filter((r) => r.rejectedBy.length === 0).length,
+    medianRecall: median(list.map((r) => r.textRecall)),
+    medianBaseline: median(withBase.map((r) => r.baselineRecall)),
+    betterThanBaseline: withBase.filter((r) => r.textRecall > r.baselineRecall).length,
+    withBaseline: withBase.length
+  };
+});
+
+const overLabels = rows.filter((r) => r.seamLabel === 'repaired' && r.rejectedBy.length > 0);
+const partialRejected = rows.filter((r) => r.seamLabel === 'partial' && r.rejectedBy.length > 0);
+const judgedRepaired = rows.filter((r) => r.seamLabel === 'repaired' && r.judged);
+
+const coverage = readJson(join(root, 'corpus', 'cache', 'coverage-healthy.json'), { gaps: [] });
+const gaps = [...coverage.gaps];
+const anyOxml = anyJudge.oxml;
+const anyOffice = anyJudge.office;
+if (!anyOxml) gaps.push('Open XML SDK judge: not run');
+if (!anyOffice) gaps.push('Office judge: not run');
+gaps.push(`Browsers run: ${[healthySeam.browser, damagedSeam.browser].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'none'}`);
+const unjudged = rows.filter((r) => r.seamLabel === 'repaired' && !r.judged).length;
+if (unjudged > 0) gaps.push(`${unjudged} outputs labelled Repaired have no judge verdict`);
+if (Object.keys(healthyLoIn).length === 0) gaps.push('LibreOffice judge on healthy files: not run');
+
+let loVersion = '';
+try {
+  loVersion = execFileSync('soffice', ['--version'], { encoding: 'utf8', timeout: 20000 }).trim();
+} catch {}
+let commit = '';
+try {
+  commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+} catch {}
+
+const allMs = [...healthyRows.map((r) => r.ms), ...rows.map((r) => r.ms)];
+const allMb = [...healthyRows.map((r) => r.peakMB), ...rows.map((r) => r.peakMB)].filter((v) => typeof v === 'number');
+
+const board = {
+  label,
+  commit,
+  date: new Date().toISOString().slice(0, 10),
+  browser: damagedSeam.browserVersion || healthySeam.browserVersion || null,
+  libreOffice: loVersion || null,
+  healthy: {
+    files: healthyRows.length,
+    noProblems: healthyRows.length - falseAlarms.length,
+    falseAlarms: falseAlarms.length,
+    falseAlarmsOnLoadable: falseAlarmsLoadable.length,
+    quarantined: quarantine,
+    byProducer: Object.fromEntries([...new Set(healthyRows.map((r) => r.producerClass))].sort().map((p) => [p, { files: healthyRows.filter((r) => r.producerClass === p).length, falseAlarms: falseAlarms.filter((r) => r.producerClass === p).length }])),
+    triggers: Object.entries(falseAlarms.reduce((m, r) => {
+      for (const code of new Set(r.findings)) m[code] = (m[code] || 0) + 1;
+      return m;
+    }, {})).sort((a, b) => b[1] - a[1])
+  },
+  damaged: { cases: rows.length, perKind, overLabels: overLabels.map((r) => r.file), partialRejected: partialRejected.map((r) => r.file) },
+  performance: { medianMs: median(allMs), p95Ms: percentile(allMs, 95), maxMs: Math.max(0, ...allMs), maxPeakMB: Math.max(0, ...allMb), memoryMethod: 'js-heap-sampled (Chromium performance.memory, sampled at stage boundaries)' },
+  gaps,
+  cases: rows,
+  healthyCases: healthyRows
+};
+
+mkdirSync(outDir, { recursive: true });
+writeFileSync(join(outDir, 'scoreboard.json'), JSON.stringify(board));
+
+const md = [];
+md.push('# Seam scoreboard');
+md.push('');
+md.push(`Run \`${label}\` on ${board.date}, commit ${commit || 'unknown'}. Browser: ${board.browser || 'unknown'}. LibreOffice: ${loVersion || 'not run'}.`);
+md.push(`Healthy files: ${healthyRows.length}. Damaged cases: ${rows.length}.`);
+md.push('');
+md.push('## 1. Healthy files: false alarms');
+md.push('');
+md.push(`A false alarm is any label other than No problems found on a healthy file. Total: ${falseAlarms.length} of ${healthyRows.length} (${pct(falseAlarms.length, healthyRows.length)}). On files LibreOffice also loads: ${falseAlarmsLoadable.length} of ${healthyRows.length - quarantine.length}.`);
+md.push('');
+md.push('| Producer | Files | False alarms | Rate |');
+md.push('|---|---|---|---|');
+for (const [p, v] of Object.entries(board.healthy.byProducer)) md.push(`| ${p} | ${v.files} | ${v.falseAlarms} | ${pct(v.falseAlarms, v.files)} |`);
+md.push('');
+md.push('Findings that appear on false alarms:');
+md.push('');
+md.push('| Finding | Files |');
+md.push('|---|---|');
+for (const [code, n] of board.healthy.triggers.slice(0, 15)) md.push(`| ${code} | ${n} |`);
+md.push('');
+const pending = falseAlarms.filter((r) => r.triage === 'pending-judge');
+if (falseAlarms.length > 0) {
+  md.push('Each false alarm and its triage:');
+  md.push('');
+  md.push('| File | Label | Findings | Triage |');
+  md.push('|---|---|---|---|');
+  for (const r of falseAlarms) md.push(`| ${r.id} | ${r.label} | ${[...new Set(r.findings)].join(', ')} | ${r.triage ? `${r.triage}: ${triage[r.id].note}` : 'untriaged'} |`);
+  md.push('');
+}
+md.push(`Quarantine candidates (healthy by manifest, not loaded by LibreOffice): ${quarantine.length === 0 ? 'none' : quarantine.join(', ')}.`);
+md.push('');
+md.push('## 2. Damaged files by kind');
+md.push('');
+md.push('Pass rate is the share of outputs labelled Repaired that every available judge accepts. Recall is the share of the original text found in the output, as the median over cases. The baseline is LibreOffice opening the damaged file with no help.');
+md.push('');
+md.push('| Kind | Cases | No problems | Repaired | Partial | Salvaged | Failed | Not supported | Judge pass (Repaired) | Recall, Seam | Recall, baseline | Seam better |');
+md.push('|---|---|---|---|---|---|---|---|---|---|---|---|');
+for (const k of perKind) {
+  md.push(`| ${k.kind} | ${k.n} | ${k.labels.noProblems} | ${k.labels.repaired} | ${k.labels.partial} | ${k.labels.salvaged} | ${k.labels.failed + k.labels.timeout} | ${k.labels.notSupported} | ${k.repairedJudged === 0 ? 'n/a' : `${k.repairedPass}/${k.repairedJudged}`} | ${num(k.medianRecall)} | ${num(k.medianBaseline)} | ${k.withBaseline === 0 ? 'n/a' : `${k.betterThanBaseline}/${k.withBaseline}`} |`);
+}
+md.push('');
+md.push('## 3. Over-labels');
+md.push('');
+md.push(`Outputs labelled Repaired that a judge rejects: ${overLabels.length} of ${judgedRepaired.length} judged.`);
+md.push('');
+if (overLabels.length > 0) {
+  md.push('| File | Kind | Rejected by | Findings |');
+  md.push('|---|---|---|---|');
+  for (const r of overLabels) md.push(`| ${r.file} | ${r.kind} | ${r.rejectedBy.join(', ')} | ${[...new Set(r.findings)].join(', ')} |`);
+  md.push('');
+}
+md.push(`Outputs labelled Partially repaired that a judge rejects (tracked, not gated): ${partialRejected.length}.`);
+md.push('');
+md.push('## 4. Time and memory');
+md.push('');
+md.push(`Median ${num(board.performance.medianMs, 0)} ms, 95th percentile ${num(board.performance.p95Ms, 0)} ms, slowest ${num(board.performance.maxMs, 0)} ms. Highest heap growth ${num(board.performance.maxPeakMB, 1)} MB. Method: ${board.performance.memoryMethod}.`);
+md.push('');
+md.push('## 5. Gaps');
+md.push('');
+for (const g of gaps) md.push(`- ${g}`);
+md.push('');
+writeFileSync(join(outDir, 'SCOREBOARD.md'), md.join('\n'));
+console.log(md.join('\n'));
+if (gate) {
+  const problems = [];
+  if (falseAlarms.length > 0) problems.push(`${falseAlarms.length} false alarms on healthy files`);
+  if (overLabels.length > 0) problems.push(`${overLabels.length} outputs labelled Repaired that a judge rejects`);
+  if (problems.length > 0) {
+    console.error(`gate failed: ${problems.join('; ')}`);
+    process.exit(1);
+  }
+}

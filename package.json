@@ -1,0 +1,25 @@
+{
+  "name": "seam-dev",
+  "private": true,
+  "description": "Development and CI tooling for Seam. Nothing here ships with the app.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "npm run test:node && npm run test:browser",
+    "test:node": "node --test tests/",
+    "test:browser": "node tools/run-suite.mjs",
+    "corpus": "node tools/corpus-fetch.mjs --report",
+    "corpus:gen": "python3 tools/corpus-gen/generate.py",
+    "damage": "node tools/damage-run.mjs",
+    "score": "node tools/score.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.50.0"
+  },
+  "optionalDependencies": {
+    "@sparticuz/chromium": "^153.0.0"
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+corpus/cache/
+corpus/damaged/
+corpus/wild/
+results/work/
+.DS_Store
+results/scoreboard.json
+results/SCOREBOARD.md
