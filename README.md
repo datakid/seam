@@ -57,6 +57,31 @@ Open http://localhost:8000/tests/ in a browser. The runner prints `PASS` and `FA
 
 The tests were run in Chromium (Playwright). Firefox and Safari were not run.
 
+## Evidence and development tooling
+
+Nothing in this section ships with the app. It lives in `tools/`, `corpus/`, `results/` and `.github/`, needs Node 20 or later, and runs only in development and CI.
+
+```
+npm ci
+npm run test:node
+npm run test:browser
+npm run corpus
+```
+
+| Command | Does |
+|---|---|
+| `npm run test:node` | Node tests for the damage lab and the text extractor |
+| `npm run test:browser` | The browser suite in headless Chromium. `--browser firefox` or `--browser webkit` for the others |
+| `npm run corpus` | Fetches the healthy corpus, checks every SHA-256 and prints the coverage report |
+| `npm run corpus:gen` | Builds the python-docx, openpyxl and python-pptx files. Needs `tools/corpus-gen/requirements.txt` |
+| `node tools/damage-run.mjs --sample 0.02` | Damages corpus files with 13 seeded kinds |
+| `node tools/run-seam.mjs --in <dir> --out <dir>` | Runs the real pipeline over a directory in a browser |
+| `tools/judge-lo.sh <in> <out> --roundtrip` | LibreOffice headless: load check and re-save |
+| `node tools/score.mjs --gate` | Joins results into `results/SCOREBOARD.md` and fails on false alarms or rejected outputs |
+| `node tools/property.mjs` | Never throws or hangs, and a second pass over each output reports no problems |
+
+The Open XML SDK judge is `tools/judge-oxml` and the Office judge is `tools/office-judge.ps1`. The full run is `.github/workflows/score.yml`. `docs/PHASE-A-NOTES.md` lists what is built, what has not been run and where it differs from the plan.
+
 ## Structure
 
 ```
