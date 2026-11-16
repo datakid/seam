@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "npm run test:node && npm run test:browser",
-    "test:node": "node --test tests/",
+    "test:node": "node --test tests/*.test.mjs",
     "test:browser": "node tools/run-suite.mjs",
     "corpus": "node tools/corpus-fetch.mjs --report",
     "corpus:gen": "python3 tools/corpus-gen/generate.py",

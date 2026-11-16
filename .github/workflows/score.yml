@@ -1,6 +1,9 @@
 name: score
 
 on:
+  push:
+    tags:
+      - 'score-*'
   workflow_dispatch:
     inputs:
       sample:
@@ -9,10 +12,29 @@ on:
   schedule:
     - cron: '0 3 * * 0'
 
-env:
-  SHARDS: 24
-
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      shards: ${{ steps.p.outputs.shards }}
+      count: ${{ steps.p.outputs.count }}
+      sample: ${{ steps.p.outputs.sample }}
+    steps:
+      - id: p
+        run: |
+          sample="${{ github.event.inputs.sample }}"
+          if [ -z "$sample" ]; then
+            case "$GITHUB_REF_NAME" in
+              score-sample*) sample=0.02 ;;
+              *) sample=1 ;;
+            esac
+          fi
+          if [ "$sample" = "1" ]; then count=24; else count=2; fi
+          shards=$(python3 -c "import json,sys; print(json.dumps(list(range(int(sys.argv[1])))))" "$count")
+          echo "sample=$sample" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "shards=$shards" >> "$GITHUB_OUTPUT"
+
   healthy:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -42,12 +64,13 @@ jobs:
           retention-days: 14
 
   damaged:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -63,7 +86,7 @@ jobs:
       - run: python3 -m pip install -r tools/corpus-gen/requirements.txt
       - run: npm run corpus:gen
       - run: npm run corpus
-      - run: node tools/damage-run.mjs --out results/work/damaged --sample ${{ github.event.inputs.sample || '1' }} --seeds 3 --shard ${{ matrix.shard }}/${{ env.SHARDS }}
+      - run: node tools/damage-run.mjs --out results/work/damaged --sample ${{ needs.plan.outputs.sample }} --seeds 3 --shard ${{ matrix.shard }}/${{ needs.plan.outputs.count }}
       - run: node tools/run-seam.mjs --in results/work/damaged/files --out results/work/damaged --pages 2
       - run: tools/judge-lo.sh results/work/damaged/outputs results/work/damaged/judge-lo-out
       - run: tools/judge-lo.sh results/work/damaged/files results/work/damaged/judge-lo-in --roundtrip
@@ -100,7 +123,7 @@ jobs:
           retention-days: 14
 
   scoreboard:
-    needs: [healthy, damaged, browsers]
+    needs: [plan, healthy, damaged, browsers]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
