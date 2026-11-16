@@ -1,0 +1,26 @@
+[
+  {
+    "id": "poi",
+    "repo": "apache/poi",
+    "branch": "trunk",
+    "paths": ["test-data/document", "test-data/spreadsheet", "test-data/slideshow"],
+    "licence": "Apache-2.0",
+    "licenceNote": "Repository licence. Individual test files are fetched, never committed."
+  },
+  {
+    "id": "oxml-sdk",
+    "repo": "dotnet/Open-XML-SDK",
+    "branch": "main",
+    "paths": ["test"],
+    "licence": "MIT",
+    "licenceNote": "Repository licence. Confirm per-folder notices before any redistribution."
+  },
+  {
+    "id": "libreoffice",
+    "repo": "LibreOffice/core",
+    "branch": "master",
+    "paths": ["sw/qa", "sc/qa", "sd/qa"],
+    "licence": "MPL-2.0",
+    "licenceNote": "Repository licence. Many files are bug reproducers and are tagged by name."
+  }
+]

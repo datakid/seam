@@ -1,0 +1,4 @@
+{
+  "libreoffice-ofz46160-1": "oss-fuzz crash file. Zip entries are truncated or unreadable.",
+  "libreoffice-ofz9934-1": "oss-fuzz crash file. Zip entries fail their CRC and are unreadable."
+}

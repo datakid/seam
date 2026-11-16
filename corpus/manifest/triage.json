@@ -1,0 +1,7 @@
+{
+  "libreoffice-bad": { "status": "pending-judge", "note": "Named .docm but the main part has the plain document type. Word may reject the mismatch. The Office judge decides." },
+  "libreoffice-bnc591147": { "status": "pending-judge", "note": "Video and audio parts have no content type and .avi is not in the default table. Seam discards its repair and fails. Phase C part registry should add the default instead." },
+  "libreoffice-tdf148478_transitionMusic": { "status": "pending-judge", "note": "Override names a missing part and the .wav default is absent. Office tolerance for a stale override is unconfirmed." },
+  "poi-64450": { "status": "pending-judge", "note": "Relationship points at a part that is not in the package. Office tolerance is unconfirmed." },
+  "poi-picture": { "status": "pending-judge", "note": "Workbook relationship to connections.xml has no part, plus a stale override. Office tolerance is unconfirmed." }
+}
