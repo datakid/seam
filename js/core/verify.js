@@ -1,7 +1,7 @@
 import { strictRead } from './zip-read.js';
 import { decodeXml } from './xml-clean.js';
 import { parseTree, documentElement, localName, elementChildren, descendants, looksWellFormed } from './xml-repair.js';
-import { CT_MAIN, REL_OFFICE_DOC } from './constants.js';
+import { CT_MAIN, FAMILY_KEYS, isMainRelType } from './constants.js';
 import { isXmlPath, isRelsPath, resolveTarget, sourceOfRels, PartIndex, readRelationships, readContentTypes, contentTypeOf, relsPathFor, relPrefixSet, relAttr } from './package.js';
 
 const FAMILY = { word: 'docx', xl: 'xlsx', ppt: 'pptx' };
@@ -49,7 +49,7 @@ export async function verifyPackage(bytes, env, expected = null) {
     if (!isRelsPath(name)) continue;
     const source = sourceOfRels(name);
     for (const rel of readRelationships(tree(name))) {
-      if (rel.external) continue;
+      if (rel.external || rel.target === 'NULL') continue;
       if (source !== null && !index.has(resolveTarget(source, rel.target))) {
         failed.push({ check: 3, detail: `${name} ${rel.target}` });
         return { ok: false, failed };
@@ -72,7 +72,7 @@ export async function verifyPackage(bytes, env, expected = null) {
 
   let main = null;
   if (index.has('_rels/.rels')) {
-    const rel = readRelationships(tree(index.canonical('_rels/.rels'))).find((r) => r.type === REL_OFFICE_DOC && !r.external);
+    const rel = readRelationships(tree(index.canonical('_rels/.rels'))).find((r) => isMainRelType(r.type) && !r.external);
     if (rel) main = resolveTarget('', rel.target);
   }
   if (!main || !index.has(main)) {
@@ -82,7 +82,7 @@ export async function verifyPackage(bytes, env, expected = null) {
   main = index.canonical(main);
   const family = familyOfMain(main);
   const mainType = contentTypeOf(main, ct);
-  const allowed = family ? [CT_MAIN[family], CT_MAIN[family.slice(0, 3) + 'm']] : [];
+  const allowed = family ? FAMILY_KEYS[family].map((key) => CT_MAIN[key]) : [];
   if (!family || !allowed.includes(mainType) || (expected && CT_MAIN[expected.key] !== mainType)) {
     failed.push({ check: 5, detail: 'type' });
     return { ok: false, failed };

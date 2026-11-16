@@ -127,9 +127,8 @@ for (const fmt of ['docx', 'xlsx', 'pptx']) {
         return;
       }
       if (c.id === 'C18') {
-        eq(result.outcome, 'repaired', dump());
-        assert(found.includes('XML_REENCODED'), dump());
-        await checkOutput(result, fmt);
+        eq(result.outcome, 'noProblems', dump());
+        assert(!found.includes('XML_REENCODED'), dump());
       }
     });
   }

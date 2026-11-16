@@ -74,3 +74,14 @@ test('fonts and vendor files are present and sized', async () => {
   assert(lib.includes('export function zipSync') && lib.includes('export function unzipSync'), 'fflate is not the esm build');
   assert((await text('../vendor/fflate.LICENSE')).includes('MIT'), 'fflate licence');
 });
+
+test('dev tooling never ships: no app module imports tools, node_modules or corpus', async () => {
+  for (const url of JS) {
+    const source = await text(url);
+    for (const match of source.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g)) {
+      assert(!/(^|\/)(tools|node_modules|corpus|results|ci)(\/|$)/.test(match[1]), `${url} imports ${match[1]}`);
+    }
+  }
+  const html = await text('../index.html');
+  assert(!/(tools|node_modules|corpus|results)\//.test(html), 'index.html references dev tooling');
+});

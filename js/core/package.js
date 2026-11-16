@@ -1,7 +1,7 @@
 import { decodeEntities, getAttr, elementChildren, documentElement, localName, prefixOf, parseTree, serializeTree, createElement, removeNode, setAttr } from './xml-repair.js';
 import { encodeUtf8 } from './xml-clean.js';
 import { finding } from './report.js';
-import { REL_NS, CT_MAIN, CT_DEFAULTS, CT_NS, PKG_REL_NS, REL_OFFICE_DOC, REL_CORE, REL_EXT, OVERRIDE_TABLE } from './constants.js';
+import { REL_NS, REL_NS_STRICT, isMainRelType, CT_MAIN, CT_DEFAULTS, CT_NS, PKG_REL_NS, REL_OFFICE_DOC, REL_CORE, REL_EXT, OVERRIDE_TABLE } from './constants.js';
 
 export function dirName(path) {
   const at = path.lastIndexOf('/');
@@ -135,7 +135,7 @@ export function relPrefixSet(rootEl) {
   const set = new Set();
   if (rootEl) {
     for (const [name, value] of rootEl.attrs) {
-      if (name.startsWith('xmlns:') && decodeEntities(value) === REL_NS) set.add(name.slice(6));
+      if (name.startsWith('xmlns:') && [REL_NS, REL_NS_STRICT].includes(decodeEntities(value))) set.add(name.slice(6));
     }
   }
   if (set.size === 0) set.add('r');
@@ -271,7 +271,7 @@ export function repairRootRels(ctx) {
     return;
   }
   const rels = readRelationships(tree);
-  const official = rels.filter((rel) => rel.type === REL_OFFICE_DOC && !rel.external);
+  const official = rels.filter((rel) => isMainRelType(rel.type) && !rel.external);
   const good = official.find((rel) => resolveTarget('', rel.target).toLowerCase() === mainPath.toLowerCase());
   if (good) return;
   const root = documentElement(tree);
@@ -316,7 +316,7 @@ export function repairRels(ctx) {
         removeNode(rel.node);
         continue;
       }
-      if (rel.external) continue;
+      if (rel.external || rel.target === 'NULL') continue;
       if (!ctx.index.has(resolveTarget(source, rel.target))) {
         removed.push(rel.target);
         removeNode(rel.node);
@@ -402,8 +402,10 @@ export function repairContentTypes(ctx, silentParts) {
   const mainOverrideNode = elementChildren(root, 'Override').find((node) => normalizePartPath(getAttr(node, 'PartName') || '').toLowerCase() === mainKey);
   let addedOverrides = 0;
   if (!mainOverrideNode) {
-    append(createElement('Override', [['PartName', `/${ctx.main}`], ['ContentType', wantMain]]));
-    addedOverrides++;
+    if (contentTypeOf(ctx.main, ct) !== wantMain) {
+      append(createElement('Override', [['PartName', `/${ctx.main}`], ['ContentType', wantMain]]));
+      addedOverrides++;
+    }
   } else if (getAttr(mainOverrideNode, 'ContentType') !== wantMain) {
     setAttr(mainOverrideNode, 'ContentType', wantMain);
     changed = true;
@@ -445,7 +447,6 @@ export function repairContentTypes(ctx, silentParts) {
     changed = true;
     addFinding(ctx, 'CT_DEFAULT_ADDED', name, { ext });
   };
-  for (const ext of ['rels', 'xml']) if (!ct.defaults.has(ext)) insertDefault(ext, CT_DEFAULTS[ext]);
   const unknown = [];
   for (const partName of ctx.index.names()) {
     if (partName === '[Content_Types].xml') continue;

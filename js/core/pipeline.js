@@ -14,7 +14,7 @@ import { applyPptx } from './formats/pptx.js';
 import { verifyPackage, familyOfMain, checkWellFormed } from './verify.js';
 import { salvage } from './salvage.js';
 import { notSupportedResult, failedResult, sentenceFor, countLoss, detectedLabel, baseName, finding } from './report.js';
-import { REL_OFFICE_DOC, MAIN_PARTS, OUTPUT_MIME, STAGE_WEIGHTS, stageStart } from './constants.js';
+import { isMainRelType, MAIN_PARTS, OUTPUT_MIME, STAGE_WEIGHTS, stageStart, CT_MAIN, FAMILY_KEYS, STANDARD_KEYS } from './constants.js';
 import { copy } from '../copy.js';
 
 const STRUCTURAL = new Set(['NO_EOCD', 'BAD_CD', 'BAD_CD_ENTRY', 'BAD_LOCAL', 'NAME_MISMATCH', 'SHORT_DATA']);
@@ -60,11 +60,13 @@ function loadEntries(ctx, bytes, identity) {
     dropped.push(...recovered.dropped);
     endsEarly = recovered.endsEarly;
   }
-  ctx.strictIntact = strict.intact && prefix === 0 && !identity.damagedStart;
+  const autoShift = (strict.shift === undefined ? 0 : strict.shift) - prefix;
+  ctx.strictIntact = strict.intact && prefix === 0 && autoShift === 0 && !identity.damagedStart;
+  if (autoShift > 0 && !identity.prefixGarbage) addFinding(ctx, 'ZIP_PREFIX_DATA', null, { bytes: autoShift });
   if (identity.prefixGarbage) {
     addFinding(ctx, 'ZIP_PREFIX_DATA', null, { bytes: identity.prefixGarbage });
   }
-  if (!strict.intact && directoryBroken) addFinding(ctx, 'ZIP_DIRECTORY_REBUILT', null, { n: entries.length });
+  if ((!strict.intact && directoryBroken) || autoShift < 0) addFinding(ctx, 'ZIP_DIRECTORY_REBUILT', null, { n: entries.length });
   if (endsEarly) addFinding(ctx, 'ZIP_ENDS_EARLY', null, {});
   for (const raw of dropped) addFinding(ctx, 'ZIP_PATH_DROPPED', raw, {});
   if (dropped.length > 0) ctx.changed = true;
@@ -95,9 +97,8 @@ async function processXml(ctx, part, env) {
   const decoded = decodeXml(part.bytes);
   const cleaned = cleanChars(decoded.text);
   let text = cleaned.text;
-  let changed = decoded.reencoded || cleaned.changed || decoded.invalid > 0;
+  let changed = cleaned.changed || decoded.invalid > 0;
   const found = [];
-  if (decoded.reencoded) found.push(['XML_REENCODED', {}]);
   if (decoded.invalid > 0) found.push(['XML_INVALID_BYTES', { n: decoded.invalid }]);
   if (cleaned.changed) found.push(['XML_CHARS_REMOVED', { n: cleaned.removed + cleaned.escaped }]);
 
@@ -146,7 +147,7 @@ function classify(ctx) {
   const rootRels = ctx.index.canonical('_rels/.rels');
   const tree = rootRels ? getTree(ctx, rootRels) : null;
   if (tree) {
-    const rel = readRelationships(tree).find((r) => r.type === REL_OFFICE_DOC && !r.external);
+    const rel = readRelationships(tree).find((r) => isMainRelType(r.type) && !r.external);
     if (rel) {
       const path = ctx.index.canonical(resolveTarget('', rel.target));
       if (path && topFolderFamily(path)) main = path;
@@ -163,7 +164,7 @@ function classify(ctx) {
   }
   let family = main ? topFolderFamily(main) : null;
   if (!main) {
-    const guess = { docx: 'docx', docm: 'docx', xlsx: 'xlsx', xlsm: 'xlsx', pptx: 'pptx', pptm: 'pptx' }[ctx.inputExt];
+    const guess = Object.keys(FAMILY_KEYS).find((f) => FAMILY_KEYS[f].includes(ctx.inputExt));
     const folder = { docx: 'word/', xlsx: 'xl/', pptx: 'ppt/' }[guess];
     if (guess && ctx.index.names().some((n) => n.toLowerCase().startsWith(folder))) family = guess;
   }
@@ -180,7 +181,14 @@ function classify(ctx) {
       if (type && type.includes('macroEnabled')) macro = true;
     }
   }
-  const key = macro ? `${family.slice(0, 3)}m` : family;
+  let key = macro ? `${family.slice(0, 3)}m` : family;
+  if (main) {
+    const ctName = ctx.index.canonical('[Content_Types].xml');
+    const ctTree = ctName ? getTree(ctx, ctName) : null;
+    const type = ctTree ? contentTypeOf(main, readContentTypes(ctTree)) : null;
+    const exact = type ? FAMILY_KEYS[family].find((k) => CT_MAIN[k] === type) : null;
+    if (exact && !STANDARD_KEYS.includes(exact) && !STANDARD_KEYS.includes(ctx.inputExt)) key = exact;
+  }
   ctx.format = { key, ext: key, family };
   if (ctx.inputExt !== key) {
     ctx.extCorrected = true;

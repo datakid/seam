@@ -14,8 +14,24 @@ export const CT_MAIN = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml',
   xlsm: 'application/vnd.ms-excel.sheet.macroEnabled.main+xml',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml',
-  pptm: 'application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml'
+  pptm: 'application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml',
+  dotx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml',
+  dotm: 'application/vnd.ms-word.template.macroEnabledTemplate.main+xml',
+  xltx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml',
+  xltm: 'application/vnd.ms-excel.template.macroEnabled.main+xml',
+  potx: 'application/vnd.openxmlformats-officedocument.presentationml.template.main+xml',
+  potm: 'application/vnd.ms-powerpoint.template.macroEnabled.main+xml',
+  ppsx: 'application/vnd.openxmlformats-officedocument.presentationml.slideshow.main+xml',
+  ppsm: 'application/vnd.ms-powerpoint.slideshow.macroEnabled.main+xml'
 };
+
+export const FAMILY_KEYS = {
+  docx: ['docx', 'docm', 'dotx', 'dotm'],
+  xlsx: ['xlsx', 'xlsm', 'xltx', 'xltm'],
+  pptx: ['pptx', 'pptm', 'potx', 'potm', 'ppsx', 'ppsm']
+};
+
+export const STANDARD_KEYS = ['docx', 'docm', 'xlsx', 'xlsm', 'pptx', 'pptm'];
 
 export const CT_DEFAULTS = {
   rels: 'application/vnd.openxmlformats-package.relationships+xml',
@@ -41,6 +57,12 @@ export const REL_OFFICE_DOC = 'http://schemas.openxmlformats.org/officeDocument/
 export const REL_CORE = 'http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties';
 export const REL_EXT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties';
 export const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+export const REL_NS_STRICT = 'http://purl.oclc.org/ooxml/officeDocument/relationships';
+export const REL_OFFICE_DOC_STRICT = 'http://purl.oclc.org/ooxml/officeDocument/relationships/officeDocument';
+
+export function isMainRelType(type) {
+  return type === REL_OFFICE_DOC || type === REL_OFFICE_DOC_STRICT;
+}
 export const PKG_REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
 export const CT_NS = 'http://schemas.openxmlformats.org/package/2006/content-types';
 export const REL_BASE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
@@ -96,7 +118,15 @@ export const OUTPUT_MIME = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   xlsm: 'application/vnd.ms-excel.sheet.macroEnabled.12',
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  pptm: 'application/vnd.ms-powerpoint.presentation.macroEnabled.12'
+  pptm: 'application/vnd.ms-powerpoint.presentation.macroEnabled.12',
+  dotx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.template',
+  dotm: 'application/vnd.ms-word.template.macroEnabled.12',
+  xltx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.template',
+  xltm: 'application/vnd.ms-excel.template.macroEnabled.12',
+  potx: 'application/vnd.openxmlformats-officedocument.presentationml.template',
+  potm: 'application/vnd.ms-powerpoint.template.macroEnabled.12',
+  ppsx: 'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+  ppsm: 'application/vnd.ms-powerpoint.slideshow.macroEnabled.12'
 };
 
 export const STORED_EXTENSIONS = ['png', 'jpeg', 'jpg', 'gif', 'mp4', 'mp3'];

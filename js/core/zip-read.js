@@ -124,9 +124,10 @@ export function strictRead(bytes, prefix = 0) {
     }
   }
   let shift = prefix;
+  const terminal = eocd + 22 + u16(bytes, eocd + 20) >= n;
   if (!startsWith(bytes, SIG.CENTRAL, cdOffset + shift)) {
     const alt = eocd - cdSize;
-    if (alt >= 0 && startsWith(bytes, SIG.CENTRAL, alt)) shift = alt - cdOffset;
+    if (terminal && alt >= 0 && startsWith(bytes, SIG.CENTRAL, alt)) shift = alt - cdOffset;
     else if (total > 0) {
       result.errors.push('BAD_CD');
       return result;

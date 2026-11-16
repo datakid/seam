@@ -5,6 +5,7 @@ const files = [
   './static.test.js',
   './identify.test.js',
   './fixtures.test.js',
+  './healthy.test.js',
   './zip.test.js',
   './xml.test.js',
   './package.test.js',
