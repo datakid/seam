@@ -17,6 +17,8 @@ const damagedDirs = flag('damaged', 'results/work/damaged').split(',').map((d) =
 const outDir = resolve(root, flag('out', 'results'));
 const label = flag('label', 'local');
 const gate = args.includes('--gate');
+const browsersPath = join(outDir, 'browsers.txt');
+const browsersText = existsSync(browsersPath) ? readFileSync(browsersPath, 'utf8').trim() : '';
 const triage = (() => {
   const path = join(root, 'corpus', 'manifest', 'triage.json');
   return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {};
@@ -76,6 +78,7 @@ function tokensOfFile(path) {
 
 const healthySeam = readJson(join(healthyDir, 'seam.json'), { cases: {} });
 const healthyLoIn = readJsonl(join(healthyDir, 'judge-lo-in', 'lo.jsonl'));
+const healthyOxml = readJson(join(healthyDir, 'judge-oxml.json'), {});
 const healthyRows = Object.entries(healthySeam.cases).map(([id, s]) => ({
   id,
   family: manifest[id] ? manifest[id].family : null,
@@ -93,7 +96,6 @@ const quarantine = healthyRows.filter((r) => r.loLoads === false).map((r) => r.i
 const falseAlarms = healthyRows.filter((r) => r.label !== 'noProblems');
 const falseAlarmsLoadable = falseAlarms.filter((r) => r.loLoads !== false);
 
-const healthyOxml = readJson(join(healthyDir, 'judge-oxml.json'), {});
 const rows = [];
 const damagedSeam = { cases: {}, browser: null, browserVersion: null };
 const anyJudge = { oxml: false, office: false };
@@ -208,8 +210,7 @@ if (!loVersion) {
     loVersion = execFileSync('soffice', ['--version'], { encoding: 'utf8', timeout: 20000 }).trim();
   } catch {}
 }
-const browsersPath = join(root, 'results', 'browsers.txt');
-const browsersText = existsSync(browsersPath) ? readFileSync(browsersPath, 'utf8').trim() : '';
+
 let commit = '';
 try {
   commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
