@@ -134,7 +134,8 @@ for (const damagedDir of damagedDirs) {
     if (lo && lo.rtFile) baselineRecall = recall(pristine, tokensOfFile(join(damagedDir, 'judge-lo-in', 'rt', lo.rtFile)));
     const isBlind = Boolean(blind[c.source] || (c.otherId && blind[c.otherId]));
     if (isBlind && out) blindCases++;
-    const oxmlRow = out && oxml[id] ? { ...oxml[id], baselineErrors: healthyOxml[c.source] ? healthyOxml[c.source].errors : undefined } : null;
+    const bases = [healthyOxml[c.source], c.otherId ? healthyOxml[c.otherId] : null].filter(Boolean).map((r) => r.errors).filter((v) => typeof v === 'number');
+    const oxmlRow = out && oxml[id] ? { ...oxml[id], baselineErrors: bases.length > 0 ? Math.max(...bases) : undefined } : null;
     const judges = {
       lo: out && loOut[id] && !isBlind ? { load: loOut[id].load, roundtrip: loOut[id].roundtrip } : null,
       oxml: oxmlRow,
@@ -190,16 +191,24 @@ const anyOxml = anyJudge.oxml;
 const anyOffice = anyJudge.office;
 if (!anyOxml) gaps.push('Open XML SDK judge: not run');
 if (!anyOffice) gaps.push('Office judge: not run');
-gaps.push(`Browsers run: ${[healthySeam.browser, damagedSeam.browser].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'none'}`);
+if (!browsersText) gaps.push(`Browsers run: ${[healthySeam.browser, damagedSeam.browser].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'none'}`);
 const unjudged = rows.filter((r) => r.seamLabel === 'repaired' && !r.judged).length;
 if (unjudged > 0) gaps.push(`${unjudged} outputs labelled Repaired have no judge verdict`);
 if (blindCases > 0) gaps.push(`${blindCases} cases derived from files LibreOffice cannot load were not judged by LibreOffice`);
 if (Object.keys(healthyLoIn).length === 0) gaps.push('LibreOffice judge on healthy files: not run');
 
 let loVersion = '';
-try {
-  loVersion = execFileSync('soffice', ['--version'], { encoding: 'utf8', timeout: 20000 }).trim();
-} catch {}
+for (const dir of [healthyDir, ...damagedDirs]) {
+  const path = join(dir, 'judge-lo-in', 'version.txt');
+  if (!loVersion && existsSync(path)) loVersion = readFileSync(path, 'utf8').trim();
+}
+if (!loVersion) {
+  try {
+    loVersion = execFileSync('soffice', ['--version'], { encoding: 'utf8', timeout: 20000 }).trim();
+  } catch {}
+}
+const browsersPath = join(root, 'results', 'browsers.txt');
+const browsersText = existsSync(browsersPath) ? readFileSync(browsersPath, 'utf8').trim() : '';
 let commit = '';
 try {
   commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
@@ -293,7 +302,18 @@ md.push('## 4. Time and memory');
 md.push('');
 md.push(`Median ${num(board.performance.medianMs, 0)} ms, 95th percentile ${num(board.performance.p95Ms, 0)} ms, slowest ${num(board.performance.maxMs, 0)} ms. Highest heap growth ${num(board.performance.maxPeakMB, 1)} MB. Method: ${board.performance.memoryMethod}.`);
 md.push('');
-md.push('## 5. Gaps');
+md.push('## 5. Browsers');
+md.push('');
+if (browsersText) {
+  const lines = browsersText.split('\n');
+  md.push(lines[0]);
+  md.push('');
+  for (const line of lines.slice(1)) md.push(`- ${line.trim()}`);
+} else {
+  md.push('Not compared.');
+}
+md.push('');
+md.push('## 6. Gaps');
 md.push('');
 for (const g of gaps) md.push(`- ${g}`);
 md.push('');

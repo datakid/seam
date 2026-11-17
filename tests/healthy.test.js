@@ -311,3 +311,29 @@ test('damaged: a file that is only an HTML error page is still reported as not a
   eq(result.outcome, 'notSupported');
   eq(result.detected.kind, 'HTML');
 });
+
+const PIC = '<p:pic><p:nvPicPr><p:cNvPr id="9" name="Picture 9"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="rId9"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr/></p:pic>';
+
+function layoutWithMissingImage(entries) {
+  return entries.map(([name, content]) => {
+    if (name === 'ppt/slideLayouts/slideLayout1.xml') return [name, content.replace('</p:spTree>', `${PIC}</p:spTree>`)];
+    if (name === 'ppt/slideLayouts/_rels/slideLayout1.xml.rels') return [name, content.replace('</Relationships>', `<Relationship Id="rId9" Type="${IMAGE_REL}" Target="../media/gone.png"/></Relationships>`)];
+    return [name, content];
+  });
+}
+
+test('damaged: a reference that is left pointing at a removed relationship is reported and the label is Partial', async () => {
+  const result = await run('sample.pptx', pack(layoutWithMissingImage(pptxEntries())));
+  const codes = result.findings.map((f) => f.code);
+  assert(codes.includes('REL_REMOVED'), 'relationship removed');
+  const left = result.findings.find((f) => f.code === 'REF_DANGLING');
+  assert(left, `reference reported: ${codes.join(',')}`);
+  eq(left.part, 'ppt/slideLayouts/slideLayout1.xml');
+  eq(result.outcome, 'partial');
+});
+
+test('damaged: a repair that leaves no dangling reference is not downgraded', async () => {
+  const entries = pptxEntries().filter(([name]) => name !== 'ppt/media/image1.png');
+  const result = await run('sample.pptx', pack(entries));
+  assert(!result.findings.map((f) => f.code).includes('REF_DANGLING'), 'no dangling finding');
+});

@@ -464,3 +464,32 @@ export function mainFolderOf(main) {
   return dirName(main);
 }
 
+
+export function auditReferences(ctx) {
+  for (const name of ctx.parts.keys()) {
+    if (name === '[Content_Types].xml' || name.endsWith('.rels')) continue;
+    const part = ctx.parts.get(name);
+    if (part.text === null || part.text === undefined) continue;
+    const tree = getTree(ctx, name);
+    const root = tree ? documentElement(tree) : null;
+    if (!root) continue;
+    const prefixes = relPrefixSet(root);
+    const relsName = ctx.index.canonical(relsPathFor(name));
+    const relsTree = relsName ? getTree(ctx, relsName) : null;
+    const ids = new Set(relsTree ? readRelationships(relsTree).map((rel) => rel.id) : []);
+    let missing = 0;
+    const stack = [root];
+    while (stack.length > 0) {
+      const node = stack.pop();
+      for (const [attrName, value] of node.attrs) {
+        const prefix = prefixOf(attrName);
+        if (prefix && prefixes.has(prefix)) {
+          const id = decodeEntities(value);
+          if (id !== '' && !ids.has(id)) missing++;
+        }
+      }
+      for (const child of node.children) if (child.type === 'el') stack.push(child);
+    }
+    if (missing > 0) addFinding(ctx, 'REF_DANGLING', name, { n: missing });
+  }
+}

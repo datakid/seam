@@ -6,7 +6,7 @@ import { decodeXml, cleanChars, encodeUtf8 } from './xml-clean.js';
 import { repairXml } from './xml-repair.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
-  repairRootRels, repairRels, repairContentTypes, flushTrees, addFinding, getTree
+  repairRootRels, repairRels, auditReferences, repairContentTypes, flushTrees, addFinding, getTree
 } from './package.js';
 import { applyDocx } from './formats/docx.js';
 import { applyXlsx, normalizeXlsx } from './formats/xlsx.js';
@@ -297,6 +297,7 @@ async function execute(input, env) {
   progress('package', 0.8);
   repairContentTypes(ctx, ctx.silentParts);
   flushTrees(ctx);
+  if (ctx.changed) auditReferences(ctx);
   progress('package', 1);
 
   if (!ctx.changed && ctx.strictIntact) {

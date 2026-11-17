@@ -10,6 +10,7 @@ soffice_bin="$(command -v soffice || command -v libreoffice)"
 [ -z "$soffice_bin" ] && { echo "soffice not found" >&2; exit 2; }
 
 mkdir -p "$output/pdf" "$output/rt"
+"$soffice_bin" --version > "$output/version.txt" 2>/dev/null || true
 log="$output/lo.jsonl"
 if [ "${LO_RESUME:-0}" != "1" ]; then : > "$log"; fi
 touch "$log"

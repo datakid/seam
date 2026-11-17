@@ -108,6 +108,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     timeoutMs: Number(flag('timeout', '60000')),
     pages: Number(flag('pages', '2')),
     resume: args.includes('--resume'),
+    only: flag('only', null) ? flag('only').split(',') : null,
     onProgress: (done, total) => {
       if (done % 25 === 0 || done === total) process.stderr.write(`\r${done}/${total}`);
     }
