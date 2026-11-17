@@ -84,6 +84,7 @@ const healthyRows = Object.entries(healthySeam.cases).map(([id, s]) => ({
   label: s.outcome,
   findings: s.findings.map((f) => f.code),
   loLoads: healthyLoIn[id] ? healthyLoIn[id].load : null,
+  oxml: healthyOxml[id] ? { opens: healthyOxml[id].opens, errors: healthyOxml[id].errors } : null,
   ms: s.ms,
   peakMB: s.peakMB
 }));
@@ -269,9 +270,9 @@ const pending = falseAlarms.filter((r) => r.triage === 'pending-judge');
 if (falseAlarms.length > 0) {
   md.push('Each false alarm and its triage:');
   md.push('');
-  md.push('| File | Label | Findings | Triage |');
-  md.push('|---|---|---|---|');
-  for (const r of falseAlarms) md.push(`| ${r.id} | ${r.label} | ${[...new Set(r.findings)].join(', ')} | ${r.triage ? `${r.triage}: ${triage[r.id].note}` : 'untriaged'} |`);
+  md.push('| File | Label | Findings | Open XML SDK on the original | Triage |');
+  md.push('|---|---|---|---|---|');
+  for (const r of falseAlarms) md.push(`| ${r.id} | ${r.label} | ${[...new Set(r.findings)].join(', ')} | ${r.oxml ? (r.oxml.opens ? `opens, ${r.oxml.errors} errors` : 'does not open') : 'not run'} | ${r.triage ? `${r.triage}: ${triage[r.id].note}` : 'untriaged'} |`);
   md.push('');
 }
 md.push(`Quarantine candidates (healthy by manifest, not loaded by LibreOffice): ${quarantine.length === 0 ? 'none' : quarantine.join(', ')}.`);

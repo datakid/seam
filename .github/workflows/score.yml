@@ -74,6 +74,17 @@ jobs:
             results/work/healthy/judge-oxml.json
             results/work/healthy/judge-lo-in/lo.jsonl
           retention-days: 14
+      - name: Publish healthy data
+        if: ${{ always() && github.ref_type == 'tag' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p stage
+          d=results/work/healthy
+          cp "$d/seam.json" stage/healthy-seam.json || true
+          cp "$d/judge-oxml.json" stage/healthy-oxml.json || true
+          cp "$d/judge-lo-in/lo.jsonl" stage/healthy-lo.jsonl || true
+          gh release upload "$GITHUB_REF_NAME" stage/* --repo "$GITHUB_REPOSITORY" --clobber
 
   damaged:
     needs: plan
