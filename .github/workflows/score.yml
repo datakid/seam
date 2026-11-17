@@ -12,6 +12,9 @@ on:
   schedule:
     - cron: '0 3 * * 0'
 
+permissions:
+  contents: write
+
 jobs:
   plan:
     runs-on: ubuntu-24.04
@@ -34,6 +37,11 @@ jobs:
           echo "sample=$sample" >> "$GITHUB_OUTPUT"
           echo "count=$count" >> "$GITHUB_OUTPUT"
           echo "shards=$shards" >> "$GITHUB_OUTPUT"
+      - name: Create release for results
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease --title "$GITHUB_REF_NAME" --notes "Automated score run $GITHUB_RUN_ID" || true
 
   healthy:
     runs-on: ubuntu-24.04
@@ -58,9 +66,13 @@ jobs:
       - run: tools/judge-lo.sh corpus/cache/files results/work/healthy/judge-lo-in --roundtrip
       - run: dotnet run --project tools/judge-oxml -c Release -- corpus/cache/files results/work/healthy/judge-oxml.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: healthy
-          path: results/work/healthy
+          path: |
+            results/work/healthy/seam.json
+            results/work/healthy/judge-oxml.json
+            results/work/healthy/judge-lo-in/lo.jsonl
           retention-days: 14
 
   damaged:
@@ -91,12 +103,30 @@ jobs:
       - run: tools/judge-lo.sh results/work/damaged/outputs results/work/damaged/judge-lo-out
       - run: tools/judge-lo.sh results/work/damaged/files results/work/damaged/judge-lo-in --roundtrip
       - run: dotnet run --project tools/judge-oxml -c Release -- results/work/damaged/outputs results/work/damaged/judge-oxml.json
-      - run: node tools/property.mjs --run results/work/damaged
+      - name: Property checks
+        shell: bash
+        continue-on-error: true
+        run: node tools/property.mjs --run results/work/damaged 2>&1 | tee results/work/damaged/property.txt
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: damaged-${{ matrix.shard }}
           path: results/work/damaged
           retention-days: 14
+      - name: Publish shard data
+        if: ${{ always() && github.ref_type == 'tag' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p stage
+          d=results/work/damaged
+          cp "$d/seam.json" "stage/shard-${{ matrix.shard }}-seam.json" || true
+          cp "$d/cases.json" "stage/shard-${{ matrix.shard }}-cases.json" || true
+          cp "$d/property.txt" "stage/shard-${{ matrix.shard }}-property.txt" || true
+          cp "$d/judge-oxml.json" "stage/shard-${{ matrix.shard }}-oxml.json" || true
+          cp "$d/judge-lo-out/lo.jsonl" "stage/shard-${{ matrix.shard }}-lo-out.jsonl" || true
+          cp "$d/judge-lo-in/lo.jsonl" "stage/shard-${{ matrix.shard }}-lo-in.jsonl" || true
+          gh release upload "$GITHUB_REF_NAME" stage/* --repo "$GITHUB_REPOSITORY" --clobber
 
   browsers:
     runs-on: ubuntu-24.04
@@ -113,10 +143,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: python3 -m pip install -r tools/corpus-gen/requirements.txt
+      - run: npm run corpus:gen
       - run: npm run corpus
       - run: node tools/damage-run.mjs --out results/work/browser-sample --sample 0.05 --seeds 3
       - run: node tools/run-seam.mjs --in results/work/browser-sample/files --out results/work/browser-${{ matrix.browser }} --browser ${{ matrix.browser }} --pages 2
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: browser-${{ matrix.browser }}
           path: results/work/browser-${{ matrix.browser }}/seam.json
@@ -124,6 +157,7 @@ jobs:
 
   scoreboard:
     needs: [plan, healthy, damaged, browsers]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -132,19 +166,39 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: python3 -m pip install -r tools/corpus-gen/requirements.txt
+      - run: npm run corpus:gen
       - run: npm run corpus
       - uses: actions/download-artifact@v4
         with:
           path: results/work/artifacts
-      - run: |
-          mkdir -p results/work
-          mv results/work/artifacts/healthy results/work/healthy
-          mkdir -p results/work/shards
-          for d in results/work/artifacts/damaged-*; do mv "$d" "results/work/shards/$(basename "$d")"; done
-          mkdir -p results/work/cmp
-          for b in chromium firefox webkit; do mkdir -p results/work/cmp/$b; mv results/work/artifacts/browser-$b/seam.json results/work/cmp/$b/seam.json; done
-      - run: node tools/compare-browsers.mjs results/work/cmp/chromium results/work/cmp/firefox results/work/cmp/webkit
-      - run: node tools/score.mjs --healthy results/work/healthy --damaged "$(ls -d results/work/shards/damaged-* | paste -sd,)" --label "${GITHUB_REF_NAME}-${GITHUB_RUN_NUMBER}" --gate
+      - name: Arrange results
+        run: |
+          mkdir -p results/work/shards results/work/cmp
+          [ -d results/work/artifacts/healthy ] && mv results/work/artifacts/healthy results/work/healthy || true
+          for d in results/work/artifacts/damaged-*; do [ -d "$d" ] && mv "$d" "results/work/shards/$(basename "$d")"; done || true
+          for b in chromium firefox webkit; do
+            if [ -d results/work/artifacts/browser-$b ]; then mkdir -p results/work/cmp/$b; mv results/work/artifacts/browser-$b/seam.json results/work/cmp/$b/seam.json; fi
+          done
+          ls -R results/work | head -80
+      - name: Compare browsers
+        id: cmp
+        shell: bash
+        continue-on-error: true
+        run: node tools/compare-browsers.mjs results/work/cmp/chromium results/work/cmp/firefox results/work/cmp/webkit 2>&1 | tee results/browsers.txt
+      - name: Property summary
+        id: prop
+        shell: bash
+        continue-on-error: true
+        run: |
+          cat results/work/shards/*/property.txt > results/property.txt || true
+          cat results/property.txt
+          ! grep -qE "[0-9]+ failures" results/property.txt
+      - name: Score
+        id: score
+        shell: bash
+        continue-on-error: true
+        run: node tools/score.mjs --healthy results/work/healthy --damaged "$(ls -d results/work/shards/damaged-* | paste -sd,)" --label "${GITHUB_REF_NAME}-${GITHUB_RUN_NUMBER}" --gate 2>&1 | tee results/score-log.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -152,3 +206,18 @@ jobs:
           path: |
             results/SCOREBOARD.md
             results/scoreboard.json
+            results/browsers.txt
+            results/property.txt
+            results/score-log.txt
+      - name: Publish scoreboard
+        if: ${{ always() && github.ref_type == 'tag' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p stage
+          for f in SCOREBOARD.md scoreboard.json browsers.txt property.txt score-log.txt; do cp "results/$f" "stage/$f" || true; done
+          gh release upload "$GITHUB_REF_NAME" stage/* --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Verdict
+        run: |
+          echo "browsers: ${{ steps.cmp.outcome }}, property: ${{ steps.prop.outcome }}, score: ${{ steps.score.outcome }}"
+          test "${{ steps.cmp.outcome }}" = "success" && test "${{ steps.prop.outcome }}" = "success" && test "${{ steps.score.outcome }}" = "success"

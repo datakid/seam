@@ -43,10 +43,11 @@ for (const entry of entries) {
       if (hashString(id) % 100000 >= sample * 100000) continue;
       if (hashString(`shard|${id}`) % shardCount !== shardIndex) continue;
       const seed = caseSeed(entry.id, kind, index);
-      const options = kind === 'concat' ? { other: bytesOf(entries[hashString(id) % entries.length]) } : null;
+      const otherEntry = kind === 'concat' ? entries[hashString(id) % entries.length] : null;
+      const options = otherEntry ? { other: bytesOf(otherEntry) } : null;
       const { bytes, meta } = damage(bytesOf(entry), kind, seed, options);
       writeFileSync(join(out, 'files', `${id}.${entry.ext}`), bytes);
-      cases[id] = { source: entry.id, family: entry.family, producerClass: entry.producerClass, producer: entry.producer, ext: entry.ext, kind, seedIndex: index, seed, meta };
+      cases[id] = { source: entry.id, otherId: otherEntry ? otherEntry.id : null, family: entry.family, producerClass: entry.producerClass, producer: entry.producer, ext: entry.ext, kind, seedIndex: index, seed, meta };
     }
   }
 }

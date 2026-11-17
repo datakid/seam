@@ -55,6 +55,9 @@ function percentile(values, p) {
 const pct = (n, d) => (d === 0 ? 'n/a' : `${Math.round((n / d) * 1000) / 10}%`);
 const num = (v, digits = 2) => (v === null || v === undefined ? 'n/a' : String(Math.round(v * 10 ** digits) / 10 ** digits));
 
+const blind = readJson(join(root, 'corpus', 'manifest', 'judge-blind.json'), {});
+let blindCases = 0;
+
 const manifest = Object.fromEntries(loadManifest('healthy').map((e) => [e.id, e]));
 const pristineCache = new Map();
 
@@ -129,9 +132,11 @@ for (const damagedDir of damagedDirs) {
     let baselineRecall = 0;
     const lo = loIn[id];
     if (lo && lo.rtFile) baselineRecall = recall(pristine, tokensOfFile(join(damagedDir, 'judge-lo-in', 'rt', lo.rtFile)));
+    const isBlind = Boolean(blind[c.source] || (c.otherId && blind[c.otherId]));
+    if (isBlind && out) blindCases++;
     const oxmlRow = out && oxml[id] ? { ...oxml[id], baselineErrors: healthyOxml[c.source] ? healthyOxml[c.source].errors : undefined } : null;
     const judges = {
-      lo: out && loOut[id] ? { load: loOut[id].load, roundtrip: loOut[id].roundtrip } : null,
+      lo: out && loOut[id] && !isBlind ? { load: loOut[id].load, roundtrip: loOut[id].roundtrip } : null,
       oxml: oxmlRow,
       office: out && office[id] ? office[id] : null
     };
@@ -188,6 +193,7 @@ if (!anyOffice) gaps.push('Office judge: not run');
 gaps.push(`Browsers run: ${[healthySeam.browser, damagedSeam.browser].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') || 'none'}`);
 const unjudged = rows.filter((r) => r.seamLabel === 'repaired' && !r.judged).length;
 if (unjudged > 0) gaps.push(`${unjudged} outputs labelled Repaired have no judge verdict`);
+if (blindCases > 0) gaps.push(`${blindCases} cases derived from files LibreOffice cannot load were not judged by LibreOffice`);
 if (Object.keys(healthyLoIn).length === 0) gaps.push('LibreOffice judge on healthy files: not run');
 
 let loVersion = '';
