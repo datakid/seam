@@ -27,6 +27,7 @@ export const SEVERITY = {
   INTERNAL_ERROR: 'loss',
   TIMEOUT: 'loss',
   ZIP_PREFIX_DATA: 'repaired',
+  TRANSFER_CRLF_REVERSED: 'repaired',
   ZIP_DIRECTORY_REBUILT: 'repaired',
   XML_REENCODED: 'repaired',
   XML_CHARS_REMOVED: 'repaired',

@@ -337,3 +337,57 @@ test('damaged: a repair that leaves no dangling reference is not downgraded', as
   const result = await run('sample.pptx', pack(entries));
   assert(!result.findings.map((f) => f.code).includes('REF_DANGLING'), 'no dangling finding');
 });
+
+function countPairs(bytes) {
+  let pairs = 0;
+  for (let i = 1; i < bytes.length; i++) if (bytes[i] === 0x0a && bytes[i - 1] === 0x0d) pairs++;
+  return pairs;
+}
+
+function countLf(bytes) {
+  let n = 0;
+  for (const b of bytes) if (b === 0x0a) n++;
+  return n;
+}
+
+function textModeTransfer(bytes) {
+  const out = [];
+  for (const b of bytes) {
+    if (b === 0x0a) out.push(0x0d);
+    out.push(b);
+  }
+  return Uint8Array.from(out);
+}
+
+function transferFixture(entries) {
+  for (let seed = 1; seed < 400; seed++) {
+    const whole = pack(entries().concat([['docProps/noise.bin', noise(6000, seed)]]));
+    if (countLf(whole) >= 6) return { whole, seed };
+  }
+  throw new Error('no fixture with line feeds');
+}
+
+for (const [key, entries, main] of [['docx', docxEntries, 'word/document.xml'], ['xlsx', xlsxEntries, 'xl/workbook.xml'], ['pptx', pptxEntries, 'ppt/presentation.xml']]) {
+  test(`damaged: a ${key} changed by a text-mode transfer is recovered by removing the added carriage returns`, async () => {
+    const { whole } = transferFixture(entries);
+    const damaged = textModeTransfer(whole);
+    assert(damaged.length > whole.length, 'transfer changed the bytes');
+    const result = await run(`sample.${key}`, damaged);
+    assert(result.findings.map((f) => f.code).includes('TRANSFER_CRLF_REVERSED'), `transfer reported: ${result.findings.map((f) => f.code).join(',')}`);
+    eq(result.outcome, 'repaired');
+    const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+    const recovered = unzipSync(out);
+    const original = unzipSync(whole);
+    assert(recovered[main] && recovered[main].length === original[main].length, 'main part recovered in full');
+    assert(recovered['docProps/noise.bin'] && recovered['docProps/noise.bin'].every((v, i) => v === original['docProps/noise.bin'][i]), 'binary part recovered in full');
+  });
+}
+
+test('healthy: a package with CRLF line endings inside stored XML is not changed', async () => {
+  const lines = Array.from({ length: 12 }, (_, i) => `<line n="${i}"/>`).join('\r\n');
+  const whole = packWithStored(docxEntries().concat([['word/stored.xml', `<?xml version="1.0"?>\r\n<lines>\r\n${lines}\r\n</lines>`]]), ['word/stored.xml']);
+  assert(countPairs(whole) >= 4, 'fixture has CRLF line endings');
+  const result = await run('sample.docx', whole);
+  eq(result.outcome, 'noProblems');
+  assert(!result.findings.map((f) => f.code).includes('TRANSFER_CRLF_REVERSED'), 'no transfer finding');
+});

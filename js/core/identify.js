@@ -129,3 +129,23 @@ export const CHIPS = {
   UNKNOWN: 'UNKNOWN',
   ZIP: 'ZIP'
 };
+
+export function findTextModeTransfer(bytes) {
+  let pairs = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    if (bytes[i] !== 0x0a) continue;
+    if (i > 0 && bytes[i - 1] === 0x0d) pairs++;
+    else return null;
+  }
+  return pairs >= 4 ? { pairs } : null;
+}
+
+export function removeAddedCarriageReturns(bytes) {
+  const out = new Uint8Array(bytes.length);
+  let at = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    if (bytes[i] === 0x0d && bytes[i + 1] === 0x0a) continue;
+    out[at++] = bytes[i];
+  }
+  return out.slice(0, at);
+}

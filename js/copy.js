@@ -168,6 +168,7 @@ export const copy = {
   },
   findings: {
     ZIP_PREFIX_DATA: (d) => `Removed ${d.bytes} bytes of extra data in front of the file.`,
+    TRANSFER_CRLF_REVERSED: (d) => `Removed ${d.n} carriage ${plural(d.n, 'return', 'returns')} that a text-mode transfer added before line feeds.`,
     ZIP_DIRECTORY_REBUILT: (d) => `Rebuilt the ZIP directory from ${d.n} recovered ${plural(d.n, 'entry', 'entries')}.`,
     ZIP_ENDS_EARLY: () => 'The file ends inside its ZIP directory, so it was cut short. Data after the cut, if any, is not in the file.',
     ZIP_ENTRY_TRUNCATED: (d) => (d.pct === null || d.pct === undefined ? `This part was cut short. ${d.bytes} bytes were recovered.` : `This part was cut short. ${d.pct}% of it was recovered.`),

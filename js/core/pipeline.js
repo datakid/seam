@@ -1,4 +1,4 @@
-import { identify } from './identify.js';
+import { identify, findTextModeTransfer, removeAddedCarriageReturns } from './identify.js';
 import { strictRead } from './zip-read.js';
 import { recoverEntries, mergeEntries } from './zip-recover.js';
 import { writeZip } from './zip-write.js';
@@ -266,7 +266,7 @@ async function extraSalvage(ctx, env) {
   return { extra: { bytes: salvaged.bytes, name: salvaged.name, mime: salvaged.mime }, preview: salvaged.preview };
 }
 
-async function execute(input, env) {
+async function execute(input, env, transfer) {
   const progress = (stage, fraction) => env.progress(stage, Math.round(stageStart(stage) + STAGE_WEIGHTS[stage] * Math.min(1, Math.max(0, fraction))));
   progress('identify', 0);
   const bytes = new Uint8Array(input.buffer);
@@ -275,6 +275,10 @@ async function execute(input, env) {
   if (identity.kind !== 'ZIP') return notSupportedResult(identity);
 
   const ctx = createContext(input);
+  if (transfer) {
+    ctx.changed = true;
+    addFinding(ctx, 'TRANSFER_CRLF_REVERSED', null, { n: transfer.pairs });
+  }
   progress('zip', 0);
   loadEntries(ctx, bytes, identity);
   progress('zip', 1);
@@ -357,9 +361,19 @@ async function execute(input, env) {
   };
 }
 
+const NEEDS_HELP = new Set(['partial', 'salvaged', 'failed', 'notSupported']);
+const OUTCOME_RANK = { repaired: 3, partial: 2, salvaged: 1 };
+
 export async function runPipeline(input, env) {
   try {
-    return await execute(input, env);
+    const first = await execute(input, env, null);
+    if (!NEEDS_HELP.has(first.outcome)) return first;
+    const original = new Uint8Array(input.buffer);
+    const transfer = findTextModeTransfer(original);
+    if (!transfer) return first;
+    const reversed = removeAddedCarriageReturns(original);
+    const second = await execute({ ...input, size: reversed.length, buffer: reversed.buffer }, env, transfer);
+    return (OUTCOME_RANK[second.outcome] || 0) > (OUTCOME_RANK[first.outcome] || 0) ? second : first;
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);
     return failedResult('INTERNAL_ERROR', copy.reasons.internal);
