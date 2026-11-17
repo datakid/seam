@@ -259,3 +259,34 @@ test('damaged: an uncompressed embedded package is not mistaken for the director
   assert(!result.findings.map((f) => f.code).includes('EXTENSION_CORRECTED'), 'extension kept');
   eq(result.detected.kind, 'docx');
 });
+
+function docWithInsertedText(inserted) {
+  return docxEntries().map(([name, content]) => {
+    if (name !== 'word/document.xml') return [name, content];
+    const at = content.indexOf('</w:t>');
+    const head = new TextEncoder().encode(content.slice(0, at));
+    const tail = new TextEncoder().encode(content.slice(at));
+    const middle = typeof inserted === 'string' ? new TextEncoder().encode(inserted) : inserted;
+    const merged = new Uint8Array(head.length + middle.length + tail.length);
+    merged.set(head, 0);
+    merged.set(middle, head.length);
+    merged.set(tail, head.length + middle.length);
+    return [name, merged];
+  });
+}
+
+test('healthy: a literal replacement character that is valid UTF-8 is not an invalid byte', async () => {
+  const result = await run('sample.docx', pack(docWithInsertedText('\uFFFD')));
+  eq(result.outcome, 'noProblems');
+  eq(result.findings.map((f) => f.code), []);
+});
+
+test('damaged: an invalid byte is reported once and the repaired output is clean on a second pass', async () => {
+  const first = await run('sample.docx', pack(docWithInsertedText(Uint8Array.of(0xff))));
+  assert(first.findings.map((f) => f.code).includes('XML_INVALID_BYTES'), 'invalid byte reported');
+  assert(first.output, 'output');
+  const out = first.output.bytes instanceof Uint8Array ? first.output.bytes : new Uint8Array(first.output.bytes);
+  const second = await run('sample.docx', out);
+  eq(second.outcome, 'noProblems');
+  eq(second.findings.map((f) => f.code), []);
+});

@@ -1,3 +1,20 @@
+function validReplacementCharacters(bytes, total) {
+  const start = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0;
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(bytes.subarray(start));
+    return total;
+  } catch {
+    let literal = 0;
+    for (let i = start; i + 2 < bytes.length; i++) {
+      if (bytes[i] === 0xef && bytes[i + 1] === 0xbf && bytes[i + 2] === 0xbd) {
+        literal++;
+        i += 2;
+      }
+    }
+    return Math.min(total, literal);
+  }
+}
+
 export function decodeXml(bytes) {
   let reencoded = false;
   let text;
@@ -20,11 +37,13 @@ export function decodeXml(bytes) {
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
   let invalid = 0;
   if (!reencoded) {
+    let replacements = 0;
     let at = text.indexOf('\uFFFD');
     while (at !== -1) {
-      invalid++;
+      replacements++;
       at = text.indexOf('\uFFFD', at + 1);
     }
+    if (replacements > 0) invalid = replacements - validReplacementCharacters(bytes, replacements);
   }
   if (reencoded) text = fixDeclaration(text);
   return { text, reencoded, invalid };
