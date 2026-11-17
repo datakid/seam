@@ -290,3 +290,24 @@ test('damaged: an invalid byte is reported once and the repaired output is clean
   eq(second.outcome, 'noProblems');
   eq(second.findings.map((f) => f.code), []);
 });
+
+const ERROR_PAGE = '<!DOCTYPE html>\r\n<html><head><title>404 Not Found</title></head>\r\n<body><h1>Not Found</h1><p>The requested URL was not found on this server.</p></body></html>\r\n';
+
+for (const [key, entries] of [['docx', docxEntries], ['xlsx', xlsxEntries], ['pptx', pptxEntries]]) {
+  test(`damaged: a ${key} with an HTML error page in front is recovered`, async () => {
+    const page = new TextEncoder().encode(ERROR_PAGE);
+    const result = await run(`sample.${key}`, joined(page, pack(entries())));
+    assert(result.output, 'output');
+    assert(result.findings.map((f) => f.code).includes('ZIP_PREFIX_DATA'), 'leading data reported');
+    eq(result.detected.kind, key);
+    const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+    assert(Object.keys(unzipSync(out)).length > 3, 'entries recovered');
+    assert(['repaired', 'partial'].includes(result.outcome), `outcome ${result.outcome}`);
+  });
+}
+
+test('damaged: a file that is only an HTML error page is still reported as not an Office file', async () => {
+  const result = await run('sample.docx', new TextEncoder().encode(ERROR_PAGE));
+  eq(result.outcome, 'notSupported');
+  eq(result.detected.kind, 'HTML');
+});

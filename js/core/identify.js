@@ -94,7 +94,11 @@ export function identify(bytes) {
 
   const lead = skipLeading(bytes);
   const head = latin1(bytes, lead, lead + 512).toLowerCase();
-  if (head.startsWith('<html') || head.startsWith('<!doctype html')) return { kind: 'HTML', type: 'HTML' };
+  if (head.startsWith('<html') || head.startsWith('<!doctype html')) {
+    const packageAt = indexOfBytes(bytes, SIG.LOCAL, 0, Math.min(n, 1024 * 1024));
+    if (packageAt > 0) return { kind: 'ZIP', prefix: packageAt, prefixGarbage: packageAt };
+    return { kind: 'HTML', type: 'HTML' };
+  }
   if (head.startsWith('<?xml')) {
     const probe = latin1(bytes, lead, lead + 16384);
     if (probe.includes('<w:document') || probe.includes('pkg:package')) return { kind: 'FLAT_OPC_XML' };
