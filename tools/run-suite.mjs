@@ -31,4 +31,8 @@ await browser.close();
 await server.close();
 console.log(`${browserName}: ${result}`);
 for (const line of failures.slice(0, 40)) console.log(line);
+if (process.env.GITHUB_ACTIONS) {
+  for (const line of failures.slice(0, 10)) console.log(`::error title=${browserName} test failure::${line.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A')}`);
+  if (!result.includes('RESULT pass')) console.log(`::error title=${browserName} no result::${result}`);
+}
 process.exit(result.includes('fail=0') && failures.length === 0 ? 0 : 1);
