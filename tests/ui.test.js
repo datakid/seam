@@ -413,11 +413,19 @@ test('ui: demo mode injects three results only with the query parameter', async 
 test('ui: the live region announces the start and the end of a batch', async () => {
   const app = await openApp();
   try {
+    const live = app.doc.getElementById('live');
+    const announced = [];
+    const observer = new app.w.MutationObserver((records) => {
+      for (const record of records) for (const node of record.addedNodes) announced.push(node.textContent);
+    });
+    observer.observe(live, { childList: true, characterData: true, subtree: true });
     add(app, mixed().slice(0, 2));
-    await waitFor(() => app.doc.getElementById('live').textContent === 'Processing 2 files.', 3000, 'start announcement');
     await settled(app, 2);
-    await waitFor(() => app.doc.getElementById('live').textContent.startsWith('Done.'), 3000, 'end announcement');
-    eq(app.doc.getElementById('live').textContent, 'Done. 1 repaired, 1 partially repaired, 0 could not be repaired.');
+    await waitFor(() => live.textContent.startsWith('Done.'), 3000, 'end announcement');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    observer.disconnect();
+    assert(announced.includes('Processing 2 files.'), `start announcement missing: ${JSON.stringify(announced)}`);
+    eq(live.textContent, 'Done. 1 repaired, 1 partially repaired, 0 could not be repaired.');
   } finally {
     app.close();
   }
