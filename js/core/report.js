@@ -23,6 +23,7 @@ export const SEVERITY = {
   PPTX_MASTER_REMOVED: 'loss',
   PPTX_IMAGE_REMOVED: 'loss',
   REF_DANGLING: 'loss',
+  REF_REMOVED: 'loss',
   SALVAGE_TEXT_ONLY: 'loss',
   INTERNAL_ERROR: 'loss',
   TIMEOUT: 'loss',

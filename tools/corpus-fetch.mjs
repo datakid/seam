@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, copyFileSync } from 'node:fs';
 import { sha256 } from './corpus-lib.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -40,7 +40,6 @@ export function loadManifest(which) {
 }
 
 export function cachePath(entry) {
-  if (entry.generated) return join(cacheDir, 'generated', `${entry.id}.${entry.ext}`);
   return join(entry.broken ? wildDir : filesDir, `${entry.id}.${entry.ext}`);
 }
 
@@ -79,6 +78,12 @@ async function main() {
   mkdirSync(filesDir, { recursive: true });
   mkdirSync(wildDir, { recursive: true });
   const todo = entries.filter((e) => !e.generated);
+  if (!reportOnly) {
+    for (const e of entries.filter((x) => x.generated)) {
+      const source = join(cacheDir, 'generated', `${e.id}.${e.ext}`);
+      if (existsSync(source)) copyFileSync(source, cachePath(e));
+    }
+  }
   let bad = [];
   let fetched = 0;
   if (!reportOnly) {
@@ -104,7 +109,7 @@ async function main() {
   }
   if (!reportOnly) {
     const dir = set === 'wild' ? wildDir : filesDir;
-    const keep = new Set(todo.map((e) => `${e.id}.${e.ext}`));
+    const keep = new Set(entries.map((e) => `${e.id}.${e.ext}`));
     let pruned = 0;
     for (const name of readdirSync(dir)) {
       if (!keep.has(name)) {

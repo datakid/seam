@@ -195,6 +195,7 @@ export const copy = {
     REL_ID_RENAMED: (d) => `Renamed ${d.n} duplicate relationship ${plural(d.n, 'ID', 'IDs')}.`,
     REL_DUPLICATE_DROPPED: (d) => `Dropped ${d.n} duplicate relationship ${plural(d.n, 'ID', 'IDs')} that the document refers to.`,
     EXTENSION_CORRECTED: (d) => (d.from ? `The file was named .${d.from} but is a .${d.to} file. The output uses .${d.to}.` : `The file had no extension. The output uses .${d.to}.`),
+    REF_REMOVED: (d) => `${d.n} ${plural(d.n, 'reference', 'references')} to content that is no longer in the file ${d.n === 1 ? 'was' : 'were'} removed from this part.`,
     REF_DANGLING: (d) => `${d.n} ${plural(d.n, 'reference', 'references')} in this part point to content that is no longer in the file. They were left in place.`,
     NO_MAIN_PART: () => 'The main document part is missing, so there is no content to rebuild.',
     DOCX_BODY_ADDED: () => 'Added the missing document body element around the existing content.',

@@ -322,13 +322,41 @@ function layoutWithMissingImage(entries) {
   });
 }
 
-test('damaged: a reference that is left pointing at a removed relationship is reported and the label is Partial', async () => {
+test('damaged: a picture whose image relationship was removed is removed from a slide layout too', async () => {
   const result = await run('sample.pptx', pack(layoutWithMissingImage(pptxEntries())));
   const codes = result.findings.map((f) => f.code);
   assert(codes.includes('REL_REMOVED'), 'relationship removed');
+  const removed = result.findings.find((f) => f.code === 'REF_REMOVED' && f.part === 'ppt/slideLayouts/slideLayout1.xml');
+  assert(removed, `reference removed: ${codes.join(',')}`);
+  assert(!codes.includes('REF_DANGLING'), 'nothing left dangling');
+  eq(result.outcome, 'partial');
+  const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+  const layout = new TextDecoder().decode(unzipSync(out)['ppt/slideLayouts/slideLayout1.xml']);
+  assert(!layout.includes('rId9'), 'reference gone from the layout');
+  const verdict = await verifyPackage(out, env, { key: 'pptx', ext: 'pptx' });
+  assert(verdict.ok, 'output verifies');
+});
+
+test('damaged: a slide master that lists a layout whose part is gone loses that entry and stays valid', async () => {
+  const entries = pptxEntries().filter(([name]) => name !== 'ppt/slideLayouts/slideLayout1.xml');
+  const result = await run('sample.pptx', pack(entries));
+  const codes = result.findings.map((f) => f.code);
+  assert(!codes.includes('REF_DANGLING'), `nothing left dangling: ${codes.join(',')}`);
+  assert(result.output, 'output');
+  const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+  const master = new TextDecoder().decode(unzipSync(out)['ppt/slideMasters/slideMaster1.xml']);
+  assert(!/<p:sldLayoutId[^>]*r:id="rId1"/.test(master), 'layout entry removed from the master');
+  const second = await run('sample.pptx', out);
+  eq(second.outcome, 'noProblems');
+});
+
+test('damaged: a reference the policy does not know is left in place, reported, and the label is Partial', async () => {
+  const entries = pptxEntries().map(([name, content]) => (name === 'ppt/slides/slide3.xml' ? [name, content.replace('</p:spTree>', '<p:unknownThing r:id="rId77"/></p:spTree>')] : [name, content]));
+  const entriesWithLoss = entries.filter(([name]) => name !== 'ppt/media/image1.png');
+  const result = await run('sample.pptx', pack(entriesWithLoss));
   const left = result.findings.find((f) => f.code === 'REF_DANGLING');
-  assert(left, `reference reported: ${codes.join(',')}`);
-  eq(left.part, 'ppt/slideLayouts/slideLayout1.xml');
+  assert(left, `reported: ${result.findings.map((f) => f.code).join(',')}`);
+  eq(left.part, 'ppt/slides/slide3.xml');
   eq(result.outcome, 'partial');
 });
 
@@ -390,4 +418,44 @@ test('healthy: a package with CRLF line endings inside stored XML is not changed
   const result = await run('sample.docx', whole);
   eq(result.outcome, 'noProblems');
   assert(!result.findings.map((f) => f.code).includes('TRANSFER_CRLF_REVERSED'), 'no transfer finding');
+});
+
+function withLoss(entries) {
+  return entries.filter(([name]) => name !== 'ppt/media/image1.png');
+}
+
+function addToSlide3(entries, snippet) {
+  return entries.map(([name, content]) => (name === 'ppt/slides/slide3.xml' ? [name, content.replace('</p:spTree>', `${snippet}</p:spTree>`)] : [name, content]));
+}
+
+const DIAGRAM_FRAME = '<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="20" name="Diagram"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="0" y="0"/><a:ext cx="100" cy="100"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/diagram"><dgm:relIds xmlns:dgm="http://schemas.openxmlformats.org/drawingml/2006/diagram" r:dm="rId31" r:lo="rId32" r:qs="rId33" r:cs="rId34"/></a:graphicData></a:graphic></p:graphicFrame>';
+const OLE_FRAME = '<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="21" name="Object"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="0" y="0"/><a:ext cx="100" cy="100"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/presentationml/2006/ole"><p:oleObj r:id="rId41" progId="Excel.Sheet.12"/></a:graphicData></a:graphic></p:graphicFrame>';
+
+test('damaged: a SmartArt frame whose diagram parts are gone is removed whole', async () => {
+  const result = await run('sample.pptx', pack(withLoss(addToSlide3(pptxEntries(), DIAGRAM_FRAME))));
+  const codes = result.findings.map((f) => f.code);
+  assert(codes.includes('REF_REMOVED'), `removed: ${codes.join(',')}`);
+  assert(!codes.includes('REF_DANGLING'), 'nothing left dangling');
+  const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+  const slide = new TextDecoder().decode(unzipSync(out)['ppt/slides/slide3.xml']);
+  assert(!slide.includes('relIds') && !slide.includes('Diagram'), 'whole frame gone');
+});
+
+test('damaged: an OLE object frame whose relationship is gone is removed whole', async () => {
+  const result = await run('sample.pptx', pack(withLoss(addToSlide3(pptxEntries(), OLE_FRAME))));
+  const codes = result.findings.map((f) => f.code);
+  assert(!codes.includes('REF_DANGLING'), `nothing left dangling: ${codes.join(',')}`);
+  const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+  const slide = new TextDecoder().decode(unzipSync(out)['ppt/slides/slide3.xml']);
+  assert(!slide.includes('oleObj'), 'frame gone');
+});
+
+test('damaged: a theme image with no relationship loses only its embed attribute', async () => {
+  const entries = withLoss(pptxEntries()).map(([name, content]) => (name === 'ppt/theme/theme1.xml' ? [name, content.replace('</a:theme>', '<a:extraClrSchemeLst><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId9"/></a:extraClrSchemeLst></a:theme>')] : [name, content]));
+  const result = await run('sample.pptx', pack(entries));
+  const codes = result.findings.map((f) => f.code);
+  assert(!codes.includes('REF_DANGLING'), `nothing left dangling: ${codes.join(',')}`);
+  const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+  const theme = new TextDecoder().decode(unzipSync(out)['ppt/theme/theme1.xml']);
+  assert(theme.includes('<a:blip') && !theme.includes('rId9'), 'blip element kept, attribute dropped');
 });

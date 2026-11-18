@@ -478,6 +478,7 @@ export function auditReferences(ctx) {
     const relsTree = relsName ? getTree(ctx, relsName) : null;
     const ids = new Set(relsTree ? readRelationships(relsTree).map((rel) => rel.id) : []);
     let missing = 0;
+    const elements = new Set();
     const stack = [root];
     while (stack.length > 0) {
       const node = stack.pop();
@@ -485,11 +486,88 @@ export function auditReferences(ctx) {
         const prefix = prefixOf(attrName);
         if (prefix && prefixes.has(prefix)) {
           const id = decodeEntities(value);
-          if (id !== '' && !ids.has(id)) missing++;
+          if (id !== '' && !ids.has(id)) {
+            missing++;
+            elements.add(`${localName(node.name)}@${localName(attrName)}`);
+          }
         }
       }
       for (const child of node.children) if (child.type === 'el') stack.push(child);
     }
-    if (missing > 0) addFinding(ctx, 'REF_DANGLING', name, { n: missing });
+    if (missing > 0) addFinding(ctx, 'REF_DANGLING', name, { n: missing, elements: [...elements].sort() });
+  }
+}
+
+const REMOVE_ELEMENT = new Set([
+  'sldLayoutId', 'sldMasterId', 'sldId', 'notesMasterId', 'handoutMasterId', 'hlinkClick', 'hlinkHover', 'hlinkMouseOver',
+  'imagedata', 'media', 'audioFile', 'videoFile', 'wavAudioFile', 'quickTimeFile', 'externalData', 'headerReference', 'footerReference'
+]);
+
+const FRAMES = ['drawing', 'twoCellAnchor', 'oneCellAnchor', 'absoluteAnchor', 'graphicFrame'];
+
+const REMOVE_CONTAINER = {
+  blip: ['drawing', 'pict', 'twoCellAnchor', 'oneCellAnchor', 'absoluteAnchor', 'pic'],
+  chart: FRAMES,
+  relIds: FRAMES,
+  oleObj: ['pict', ...FRAMES],
+  OLEObject: ['object']
+};
+
+const DROP_ATTRIBUTES = { blip: ['embed', 'link'] };
+
+function outermostAncestor(node, names) {
+  let found = null;
+  for (let current = node.parent; current; current = current.parent) {
+    if (current.name && names.includes(localName(current.name))) found = current;
+  }
+  return found;
+}
+
+function dropAttributes(node, missing, locals) {
+  const before = node.attrs.length;
+  node.attrs = node.attrs.filter(([attrName]) => !(missing.includes(attrName) && locals.includes(localName(attrName))));
+  return before - node.attrs.length;
+}
+
+export function sweepReferences(ctx) {
+  for (const name of ctx.parts.keys()) {
+    if (name === '[Content_Types].xml' || name.endsWith('.rels')) continue;
+    const part = ctx.parts.get(name);
+    if (part.text === null || part.text === undefined) continue;
+    const tree = getTree(ctx, name);
+    const root = tree ? documentElement(tree) : null;
+    if (!root) continue;
+    const prefixes = relPrefixSet(root);
+    const relsName = ctx.index.canonical(relsPathFor(name));
+    const relsTree = relsName ? getTree(ctx, relsName) : null;
+    const ids = new Set(relsTree ? readRelationships(relsTree).map((rel) => rel.id) : []);
+    const doomed = new Set();
+    let dropped = 0;
+    const stack = [root];
+    while (stack.length > 0) {
+      const node = stack.pop();
+      const missing = [];
+      for (const [attrName, value] of node.attrs) {
+        const prefix = prefixOf(attrName);
+        if (prefix && prefixes.has(prefix)) {
+          const id = decodeEntities(value);
+          if (id !== '' && !ids.has(id)) missing.push(attrName);
+        }
+      }
+      if (missing.length > 0) {
+        const local = localName(node.name);
+        if (REMOVE_ELEMENT.has(local)) doomed.add(node);
+        else if (REMOVE_CONTAINER[local]) {
+          const holder = outermostAncestor(node, REMOVE_CONTAINER[local]);
+          if (holder) doomed.add(holder);
+          else if (DROP_ATTRIBUTES[local]) dropped += dropAttributes(node, missing, DROP_ATTRIBUTES[local]);
+        }
+      }
+      for (const child of node.children) if (child.type === 'el') stack.push(child);
+    }
+    if (doomed.size === 0 && dropped === 0) continue;
+    for (const node of doomed) removeNode(node);
+    touch(ctx, name);
+    addFinding(ctx, 'REF_REMOVED', name, { n: doomed.size + dropped });
   }
 }
