@@ -459,3 +459,31 @@ test('damaged: a theme image with no relationship loses only its embed attribute
   const theme = new TextDecoder().decode(unzipSync(out)['ppt/theme/theme1.xml']);
   assert(theme.includes('<a:blip') && !theme.includes('rId9'), 'blip element kept, attribute dropped');
 });
+
+function xlsxWithStyleRefs(emptyXfs) {
+  return xlsxEntries()
+    .filter(([name]) => name !== 'xl/worksheets/sheet2.xml')
+    .map(([name, content]) => {
+      if (name === 'xl/worksheets/sheet1.xml') return [name, content.replace('<c r="A2">', '<c r="A2" s="0">').replace('<c r="B2">', '<c r="B2" s="3">').replace('<row r="3">', '<row r="3" s="5" customFormat="1">')];
+      if (name === 'xl/styles.xml' && emptyXfs) return [name, content.replace(/<cellXfs[\s\S]*<\/cellXfs>/, '<cellXfs count="0"/>')];
+      return [name, content];
+    });
+}
+
+test('damaged: a cell style index past the end of the style table is dropped and valid ones are kept', async () => {
+  const result = await run('sample.xlsx', pack(xlsxWithStyleRefs(false)));
+  assert(result.findings.map((f) => f.code).includes('XLSX_STYLE_CLEARED'), `reported: ${result.findings.map((f) => f.code).join(',')}`);
+  const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+  const sheet = new TextDecoder().decode(unzipSync(out)['xl/worksheets/sheet1.xml']);
+  assert(sheet.includes('<c r="A2" s="0">'), 'valid style kept');
+  assert(!sheet.includes('s="3"') && !sheet.includes('s="5"'), 'out of range styles dropped');
+  const second = await run('sample.xlsx', out);
+  eq(second.outcome, 'noProblems');
+});
+
+test('damaged: when the style table is empty every cell style index is dropped', async () => {
+  const result = await run('sample.xlsx', pack(xlsxWithStyleRefs(true)));
+  const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+  const sheet = new TextDecoder().decode(unzipSync(out)['xl/worksheets/sheet1.xml']);
+  assert(!/<c [^>]*\ss="\d+"/.test(sheet), 'no cell style left');
+});

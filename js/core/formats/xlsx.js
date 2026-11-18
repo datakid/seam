@@ -230,6 +230,7 @@ export function normalizeXlsx(ctx) {
     ctx.silentParts.add(calcPath.toLowerCase());
     addFinding(ctx, 'XLSX_CALCCHAIN_REMOVED', calcPath);
   }
+  clearStyleReferences(ctx, rels);
   const sstPath = sstPathOf(ctx, rels);
   if (sstPath) {
     const sstTree = getTree(ctx, sstPath);
@@ -243,5 +244,44 @@ export function normalizeXlsx(ctx) {
         addFinding(ctx, 'XLSX_SST_COUNTS', sstPath, { n: total });
       }
     }
+  }
+}
+
+const STYLE_TAGS = [
+  ['c', 's'],
+  ['row', 's'],
+  ['col', 'style']
+];
+
+function clearStyleReferences(ctx, rels) {
+  const stylesRel = rels.find((r) => r.type.endsWith('/styles') && !r.external);
+  const stylesPath = stylesRel ? ctx.index.canonical(resolveTarget(ctx.main, stylesRel.target)) : null;
+  let count = 0;
+  if (stylesPath) {
+    const tree = getTree(ctx, stylesPath);
+    const root = tree ? documentElement(tree) : null;
+    const cellXfs = root ? elementChildren(root, 'cellXfs')[0] : null;
+    count = cellXfs ? elementChildren(cellXfs, 'xf').length : 0;
+  }
+  for (const name of ctx.parts.keys()) {
+    if (!/(^|\/)worksheets\/[^/]+\.xml$/i.test(name)) continue;
+    const part = ctx.parts.get(name);
+    const text = part.text;
+    if (typeof text !== 'string') continue;
+    let cleared = 0;
+    let edited = text;
+    for (const [tag, attr] of STYLE_TAGS) {
+      const startTag = new RegExp(`<(?:[A-Za-z0-9]+:)?${tag}(?=[\\s/>])[^>]*>`, 'g');
+      const attribute = new RegExp(`(\\s)${attr}="(\\d+)"`);
+      edited = edited.replace(startTag, (match) => {
+        const found = attribute.exec(match);
+        if (!found || Number(found[2]) < count) return match;
+        cleared++;
+        return match.replace(attribute, '');
+      });
+    }
+    if (cleared === 0) continue;
+    setText(ctx, name, edited);
+    addFinding(ctx, 'XLSX_STYLE_CLEARED', name, { n: cleared });
   }
 }

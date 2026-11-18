@@ -211,6 +211,7 @@ export const copy = {
     XLSX_SST_COUNTS: (d) => `Set the shared string count to ${d.n}.`,
     XLSX_CELL_CLEARED: (d) => `Cleared ${d.n} ${plural(d.n, 'cell', 'cells')} that pointed to missing shared strings.`,
     XLSX_DIMENSION_REMOVED: () => 'Removed the stored sheet dimension. Excel recalculates it.',
+    XLSX_STYLE_CLEARED: (d) => `${d.n} ${plural(d.n, 'cell, row or column format', 'cell, row or column formats')} pointed at a style that no longer exists. The format was reset.`,
     XLSX_DRAWING_REMOVED: (d) => `Removed ${d.n} ${plural(d.n, 'drawing', 'drawings')} whose data is missing.`,
     PPTX_SLIDE_REMOVED: (d) => `Slide ${d.number} was removed because its part was unreadable.`,
     PPTX_SLIDE_IDS: (d) => `Renumbered ${d.n} slide ${plural(d.n, 'ID', 'IDs')}.`,
