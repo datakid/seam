@@ -30,4 +30,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: node tools/corpus-fetch.mjs --set property
       - run: node tools/run-suite.mjs --browser ${{ matrix.browser }}

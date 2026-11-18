@@ -9,6 +9,7 @@ const files = [
   './zip.test.js',
   './xml.test.js',
   './package.test.js',
+  './property.test.js',
   './salvage.test.js',
   './pipeline.test.js',
   './report.test.js',

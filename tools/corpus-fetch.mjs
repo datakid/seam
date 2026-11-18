@@ -31,7 +31,11 @@ const GATE_FEATURES = ['charts', 'comments', 'trackedChanges', 'embeddings', 'ma
 
 export function loadManifest(which) {
   const file = join(root, 'corpus', 'manifest', which === 'wild' ? 'wild-public.json' : 'healthy.json');
-  const entries = JSON.parse(readFileSync(file, 'utf8'));
+  let entries = JSON.parse(readFileSync(file, 'utf8'));
+  if (which === 'property') {
+    const wanted = new Set(JSON.parse(readFileSync(join(root, 'corpus', 'manifest', 'property-set.json'), 'utf8')).map((e) => e.id));
+    return entries.filter((e) => wanted.has(e.id));
+  }
   if (which !== 'wild') {
     const generated = join(cacheDir, 'generated', 'manifest.json');
     if (existsSync(generated)) entries.push(...JSON.parse(readFileSync(generated, 'utf8')));
@@ -107,7 +111,7 @@ async function main() {
       }
     }));
   }
-  if (!reportOnly) {
+  if (!reportOnly && set !== 'property') {
     const dir = set === 'wild' ? wildDir : filesDir;
     const keep = new Set(entries.map((e) => `${e.id}.${e.ext}`));
     let pruned = 0;

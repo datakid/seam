@@ -1,0 +1,162 @@
+[
+ {
+  "id": "libreoffice-FirstPageHeaderShape",
+  "ext": "docx",
+  "family": "docx",
+  "producerClass": "libreoffice",
+  "sha256": "001df62d1b1a30a3d57f7cab961d58061f0aa27db7caff531475c3d02411af8f",
+  "bytes": 6189
+ },
+ {
+  "id": "libreoffice-tdf136778",
+  "ext": "docx",
+  "family": "docx",
+  "producerClass": "other",
+  "sha256": "0264d6351e4c6d3341fa4777dbd8a3e935b20cd948984889661cf004e4876974",
+  "bytes": 11761
+ },
+ {
+  "id": "libreoffice-tdf131203",
+  "ext": "docx",
+  "family": "docx",
+  "producerClass": "poi",
+  "sha256": "325a8d49e684cde606035d54df4c51f15c718b2043f5ac7158fd5e27bcb641f1",
+  "bytes": 3890
+ },
+ {
+  "id": "libreoffice-floattable-heading-split-hyphen",
+  "ext": "docx",
+  "family": "docx",
+  "producerClass": "word",
+  "sha256": "000463dfea864c266fecd213e6cdf68ef489354ba1d3546e6cc3a47427da7518",
+  "bytes": 18549
+ },
+ {
+  "id": "libreoffice-tdf131594",
+  "ext": "docx",
+  "family": "docx",
+  "producerClass": "wps",
+  "sha256": "5a0416c5de5192637a91f32278eb64cf8b366abbed4a50c74c3a3d9529af7a25",
+  "bytes": 17358
+ },
+ {
+  "id": "libreoffice-tdf125298_crossreflink_nonascii_charlimit",
+  "ext": "docx",
+  "family": "docx",
+  "producerClass": "libreoffice",
+  "sha256": "00451a70a8fed175d8ae0fbfedf8b55fc3753978eefe5173d40f95480ad5f091",
+  "bytes": 5194
+ },
+ {
+  "id": "libreoffice-tdf36117_verticalAdjustment",
+  "ext": "docx",
+  "family": "docx",
+  "producerClass": "other",
+  "sha256": "0349db3a0944fbefdb23194ce63281be0625c566e346408f63e8ab07108f3ea0",
+  "bytes": 13309
+ },
+ {
+  "id": "poi-51998",
+  "ext": "xlsx",
+  "family": "xlsx",
+  "producerClass": "excel",
+  "sha256": "00415a5a936afc87016835893f6a7fa3fefec2632766730dc65a352c1acd2ab7",
+  "bytes": 11302
+ },
+ {
+  "id": "libreoffice-tdf122473_PivotTableLabelRotation",
+  "ext": "xlsx",
+  "family": "xlsx",
+  "producerClass": "libreoffice",
+  "sha256": "018785accfe179ce4f412621eb8d494daf16dcb49909eefc253244c9769492e4",
+  "bytes": 10613
+ },
+ {
+  "id": "poi-52348",
+  "ext": "xlsx",
+  "family": "xlsx",
+  "producerClass": "other",
+  "sha256": "0021fa21968bb6083b7f58506269cac214faecaf81d79c3091f36d0fca9cae76",
+  "bytes": 5292
+ },
+ {
+  "id": "poi-resize_compare",
+  "ext": "xlsx",
+  "family": "xlsx",
+  "producerClass": "poi",
+  "sha256": "1b9a1ef6efc253bd0f1fc5edd0b8449b096a7d043ce1ecc013f4f06dbf0d8c76",
+  "bytes": 37768
+ },
+ {
+  "id": "libreoffice-tdf147014",
+  "ext": "xlsx",
+  "family": "xlsx",
+  "producerClass": "excel",
+  "sha256": "0103d4c41b1679052c9434d199f0bfd04a519009b82d336e6408ab4474f7817d",
+  "bytes": 14930
+ },
+ {
+  "id": "libreoffice-change-tracking",
+  "ext": "xlsx",
+  "family": "xlsx",
+  "producerClass": "libreoffice",
+  "sha256": "0741653efe2baee21df4e19204172243fbc9f9960a9da21b202ce6f6106e8bf3",
+  "bytes": 7159
+ },
+ {
+  "id": "oxml-sdk-worksheets",
+  "ext": "xlsx",
+  "family": "xlsx",
+  "producerClass": "other",
+  "sha256": "0307c8a9bbfe7e82fa2271be7629084a13df1051a366e24cb7318c2d2fcf7a9f",
+  "bytes": 125862
+ },
+ {
+  "id": "poi-picture-transparency",
+  "ext": "pptx",
+  "family": "pptx",
+  "producerClass": "libreoffice",
+  "sha256": "0ce76411a6e2fe3a5b8acf42722b973131a91b93cb5c3118a5a9c481b063e386",
+  "bytes": 11793
+ },
+ {
+  "id": "libreoffice-layout-clrmap-override",
+  "ext": "pptx",
+  "family": "pptx",
+  "producerClass": "other",
+  "sha256": "00782399075b38f32f2a8b9269b3a2c70c2d1f32250ac1e43c6e21bff0236dbe",
+  "bytes": 7393
+ },
+ {
+  "id": "libreoffice-tdf157285",
+  "ext": "pptx",
+  "family": "pptx",
+  "producerClass": "powerpoint",
+  "sha256": "0059fa1aefb076b07799221f56f6a7b1c2e0b6c2adef268d7dfe061c6148c273",
+  "bytes": 31797
+ },
+ {
+  "id": "libreoffice-page_transparent_bitmap",
+  "ext": "pptx",
+  "family": "pptx",
+  "producerClass": "libreoffice",
+  "sha256": "148a92e7fee60b46acde5dc1ce3e9ab3e2733a735a15c119c13c29a237b6f23e",
+  "bytes": 29823
+ },
+ {
+  "id": "libreoffice-animation-sound-embedded",
+  "ext": "pptx",
+  "family": "pptx",
+  "producerClass": "other",
+  "sha256": "0c722d58248f1925bd2553a85e70c36ce17f2537604955cc67a2e30b21bdd342",
+  "bytes": 4692
+ },
+ {
+  "id": "poi-missing-blip-fill",
+  "ext": "pptx",
+  "family": "pptx",
+  "producerClass": "powerpoint",
+  "sha256": "00b19b1ba0f3b399dd3c3c0de906b8cfeca5cda9425d481c2d75f5d74790c004",
+  "bytes": 40732
+ }
+]
