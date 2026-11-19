@@ -11,6 +11,7 @@ export const SEVERITY = {
   XML_INVALID_BYTES: 'loss',
   XML_TRUNCATED_CLOSED: 'loss',
   XML_UNRECOVERABLE: 'loss',
+  XML_HOLE_DROPPED: 'loss',
   REL_DUPLICATE_DROPPED: 'loss',
   NO_MAIN_PART: 'loss',
   DOCX_IMAGE_REMOVED: 'loss',

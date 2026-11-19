@@ -4,6 +4,7 @@ import { recoverEntries, mergeEntries } from './zip-recover.js';
 import { writeZip } from './zip-write.js';
 import { decodeXml, cleanChars, encodeUtf8 } from './xml-clean.js';
 import { repairXml } from './xml-repair.js';
+import { spliceHoles, resolveHoles } from './xml-holes.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
   repairRootRels, repairRels, sweepReferences, auditReferences, repairContentTypes, flushTrees, addFinding, getTree
@@ -82,24 +83,36 @@ function loadEntries(ctx, bytes, identity) {
       addFinding(ctx, 'ZIP_UNSUPPORTED_METHOD', entry.name, { method: entry.method });
       continue;
     }
+    let bytes = entry.data;
+    let holeBytes = 0;
+    if (entry.holes && isXmlPath(entry.name)) {
+      const spliced = spliceHoles(entry.whole, entry.holes);
+      if (spliced !== null) {
+        bytes = spliced.bytes;
+        holeBytes = spliced.lost;
+      }
+    }
     if (entry.state === 'partial') {
-      const pct = entry.expectedSize > 0 ? Math.min(99, Math.floor((entry.data.length / entry.expectedSize) * 100)) : null;
-      addFinding(ctx, 'ZIP_ENTRY_TRUNCATED', entry.name, { pct, bytes: entry.data.length });
+      const kept = holeBytes > 0 ? entry.whole.length - holeBytes : entry.data.length;
+      const pct = entry.expectedSize > 0 ? Math.min(99, Math.floor((kept / entry.expectedSize) * 100)) : null;
+      addFinding(ctx, 'ZIP_ENTRY_TRUNCATED', entry.name, { pct, bytes: kept });
     } else if (entry.state === 'crcMismatch') {
       addFinding(ctx, 'ZIP_ENTRY_CRC', entry.name, {});
     }
-    ctx.parts.set(entry.name, { name: entry.name, bytes: entry.data, text: null, isXml: isXmlPath(entry.name), changed: false, state: entry.state, mtime: entry.mtime, raw: null, repairedXml: false });
+    ctx.parts.set(entry.name, { name: entry.name, bytes, holeBytes, text: null, isXml: isXmlPath(entry.name), changed: false, state: entry.state, mtime: entry.mtime, raw: null, repairedXml: false });
     ctx.index.add(entry.name);
   }
 }
 
 async function processXml(ctx, part, env) {
   const decoded = decodeXml(part.bytes);
-  const cleaned = cleanChars(decoded.text);
+  const holed = resolveHoles(decoded.text);
+  const cleaned = cleanChars(holed.text);
   let text = cleaned.text;
-  let changed = cleaned.changed || decoded.invalid > 0;
+  let changed = cleaned.changed || decoded.invalid > 0 || holed.holes > 0;
   const found = [];
   if (decoded.invalid > 0) found.push(['XML_INVALID_BYTES', { n: decoded.invalid }]);
+  if (holed.holes > 0) found.push(['XML_HOLE_DROPPED', { n: holed.holes, bytes: part.holeBytes }]);
   if (cleaned.changed) found.push(['XML_CHARS_REMOVED', { n: cleaned.removed + cleaned.escaped }]);
 
   if (!(await checkWellFormed(env, text))) {

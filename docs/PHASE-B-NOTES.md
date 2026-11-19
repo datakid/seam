@@ -37,9 +37,28 @@ Status of the Phase B build on the `v2-bytes` branch and where it differs from `
 - Known bytes after the first hole are never wrong in any seed tested. That is the property the tests protect first.
 - Entries with more than one gap keep the exact head only, because the hole lengths are not known.
 
+## B2: holes in the XML layer
+
+`js/core/xml-holes.js` has two functions. `spliceHoles(whole, holes)` runs in `loadEntries` for XML parts whose entry has `holes`. It replaces each hole with one U+E000 and trims half a multi-byte character beside it. `resolveHoles(text)` is the one call added to `processXml`, before `cleanChars`. It removes every sentinel and returns the count, and the part gets `XML_HOLE_DROPPED` (severity loss, so the label is Partial).
+
+| Rule | Reason |
+|---|---|
+| A known stretch of fewer than 16 bytes between two holes is merged into the holes. | Fragments that short are almost always copies of lost structure. |
+| A hole in text cuts that text node. A partial entity before the hole is cut with it. | The plan's rule. Joining the text on both sides could make words that never existed. |
+| A hole in a start tag drops that element up to its closing tag. If the closing tag is lost too, it stops at the next sibling of the same name or at the parent's closing tag. | Keeps the tree balanced. A sibling of the same name counts only after a child has closed, so `<b><b>` is still nesting. |
+| A hole in a closing tag drops that tag only. | The next start tag decides the level. |
+| The first start tag after a hole is attached to the nearest open element that the exact head shows holding that name. Open elements above it are closed. If none holds it, the head's parent for that name is added as a new element. | A hole usually swallows the closing tags. Without this, `<w:r>` nests inside `<w:t>`. The relations are learned only from the text before the first hole, because nesting seen after a hole is not reliable. |
+| An entry whose tail has holes outranks a CRC mismatch in `mergeEntries`. | A CRC mismatch keeps full-length garbage after the damage. |
+
+### B2 limits
+
+- On match-heavy XML the unknown bytes are mostly the repeated markup, and the known ones are mostly text. After 512 zeroed bytes in a 580 KB `document.xml` of 5000 paragraphs, the repaired part kept more than half of the text runs, most of them cut at a hole. The tail's paragraphs end up in a few paragraphs of their own, not in their original ones. The output is valid, not faithful.
+- Wrappers are added from what the head shows, not from a schema. An element that needs required children can come out incomplete. Phase C3 should check this.
+- UTF-16 parts are not spliced. They keep the exact head only.
+
 ### Not yet measured
 
-The Phase B exit numbers (+15 points median text recall on zero512, zero4096, dropblock and bitflip, and the crlf row) need the damage lab and scoreboard run on the corpus. B2 has to consume `holes` before any of the B1 gain reaches the output file.
+The Phase B exit numbers (+15 points median text recall on zero512, zero4096, dropblock and bitflip, and the crlf row) need the damage lab and scoreboard run on the corpus. The B1 and B2 gains reach the output file only for zero runs inside deflate entries. Nothing else in Phase B has been measured on the corpus.
 
 ### Speed
 

@@ -195,6 +195,10 @@ export function recoverEntries(bytes) {
 
 const RANK = { ok: 4, crcMismatch: 3, partial: 2, unreadable: 1, unsupported: 0 };
 
+function rankOf(entry) {
+  return RANK[entry.state] + (entry.holes ? 1.5 : 0);
+}
+
 export function mergeEntries(primary, secondary) {
   const map = new Map();
   const order = [];
@@ -205,7 +209,7 @@ export function mergeEntries(primary, secondary) {
       if (!existing) {
         map.set(key, entry);
         order.push(key);
-      } else if (RANK[entry.state] > RANK[existing.state] || (RANK[entry.state] === RANK[existing.state] && list === secondary && entry.data.length > existing.data.length)) {
+      } else if (rankOf(entry) > rankOf(existing) || (rankOf(entry) === rankOf(existing) && list === secondary && entry.data.length > existing.data.length)) {
         map.set(key, entry);
       }
     }
