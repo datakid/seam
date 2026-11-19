@@ -1,10 +1,13 @@
-import { Inflate, inflateSync } from '../../vendor/fflate.module.js';
+import { inflateSync } from '../../vendor/fflate.module.js';
+import { inflateTolerant } from './inflate-tolerant.js';
 import { crc32 } from './crc32.js';
 import { SIG } from './constants.js';
 import { indexOfBytes } from './identify.js';
 import { decodeName, validNameBytes, normalizeName, dosToDate, findEocdPosition } from './zip-read.js';
 
 const MAX_CANDIDATES = 16;
+const MAX_INFLATED = 1 << 28;
+const INFLATE_BUDGET_MS = 4000;
 
 function u16(bytes, at) {
   return bytes[at] | (bytes[at + 1] << 8);
@@ -41,61 +44,26 @@ function parseLocal(bytes, p) {
   };
 }
 
-function concat(chunks, total) {
-  const out = new Uint8Array(total);
-  let at = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, at);
-    at += chunk.length;
+export function inflatePartial(slice, expectedSize) {
+  const result = inflateTolerant(slice, { maxOut: MAX_INFLATED, budgetMs: INFLATE_BUDGET_MS, expectedSize, zeroRuns: true });
+  if (result.holes.length === 0) return { data: result.data, complete: result.complete, holes: [], whole: null };
+  const head = result.data.slice(0, result.holes[0][0]);
+  if (!result.aligned) return { data: head, complete: false, holes: [], whole: null };
+  return { data: head, complete: false, holes: result.holes, whole: result.data };
+}
+
+function partialFrom(slice, method, expectedSize) {
+  if (method === 0) return { data: slice.slice(), complete: false, holes: [], whole: null };
+  return inflatePartial(slice, expectedSize === null ? undefined : expectedSize);
+}
+
+function partialEntry(base, part, nextPos) {
+  const entry = { ...base, data: part.data, state: part.data.length > 0 ? 'partial' : 'unreadable', nextPos };
+  if (part.holes.length > 0) {
+    entry.holes = part.holes;
+    entry.whole = part.whole;
   }
-  return out;
-}
-
-function pushRange(inflater, slice, from, to, size) {
-  let at = from;
-  while (at < to) {
-    const next = Math.min(to, at + size);
-    try {
-      inflater.push(slice.subarray(at, next), false);
-    } catch (error) {
-      return at;
-    }
-    at = next;
-  }
-  return -1;
-}
-
-function collector() {
-  const state = { chunks: [], total: 0 };
-  state.inflater = new Inflate((chunk) => {
-    if (chunk.length > 0) {
-      state.chunks.push(chunk);
-      state.total += chunk.length;
-    }
-  });
-  return state;
-}
-
-export function inflatePartial(slice) {
-  const first = collector();
-  const failedAt = pushRange(first.inflater, slice, 0, slice.length, 65536);
-  if (failedAt === -1) {
-    try {
-      first.inflater.push(new Uint8Array(0), true);
-      return { data: concat(first.chunks, first.total), complete: true };
-    } catch (error) {
-      return { data: concat(first.chunks, first.total), complete: false };
-    }
-  }
-  const second = collector();
-  pushRange(second.inflater, slice, 0, failedAt, 65536);
-  pushRange(second.inflater, slice, failedAt, Math.min(slice.length, failedAt + 65536), 96);
-  return { data: concat(second.chunks, second.total), complete: false };
-}
-
-function partialFrom(slice, method) {
-  if (method === 0) return { data: slice.slice(), complete: false };
-  return inflatePartial(slice);
+  return entry;
 }
 
 function tryDecode(slice, method) {
@@ -141,14 +109,16 @@ function recoverEntry(bytes, h) {
         const slice = bytes.subarray(h.dataStart, end);
         const data = tryDecode(slice, h.method);
         if (data) {
-          const ok = crc32(data) === h.crc && data.length === h.usize;
-          return { ...base, data, state: ok ? 'ok' : 'crcMismatch', nextPos: end };
+          if (crc32(data) === h.crc && data.length === h.usize) return { ...base, data, state: 'ok', nextPos: end };
+          if (h.method === 8) {
+            const part = partialFrom(slice, h.method, base.expectedSize);
+            if (part.holes.length > 0 && part.data.length > 0) return partialEntry(base, part, end);
+          }
+          return { ...base, data, state: 'crcMismatch', nextPos: end };
         }
-        const part = partialFrom(slice, h.method);
-        return { ...base, data: part.data, state: part.data.length > 0 ? 'partial' : 'unreadable', nextPos: end };
+        return partialEntry(base, partialFrom(slice, h.method, base.expectedSize), end);
       }
-      const part = partialFrom(bytes.subarray(h.dataStart, n), h.method);
-      return { ...base, data: part.data, state: part.data.length > 0 ? 'partial' : 'unreadable', nextPos: n };
+      return partialEntry(base, partialFrom(bytes.subarray(h.dataStart, n), h.method, base.expectedSize), n);
     }
   }
 
@@ -157,23 +127,31 @@ function recoverEntry(bytes, h) {
   for (const c of candidates) {
     let end = c.at;
     let expected = h.crc !== 0 ? h.crc : null;
+    let size = null;
     let next = c.at;
     if (c.kind === 'descriptor') {
       expected = u32(bytes, c.at + 4);
+      size = u32(bytes, c.at + 12);
       next = c.at + 4;
     } else if (c.at - 12 >= h.dataStart && u32(bytes, c.at - 8) === c.at - 12 - h.dataStart) {
       end = c.at - 12;
       expected = u32(bytes, c.at - 12);
+      size = u32(bytes, c.at - 4);
     }
     const data = tryDecode(bytes.subarray(h.dataStart, end), h.method);
     if (!data) continue;
     if (expected === null || crc32(data) === expected) return { ...base, data, state: 'ok', expectedSize: data.length, nextPos: next };
-    if (!mismatch) mismatch = { ...base, data, state: 'crcMismatch', expectedSize: data.length, nextPos: next };
+    if (!mismatch) {
+      mismatch = { ...base, data, state: 'crcMismatch', expectedSize: data.length, nextPos: next };
+      if (h.method === 8) {
+        const part = partialFrom(bytes.subarray(h.dataStart, end), h.method, size);
+        if (part.holes.length > 0 && part.data.length > 0) mismatch = partialEntry({ ...base, expectedSize: size }, part, next);
+      }
+    }
   }
   if (mismatch) return mismatch;
   const extent = candidates.length > 0 ? candidates[0].at : n;
-  const part = partialFrom(bytes.subarray(h.dataStart, extent), h.method);
-  return { ...base, data: part.data, state: part.data.length > 0 ? 'partial' : 'unreadable', nextPos: extent };
+  return partialEntry(base, partialFrom(bytes.subarray(h.dataStart, extent), h.method, base.expectedSize), extent);
 }
 
 export function recoverEntries(bytes) {
