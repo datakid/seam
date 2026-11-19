@@ -56,6 +56,21 @@ Status of the Phase B build on the `v2-bytes` branch and where it differs from `
 - Wrappers are added from what the head shows, not from a schema. An element that needs required children can come out incomplete. Phase C3 should check this.
 - UTF-16 parts are not spliced. They keep the exact head only.
 
+## B3: ZIP layer
+
+| Item | State |
+|---|---|
+| ZIP64 | The local header scan reads the 0x0001 extra field for both sizes, and the 8-byte sizes in a ZIP64 data descriptor. The central directory and end records were already read by v1. |
+| Entry selection | `mergeEntries` orders copies by state (ok, CRC mismatch, partial), then an ok copy from the central directory, then well-formed XML, then the longest. When the copies differ in content, the entry carries `rejected` and the pipeline reports `ZIP_ENTRY_CHOSEN` (Noted). |
+| Central directory as a map | `strictRead` records each entry's data start and compressed size. `recoverEntries` takes them as hints: a streamed entry whose local header has no sizes is bounded by the central sizes and checked against the central CRC, with no scan for `PK` candidates. |
+| CRLF | Done by the main agent. |
+| Offset shift after a point | Not a separate finding. A central offset that is wrong after an insertion or a dropped block leaves that entry unreadable in the strict pass, the local scan recovers it, and the existing `ZIP_DIRECTORY_REBUILT` reports the rebuild. A separate `ZIP_OFFSETS_REBASED` would repeat it. |
+
+### B3 differences from the plan
+
+- The fixed 16-candidate limit is raised to 64, not removed. It still applies to a streamed entry that the central directory does not describe. A scan with no bound would try to inflate from every `PK` signature inside an embedded stored package.
+- v1 test `merge: ok beats crcMismatch beats partial` expected a later ok copy to win a tie by length. The plan's order puts the central directory copy first, so the test now expects the central copy to stay. Changes an existing test.
+
 ### Not yet measured
 
 The Phase B exit numbers (+15 points median text recall on zero512, zero4096, dropblock and bitflip, and the crlf row) need the damage lab and scoreboard run on the corpus. The B1 and B2 gains reach the output file only for zero runs inside deflate entries. Nothing else in Phase B has been measured on the corpus.

@@ -56,7 +56,7 @@ function loadEntries(ctx, bytes, identity) {
   let endsEarly = false;
   const directoryBroken = !strict.eocdFound || strict.errors.some((e) => STRUCTURAL.has(e)) || strict.parsed !== strict.total;
   if (!strict.intact) {
-    const recovered = recoverEntries(bytes);
+    const recovered = recoverEntries(bytes, strict.entries);
     entries = mergeEntries(strict.entries, recovered.entries);
     dropped.push(...recovered.dropped);
     endsEarly = recovered.endsEarly;
@@ -92,6 +92,7 @@ function loadEntries(ctx, bytes, identity) {
         holeBytes = spliced.lost;
       }
     }
+    if (entry.rejected > 0) addFinding(ctx, 'ZIP_ENTRY_CHOSEN', entry.name, { n: entry.rejected + 1 });
     if (entry.state === 'partial') {
       const kept = holeBytes > 0 ? entry.whole.length - holeBytes : entry.data.length;
       const pct = entry.expectedSize > 0 ? Math.min(99, Math.floor((kept / entry.expectedSize) * 100)) : null;

@@ -3,9 +3,10 @@ import { inflateTolerant } from './inflate-tolerant.js';
 import { crc32 } from './crc32.js';
 import { SIG } from './constants.js';
 import { indexOfBytes } from './identify.js';
-import { decodeName, validNameBytes, normalizeName, dosToDate, findEocdPosition } from './zip-read.js';
+import { decodeName, validNameBytes, normalizeName, dosToDate, findEocdPosition, zip64Extra } from './zip-read.js';
+import { looksWellFormed } from './xml-repair.js';
 
-const MAX_CANDIDATES = 16;
+const MAX_CANDIDATES = 64;
 const MAX_INFLATED = 1 << 28;
 const INFLATE_BUDGET_MS = 4000;
 
@@ -28,6 +29,17 @@ function parseLocal(bytes, p) {
   if (p + 30 + nlen > n) return { cut: true, p };
   const nameBytes = bytes.subarray(p + 30, p + 30 + nlen);
   if (!validNameBytes(nameBytes)) return null;
+  let csize = u32(bytes, p + 18);
+  let usize = u32(bytes, p + 22);
+  let zip64 = false;
+  if (elen >= 4) {
+    const extra = zip64Extra(bytes, p + 30 + nlen, elen, { usize: usize === 0xffffffff, csize: csize === 0xffffffff });
+    if (extra.found) {
+      zip64 = true;
+      if (extra.usize !== undefined) usize = extra.usize;
+      if (extra.csize !== undefined) csize = extra.csize;
+    }
+  }
   return {
     p,
     flags,
@@ -35,8 +47,9 @@ function parseLocal(bytes, p) {
     time: u16(bytes, p + 10),
     date: u16(bytes, p + 12),
     crc: u32(bytes, p + 14),
-    csize: u32(bytes, p + 18),
-    usize: u32(bytes, p + 22),
+    csize,
+    usize,
+    zip64,
     nlen,
     elen,
     nameBytes,
@@ -90,8 +103,12 @@ function candidatesAfter(bytes, from) {
   return found;
 }
 
-function recoverEntry(bytes, h) {
+function recoverEntry(bytes, header, hint) {
   const n = bytes.length;
+  let h = header;
+  if ((h.flags & 8) !== 0 && hint && hint.dataStart === h.dataStart && hint.csize !== undefined && h.csize === 0) {
+    h = { ...h, flags: h.flags & ~8, csize: hint.csize, usize: hint.expectedSize, crc: hint.crc };
+  }
   const base = { method: h.method, mtime: dosToDate(h.time, h.date), expectedSize: null, data: new Uint8Array(0), state: 'unreadable', rawName: null };
   if ((h.flags & 1) !== 0 || (h.method !== 0 && h.method !== 8)) {
     return { ...base, state: 'unsupported', nextPos: Math.min(n, h.dataStart) };
@@ -131,7 +148,7 @@ function recoverEntry(bytes, h) {
     let next = c.at;
     if (c.kind === 'descriptor') {
       expected = u32(bytes, c.at + 4);
-      size = u32(bytes, c.at + 12);
+      size = h.zip64 ? u32(bytes, c.at + 16) : u32(bytes, c.at + 12);
       next = c.at + 4;
     } else if (c.at - 12 >= h.dataStart && u32(bytes, c.at - 8) === c.at - 12 - h.dataStart) {
       end = c.at - 12;
@@ -154,7 +171,9 @@ function recoverEntry(bytes, h) {
   return partialEntry(base, partialFrom(bytes.subarray(h.dataStart, extent), h.method, base.expectedSize), extent);
 }
 
-export function recoverEntries(bytes) {
+export function recoverEntries(bytes, hints = []) {
+  const spans = new Map();
+  for (const hint of hints) if (hint.dataStart !== undefined) spans.set(hint.name.toLowerCase(), hint);
   const n = bytes.length;
   const entries = [];
   const dropped = [];
@@ -180,9 +199,9 @@ export function recoverEntries(bytes) {
       lastEnd = n;
       break;
     }
-    const entry = recoverEntry(bytes, h);
     const raw = decodeName(h.nameBytes, (h.flags & 0x800) !== 0);
     const name = normalizeName(raw);
+    const entry = recoverEntry(bytes, h, name ? spans.get(name.toLowerCase()) : undefined);
     if (name === null || name === '') dropped.push(raw);
     else if (!name.endsWith('/')) entries.push({ ...entry, name });
     lastEnd = Math.max(lastEnd, entry.nextPos);
@@ -199,9 +218,38 @@ function rankOf(entry) {
   return RANK[entry.state] + (entry.holes ? 1.5 : 0);
 }
 
+function wellFormedXml(entry) {
+  if (!/\.(xml|rels)$/i.test(entry.name) || entry.data.length === 0) return 0;
+  return looksWellFormed(new TextDecoder().decode(entry.data)) ? 1 : 0;
+}
+
+function checksum(entry) {
+  if (entry.checksum === undefined) entry.checksum = crc32(entry.data);
+  return entry.checksum;
+}
+
+function sameBytes(a, b) {
+  if (a.data.length !== b.data.length) return false;
+  if (checksum(a) !== checksum(b)) return false;
+  for (let i = 0; i < a.data.length; i++) if (a.data[i] !== b.data[i]) return false;
+  return true;
+}
+
+function better(entry, existing, existingIsPrimary) {
+  const a = rankOf(entry);
+  const b = rankOf(existing);
+  if (a !== b) return a > b;
+  if (existingIsPrimary && existing.state === 'ok') return false;
+  const x = wellFormedXml(entry);
+  const y = wellFormedXml(existing);
+  if (x !== y) return x > y;
+  return entry.data.length > existing.data.length;
+}
+
 export function mergeEntries(primary, secondary) {
   const map = new Map();
   const order = [];
+  const central = new Set(primary);
   for (const list of [primary, secondary]) {
     for (const entry of list) {
       const key = entry.name.toLowerCase();
@@ -209,11 +257,13 @@ export function mergeEntries(primary, secondary) {
       if (!existing) {
         map.set(key, entry);
         order.push(key);
-      } else if (rankOf(entry) > rankOf(existing) || (rankOf(entry) === rankOf(existing) && list === secondary && entry.data.length > existing.data.length)) {
-        map.set(key, entry);
+        continue;
       }
+      const differs = !sameBytes(entry, existing);
+      const winner = better(entry, existing, central.has(existing)) ? entry : existing;
+      if (differs) winner.rejected = (winner.rejected || 0) + 1 + (winner === entry ? existing.rejected || 0 : entry.rejected || 0);
+      map.set(key, winner);
     }
   }
   return order.map((key) => map.get(key));
 }
-

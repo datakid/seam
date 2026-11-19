@@ -32,6 +32,7 @@ export const SEVERITY = {
   ZIP_PREFIX_DATA: 'repaired',
   TRANSFER_CRLF_REVERSED: 'repaired',
   ZIP_DIRECTORY_REBUILT: 'repaired',
+  ZIP_ENTRY_CHOSEN: 'noted',
   XML_REENCODED: 'repaired',
   XML_CHARS_REMOVED: 'repaired',
   XML_REPAIRED: 'repaired',

@@ -161,7 +161,7 @@ test('names: backslashes, leading slash and dot segments are normalised; dot-dot
   eq(normalizeName('word/'), 'word/');
 });
 
-test('merge: ok beats crcMismatch beats partial, later wins a tie', () => {
+test('merge: ok beats crcMismatch beats partial, an ok central copy keeps a tie', () => {
   const a = { name: 'x', state: 'partial', data: new Uint8Array(5) };
   const b = { name: 'X', state: 'ok', data: new Uint8Array(3) };
   const c = { name: 'y', state: 'ok', data: new Uint8Array(1) };
@@ -169,7 +169,7 @@ test('merge: ok beats crcMismatch beats partial, later wins a tie', () => {
   const merged = mergeEntries([a, c], [b, d]);
   eq(merged.length, 2);
   eq(merged[0].state, 'ok');
-  eq(merged[1].data.length, 2);
+  eq(merged[1].data.length, 1);
 });
 
 test('writeZip: Content_Types first, then root rels, then original order; reads back strictly', () => {

@@ -68,15 +68,17 @@ export function findEocdPosition(bytes) {
   return -1;
 }
 
-function zip64Extra(bytes, start, length, needs) {
+export function zip64Extra(bytes, start, length, needs) {
   let at = start;
-  const end = start + length;
+  const end = Math.min(start + length, bytes.length);
   while (at + 4 <= end) {
     const id = u16(bytes, at);
     const size = u16(bytes, at + 2);
     if (id === 0x0001) {
       let p = at + 4;
-      const out = {};
+      const out = { found: true };
+      const wanted = (needs.usize ? 8 : 0) + (needs.csize ? 8 : 0) + (needs.lho ? 8 : 0);
+      if (p + wanted > end) return out;
       if (needs.usize) {
         out.usize = u64(bytes, p);
         p += 8;
@@ -187,6 +189,8 @@ export function strictRead(bytes, prefix = 0) {
       result.errors.push('SHORT_DATA');
       continue;
     }
+    entry.dataStart = dataStart;
+    entry.csize = csize;
     const slice = bytes.subarray(dataStart, dataStart + csize);
     let data;
     try {
