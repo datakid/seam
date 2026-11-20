@@ -6,6 +6,12 @@ export const LIMITS = { files: 50, bytes: 200 * 1024 * 1024, concurrency: 2, bud
 
 const WANTS_COPIES = new Set(['partial', 'salvaged', 'failed']);
 
+const WANTS_DONOR = new Set(['partial', 'salvaged']);
+
+export function canAddDonor(item) {
+  return item.status === 'done' && item.file !== null && item.result !== null && WANTS_DONOR.has(item.result.outcome);
+}
+
 export function canAddCopy(item) {
   return item.status === 'done' && item.file !== null && item.result !== null && WANTS_COPIES.has(item.result.outcome);
 }
@@ -64,6 +70,7 @@ export function createQueue(handlers) {
     if (!WANTS_COPIES.has(result.outcome)) {
       item.file = null;
       item.copies = [];
+      item.donor = null;
     }
     handlers.onItem(item);
     handlers.onSummary();
@@ -110,10 +117,12 @@ export function createQueue(handlers) {
     slot.itemId = item.id;
     handlers.onItem(item);
     let buffer;
+    let donor = null;
     const copies = [];
     try {
       buffer = await item.file.arrayBuffer();
       for (const extra of item.copies) copies.push({ name: extra.name, buffer: await extra.arrayBuffer() });
+      if (item.donor) donor = { name: item.donor.name, buffer: await item.donor.arrayBuffer() };
     } catch (error) {
       if (run !== generation) return;
       release(slot);
@@ -121,8 +130,8 @@ export function createQueue(handlers) {
       return;
     }
     if (run !== generation) return;
-    slot.timer = setTimeout(() => fail(slot, 'TIMEOUT', copy.reasons.timeout), LIMITS.budgetMs * (1 + copies.length));
-    slot.worker.postMessage({ type: 'process', id: item.id, name: item.name, size: item.size, lastModified: item.lastModified, buffer, copies }, [buffer, ...copies.map((extra) => extra.buffer)]);
+    slot.timer = setTimeout(() => fail(slot, 'TIMEOUT', copy.reasons.timeout), LIMITS.budgetMs * (1 + copies.length + (donor ? 1 : 0)));
+    slot.worker.postMessage({ type: 'process', id: item.id, name: item.name, size: item.size, lastModified: item.lastModified, buffer, copies, donor }, [buffer, ...copies.map((extra) => extra.buffer), ...(donor ? [donor.buffer] : [])]);
   }
 
   function pump() {
@@ -160,7 +169,7 @@ export function createQueue(handlers) {
         continue;
       }
       keys.add(key);
-      fresh.push({ id: nextId++, key, file, name: file.name, size: file.size, lastModified: file.lastModified, status: 'queued', pct: 0, stage: null, result: null, copies: [] });
+      fresh.push({ id: nextId++, key, file, name: file.name, size: file.size, lastModified: file.lastModified, status: 'queued', pct: 0, stage: null, result: null, copies: [], donor: null });
     }
     for (const item of fresh) {
       items.push(item);
@@ -210,6 +219,34 @@ export function createQueue(handlers) {
       handlers.onList(items, notices);
       return notices;
     }
+    item.result = null;
+    item.status = 'queued';
+    item.pct = 0;
+    item.stage = null;
+    handlers.onList(items, notices);
+    if (!announcedBusy) {
+      announcedBusy = true;
+      handlers.onBusy(1);
+    }
+    pump();
+    return notices;
+  }
+
+  function addDonor(id, file) {
+    const notices = { duplicates: 0, overflow: false, copiesFull: false, tooLarge: false };
+    const item = findItem(id);
+    if (!item || !canAddDonor(item)) return notices;
+    if (file.size > LIMITS.bytes) {
+      notices.tooLarge = true;
+      handlers.onList(items, notices);
+      return notices;
+    }
+    if (fileKey(file) === item.key || (item.donor && fileKey(item.donor) === fileKey(file))) {
+      notices.duplicates++;
+      handlers.onList(items, notices);
+      return notices;
+    }
+    item.donor = file;
     item.result = null;
     item.status = 'queued';
     item.pct = 0;
@@ -303,7 +340,7 @@ export function createQueue(handlers) {
 
   function inject(entries) {
     for (const entry of entries) {
-      const item = { id: nextId++, key: `demo-${nextId}`, file: null, name: entry.name, size: entry.size, lastModified: 0, status: 'done', pct: 100, stage: null, result: entry.result, copies: [] };
+      const item = { id: nextId++, key: `demo-${nextId}`, file: null, name: entry.name, size: entry.size, lastModified: 0, status: 'done', pct: 100, stage: null, result: entry.result, copies: [], donor: null };
       items.push(item);
     }
     handlers.onList(items, { duplicates: 0, overflow: false });
@@ -312,5 +349,5 @@ export function createQueue(handlers) {
 
   ensureWorkers();
 
-  return { add, addCopies, clear, downloadOutput, downloadAll, inject, items: () => items, save };
+  return { add, addCopies, addDonor, clear, downloadOutput, downloadAll, inject, items: () => items, save };
 }

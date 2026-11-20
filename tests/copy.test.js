@@ -38,7 +38,7 @@ test('copy lint: no banned words or phrases', () => {
 });
 
 test('copy lint: sentence case buttons', () => {
-  for (const value of [copy.btn.downloadAll, copy.btn.clear, copy.btn.download, copy.btn.downloadSalvage, copy.btn.copyReport, copy.btn.saveReport, copy.btn.addCopy, copy.drop.button]) {
+  for (const value of [copy.btn.downloadAll, copy.btn.clear, copy.btn.download, copy.btn.downloadSalvage, copy.btn.copyReport, copy.btn.saveReport, copy.btn.addCopy, copy.btn.addDonor, copy.drop.button]) {
     const words = value.split(' ').slice(1);
     for (const w of words) assert(!/^[A-Z][a-z]/.test(w), `title case in: ${value}`);
   }
@@ -48,6 +48,7 @@ const CODES = [
   'TRANSFER_CRLF_REVERSED', 'ZIP_PREFIX_DATA', 'ZIP_DIRECTORY_REBUILT', 'ZIP_ENTRY_TRUNCATED', 'ZIP_ENTRY_CRC', 'ZIP_ENTRY_UNREADABLE',
   'XML_HOLE_DROPPED', 'ZIP_ENTRY_CHOSEN',
   'MULTI_PART_FROM', 'MULTI_COPY_UNUSED',
+  'DONOR_PART_BORROWED', 'DONOR_UNUSED',
   'XML_REENCODED', 'XML_INVALID_BYTES', 'XML_CHARS_REMOVED', 'XML_REPAIRED', 'XML_TRUNCATED_CLOSED', 'XML_UNRECOVERABLE',
   'CT_REBUILT', 'CT_OVERRIDE_REMOVED', 'CT_OVERRIDE_ADDED', 'CT_UNKNOWN_PART', 'ROOT_RELS_REBUILT', 'REL_REMOVED', 'REL_FILE_REMOVED',
   'EXTENSION_CORRECTED', 'REF_DANGLING', 'REF_REMOVED', 'XLSX_STYLE_CLEARED', 'NO_MAIN_PART',
@@ -85,4 +86,14 @@ test('copy: the unused-copy finding names the file and says why', () => {
   const texts = new Set(['unreadable', 'different', 'unused'].map((why) => finding('MULTI_COPY_UNUSED', null, { name: 'x', why }).text));
   assert(texts.size === 3, 'three distinct texts');
   assert(finding('MULTI_PART_FROM', 'word/document.xml', { from: 'Backup.docx', n: 2 }).text.includes('Backup.docx'), 'names the copy');
+});
+
+test('copy: the donor findings name the file and say why nothing was taken', () => {
+  for (const why of ['unreadable', 'kind', 'nothing']) {
+    const text = finding('DONOR_UNUSED', null, { name: 'Healthy.docx', why }).text;
+    assert(text.includes('Healthy.docx') && text.includes('nothing was taken'), text);
+  }
+  const texts = new Set(['unreadable', 'kind', 'nothing'].map((why) => finding('DONOR_UNUSED', null, { name: 'x', why }).text));
+  assert(texts.size === 3, 'three distinct texts');
+  assert(finding('DONOR_PART_BORROWED', 'word/styles.xml', { from: 'Healthy.docx' }).text.includes('Healthy.docx'), 'names the donor');
 });

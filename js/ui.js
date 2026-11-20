@@ -174,6 +174,7 @@ export function createRenderer(list, actions) {
       panel.appendChild(el('p', 'report-note', `${copy.verify.ok} ${copy.verify.advice}`));
     }
     if (actions.canAddCopy(item)) panel.appendChild(el('p', 'report-note', copy.report.addCopyHint));
+    if (actions.canAddDonor(item)) panel.appendChild(el('p', 'report-note', copy.report.addDonorHint));
     const buttons = el('div', 'actions');
     if (result.output) {
       const label = result.outcome === 'salvaged' ? copy.btn.downloadSalvage : copy.btn.download;
@@ -200,6 +201,12 @@ export function createRenderer(list, actions) {
       more.type = 'button';
       more.addEventListener('click', () => actions.addCopy(item));
       buttons.appendChild(more);
+    }
+    if (actions.canAddDonor(item)) {
+      const donor = el('button', 'btn', copy.btn.addDonor);
+      donor.type = 'button';
+      donor.addEventListener('click', () => actions.addDonor(item));
+      buttons.appendChild(donor);
     }
     panel.appendChild(buttons);
   }

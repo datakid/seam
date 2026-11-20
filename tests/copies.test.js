@@ -1,6 +1,6 @@
 import { test, assert, eq, env } from './harness.js';
 import { unzipSync, strFromU8 } from '../vendor/fflate.module.js';
-import { prng, words, randomBytes, docxEntries, pack } from './fixtures.js';
+import { prng, words, randomBytes, docxEntries, pack, unpack } from './fixtures.js';
 import { localEntry, truncate, deleteDirectory } from './corrupt.js';
 import { runPipeline } from '../js/core/pipeline.js';
 import { verifyPackage } from '../js/core/verify.js';
@@ -247,4 +247,13 @@ test('mergeCopies: a copy that is empty or unreadable never contributes', () => 
   const first = [entry('a.bin', 'ok', randomBytes(1, 100))];
   const merged = mergeCopies([first, [], first.map((e) => ({ ...e }))]);
   eq(merged.used, [true, false, true]);
+});
+
+test('copies: a copy that gives nothing to a row without a main part is still reported', async () => {
+  const original = variant(300, 500);
+  const entries = unpack(original).filter(([name]) => name !== 'word/document.xml');
+  const broken = pack(entries);
+  const result = await run('File.docx', broken, [{ name: 'Same.docx', bytes: broken }]);
+  assert(['salvaged', 'failed'].includes(result.outcome), result.outcome);
+  eq(result.findings.filter((f) => f.code === 'MULTI_COPY_UNUSED').map((f) => f.data.why), ['unused']);
 });

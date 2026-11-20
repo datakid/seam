@@ -11,6 +11,7 @@ const files = [
   './holes.test.js',
   './zip-hardening.test.js',
   './copies.test.js',
+  './donor.test.js',
   './xml.test.js',
   './package.test.js',
   './property.test.js',

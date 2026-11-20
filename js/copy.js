@@ -26,6 +26,12 @@ function copyUnusedText(d) {
   return `Nothing in ${d.name} was more complete than this file, so nothing was taken from it.`;
 }
 
+function donorUnusedText(d) {
+  if (d.why === 'unreadable') return `${d.name} could not be read as a package, so nothing was taken from it.`;
+  if (d.why === 'kind') return `${d.name} is not the same kind of file, so nothing was taken from it.`;
+  return `${d.name} had no style, theme or layout part that this file was missing, so nothing was taken from it.`;
+}
+
 export const copy = {
   title: 'Seam',
   headline: 'Repair damaged Word, Excel and PowerPoint files.',
@@ -54,7 +60,8 @@ export const copy = {
     copyReport: 'Copy report',
     saveReport: 'Save report (.txt)',
     close: 'Close',
-    addCopy: 'Add another copy'
+    addCopy: 'Add another copy',
+    addDonor: 'Use a healthy file from the same source'
   },
   copied: 'Copied',
   status: { queued: 'Queued', working: 'Checking' },
@@ -175,6 +182,7 @@ export const copy = {
     bytes: 'bytes',
     groups: { loss: 'Lost', repaired: 'Repaired', noted: 'Noted' },
     previewTitle: 'Recovered text',
+    addDonorHint: 'Styles, themes and layouts can come from a healthy file made by the same source, such as another document from the same template. Text, cells, slides and pictures are never taken from it.',
     addCopyHint: 'Have another copy of this file, such as a backup or an earlier download? A part that is damaged here may be intact there.'
   },
   findings: {
@@ -183,6 +191,8 @@ export const copy = {
     ZIP_ENTRY_CHOSEN: (d) => `The package held ${d.n} different copies of this part. The most complete one was kept.`,
     MULTI_PART_FROM: (d) => `Taken from ${d.from}, where it was more complete.`,
     MULTI_COPY_UNUSED: copyUnusedText,
+    DONOR_PART_BORROWED: (d) => `Taken from ${d.from}, because this file's own copy was missing or damaged. Formatting that came from it may differ from the original.`,
+    DONOR_UNUSED: donorUnusedText,
     ZIP_DIRECTORY_REBUILT: (d) => `Rebuilt the ZIP directory from ${d.n} recovered ${plural(d.n, 'entry', 'entries')}.`,
     ZIP_ENDS_EARLY: () => 'The file ends inside its ZIP directory, so it was cut short. Data after the cut, if any, is not in the file.',
     ZIP_ENTRY_TRUNCATED: (d) => (d.pct === null || d.pct === undefined ? `This part was cut short. ${d.bytes} bytes were recovered.` : `This part was cut short. ${d.pct}% of it was recovered.`),

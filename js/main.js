@@ -1,7 +1,7 @@
 import { initTheme } from './theme.js';
 import { applyCopy, buildScope, setupScope, createRenderer, summaryCounts, setupDrop } from './ui.js';
 import { copy } from './copy.js';
-import { createQueue, canAddCopy, LIMITS } from './queue.js';
+import { createQueue, canAddCopy, canAddDonor, LIMITS } from './queue.js';
 import { textReport, baseName, finding } from './core/report.js';
 
 const $ = (id) => document.getElementById(id);
@@ -85,17 +85,30 @@ copyInput.className = 'file-input';
 copyInput.tabIndex = -1;
 document.body.appendChild(copyInput);
 let copyTarget = null;
+let copyMode = 'copy';
 copyInput.addEventListener('change', () => {
   const files = Array.from(copyInput.files);
   copyInput.value = '';
-  if (copyTarget !== null && files.length > 0) queue.addCopies(copyTarget, files);
+  if (copyTarget !== null && files.length > 0) {
+    if (copyMode === 'donor') queue.addDonor(copyTarget, files[0]);
+    else queue.addCopies(copyTarget, files);
+  }
   copyTarget = null;
 });
 
 renderer = createRenderer($('list'), {
   canAddCopy,
+  canAddDonor,
   addCopy(item) {
     copyTarget = item.id;
+    copyMode = 'copy';
+    copyInput.multiple = true;
+    copyInput.click();
+  },
+  addDonor(item) {
+    copyTarget = item.id;
+    copyMode = 'donor';
+    copyInput.multiple = false;
     copyInput.click();
   },
   download(item, which) {

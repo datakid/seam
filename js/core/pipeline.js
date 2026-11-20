@@ -5,6 +5,7 @@ import { writeZip } from './zip-write.js';
 import { decodeXml, cleanChars, encodeUtf8 } from './xml-clean.js';
 import { repairXml } from './xml-repair.js';
 import { spliceHoles, resolveHoles } from './xml-holes.js';
+import { familyOfNames, wantedFromDonor } from './donor.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
   repairRootRels, repairRels, sweepReferences, auditReferences, repairContentTypes, flushTrees, addFinding, getTree
@@ -182,6 +183,59 @@ async function processXml(ctx, part, env) {
   for (const [code, data] of found) addFinding(ctx, code, part.name, data);
 }
 
+const SUPERSEDED = new Set([
+  'ZIP_ENTRY_TRUNCATED', 'ZIP_ENTRY_CRC', 'ZIP_ENTRY_UNREADABLE', 'ZIP_UNSUPPORTED_METHOD', 'ZIP_ENTRY_CHOSEN', 'MULTI_PART_FROM',
+  'XML_REENCODED', 'XML_INVALID_BYTES', 'XML_CHARS_REMOVED', 'XML_REPAIRED', 'XML_TRUNCATED_CLOSED', 'XML_UNRECOVERABLE', 'XML_HOLE_DROPPED'
+]);
+
+function forgetPart(ctx, name) {
+  const key = name.toLowerCase();
+  ctx.findings = ctx.findings.filter((f) => !(f.part !== null && f.part.toLowerCase() === key && SUPERSEDED.has(f.code)));
+  for (const lost of Array.from(ctx.lost.keys())) if (lost.toLowerCase() === key) ctx.lost.delete(lost);
+  const have = ctx.index.canonical(name);
+  if (have) {
+    ctx.parts.delete(have);
+    ctx.index.remove(have);
+    ctx.trees.delete(have);
+    ctx.dirty.delete(have);
+  }
+}
+
+async function borrowFromDonor(ctx, donor, env) {
+  const bytes = new Uint8Array(donor.buffer);
+  const identity = identify(bytes);
+  if (identity.kind !== 'ZIP') {
+    addFinding(ctx, 'DONOR_UNUSED', null, { name: donor.name, why: 'unreadable' });
+    return;
+  }
+  const read = readCopy(bytes, identity.prefix || 0);
+  if (familyOfNames(read.entries.map((entry) => entry.name)) !== ctx.family) {
+    addFinding(ctx, 'DONOR_UNUSED', null, { name: donor.name, why: 'kind' });
+    return;
+  }
+  const good = read.entries.filter((entry) => entry.state === 'ok');
+  const taken = new Set();
+  let count = 0;
+  for (let round = 0; round < 4; round++) {
+    const wanted = wantedFromDonor(ctx, good, taken);
+    if (wanted.length === 0) break;
+    for (const entry of wanted) {
+      taken.add(entry.name.toLowerCase());
+      forgetPart(ctx, entry.name);
+      const part = { name: entry.name, bytes: entry.data, holeBytes: 0, text: null, isXml: isXmlPath(entry.name), changed: true, state: 'ok', mtime: entry.mtime, raw: null, repairedXml: false };
+      ctx.parts.set(part.name, part);
+      ctx.index.add(part.name);
+      if (part.isXml) await processXml(ctx, part, env);
+      if (ctx.parts.has(part.name)) {
+        count++;
+        addFinding(ctx, 'DONOR_PART_BORROWED', part.name, { from: donor.name });
+      }
+    }
+  }
+  if (count === 0) addFinding(ctx, 'DONOR_UNUSED', null, { name: donor.name, why: 'nothing' });
+  else ctx.changed = true;
+}
+
 async function xmlStage(ctx, env, progress) {
   const names = Array.from(ctx.parts.keys()).filter((n) => ctx.parts.get(n).isXml);
   for (let i = 0; i < names.length; i++) {
@@ -280,7 +334,7 @@ const REASONS = {
 };
 
 async function salvageOutcome(ctx, env, reason, verifyFailure) {
-  const findings = ctx.findings.filter((f) => f.severity === 'loss');
+  const findings = ctx.findings.filter((f) => f.severity === 'loss' || f.code.startsWith('MULTI_') || f.code.startsWith('DONOR_'));
   if (verifyFailure) findings.push(finding('VERIFY_FAILED', null, { check: verifyFailure }));
   const salvaged = salvage(sourcesOf(ctx), ctx.family, baseName(ctx.name));
   if (salvaged.ok) {
@@ -342,8 +396,11 @@ async function execute(input, env, transfer) {
   classify(ctx);
   if (!ctx.main) {
     addFinding(ctx, 'NO_MAIN_PART', null, {});
+    if (input.donor) addFinding(ctx, 'DONOR_UNUSED', null, { name: input.donor.name, why: 'nothing' });
     return salvageOutcome(ctx, env, 'noMain');
   }
+
+  if (input.donor) await borrowFromDonor(ctx, input.donor, env);
 
   repairRootRels(ctx);
   repairRels(ctx);

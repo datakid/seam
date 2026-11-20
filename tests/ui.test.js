@@ -126,7 +126,7 @@ test('ui: expanding a row shows the report with grouped findings and actions', a
     assert(headings.includes('Lost') && headings.includes('Repaired'), headings.join(','));
     assert(report.textContent.includes('Passed structural checks.'), 'verify line');
     const buttons = Array.from(report.querySelectorAll('.btn')).map((b) => b.textContent);
-    eq(buttons, ['Download repaired file', 'Copy report', 'Save report (.txt)', 'Add another copy']);
+    eq(buttons, ['Download repaired file', 'Copy report', 'Save report (.txt)', 'Add another copy', 'Use a healthy file from the same source']);
   } finally {
     app.close();
   }
@@ -477,6 +477,29 @@ test('ui: only rows below Repaired offer another copy, and a good copy turns the
     assert(text.includes('Budget backup.xlsx'), 'names the copy');
     assert(!Array.from(rows(app)[1].querySelectorAll('.report .btn')).some((b) => b.textContent === 'Add another copy'), 'no more copies once repaired');
     assert(!rows(app)[1].querySelector('.dl').hidden, 'download button back');
+    eq(app.violations, []);
+  } finally {
+    app.close();
+  }
+});
+
+test('ui: the donor button is offered on Partially repaired and Salvaged rows only and keeps the row open to more help', async () => {
+  const app = await openApp();
+  try {
+    add(app, mixed());
+    await settled(app, 6);
+    const donors = rows(app).map((row) => Array.from(row.querySelectorAll('.report .btn')).some((b) => b.textContent === 'Use a healthy file from the same source'));
+    eq(donors, [false, true, true, false, false, false]);
+    const row = rows(app)[1];
+    assert(row.querySelector('.report').textContent.includes('Text, cells, slides and pictures are never taken from it'), 'hint');
+    Array.from(row.querySelectorAll('.report .btn')).find((b) => b.textContent === 'Use a healthy file from the same source').click();
+    const picker = Array.from(app.doc.querySelectorAll('input[type=file]')).find((input) => input.id !== 'file-input');
+    eq(picker.multiple, false);
+    const transfer = new app.w.DataTransfer();
+    transfer.items.add(new app.w.File([xlsx()], 'Last month.xlsx', { lastModified: 1700000000002 }));
+    picker.files = transfer.files;
+    picker.dispatchEvent(new app.w.Event('change'));
+    await waitFor(() => rows(app)[1].querySelector('.report') && rows(app)[1].querySelector('.report').textContent.includes('Last month.xlsx'), 30000, 'report to name the donor');
     eq(app.violations, []);
   } finally {
     app.close();

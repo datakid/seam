@@ -1,5 +1,5 @@
 import { test, assert, eq } from './harness.js';
-import { createQueue, canAddCopy, LIMITS } from '../js/queue.js';
+import { createQueue, canAddCopy, canAddDonor, LIMITS } from '../js/queue.js';
 import { docxEntries, pack, randomBytes, docx, xlsx } from './fixtures.js';
 import { deleteDirectory, truncate } from './corrupt.js';
 
@@ -180,6 +180,52 @@ test('queue: a copy that duplicates the original or exceeds the copy limit does 
     assert(item.result === second, 'no run past the limit');
   } finally {
     LIMITS.copies = saved;
+    queue.clear();
+  }
+});
+
+test('queue: a donor file is offered on partly repaired rows, replaces an earlier donor and runs the row again', async () => {
+  const { queue } = harness();
+  try {
+    const healthy = pack(docxEntries());
+    const broken = pack(docxEntries().filter(([name]) => name !== 'word/media/image1.png'));
+    queue.add([file(broken, 'Letter.docx', 1)]);
+    await waitFor(() => queue.items()[0].status === 'done', 20000, 'first result');
+    const item = queue.items()[0];
+    eq(item.result.outcome, 'partial');
+    assert(canAddDonor(item), 'a partly repaired row accepts a donor');
+    const same = queue.addDonor(item.id, file(broken, 'Letter.docx', 1));
+    eq(same.duplicates, 1);
+    eq(item.status, 'done');
+    const first = item.result;
+    queue.addDonor(item.id, file(healthy, 'Healthy.docx', 2));
+    eq(item.result, null);
+    await waitFor(() => item.status === 'done', 20000, 'second result');
+    assert(item.result !== first, 'new result');
+    eq(item.result.findings.filter((f) => f.code === 'DONOR_UNUSED').map((f) => f.data.why), ['nothing']);
+    assert(canAddDonor(item), 'still partial, so still offered');
+    const unreadable = new TextEncoder().encode('%PDF-1.7 not a package');
+    queue.addDonor(item.id, file(unreadable, 'Notes.docx', 3));
+    await waitFor(() => item.status === 'done' && item.result.findings.some((f) => f.data && f.data.name === 'Notes.docx'), 20000, 'third result');
+    eq(item.donor.name, 'Notes.docx');
+  } finally {
+    queue.clear();
+  }
+});
+
+test('queue: a row that ends Repaired or is not offered a donor drops its files', async () => {
+  const { queue } = harness();
+  try {
+    queue.add([file(docx(), 'Clean.docx', 1)]);
+    await waitFor(() => queue.items()[0].status === 'done', 20000, 'result');
+    const item = queue.items()[0];
+    eq(item.file, null);
+    eq(item.donor, null);
+    assert(!canAddDonor(item), 'no donor for a finished row');
+    const before = item.result;
+    queue.addDonor(item.id, file(docx(), 'Other.docx', 2));
+    assert(item.result === before, 'result untouched');
+  } finally {
     queue.clear();
   }
 });

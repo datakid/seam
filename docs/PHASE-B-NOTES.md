@@ -95,6 +95,26 @@ A damaged part is compared by its known bytes (the exact head, and the bytes aft
 - The text-mode transfer reversal applies to the first copy only.
 - Copies are compared on part bytes, so a copy saved by a different program that rewrites every part is refused.
 
+## B6: donor file
+
+| Item | State |
+|---|---|
+| UI | A Partially repaired or Salvaged row that still holds its file gets "Use a healthy file from the same source" and a hint saying what is never taken. One donor per row; a new one replaces the old. The row runs again. |
+| Worker | The `process` message carries `donor: {name, buffer}`. |
+| Allow-list | `js/core/donor.js`. Word styles, stylesWithEffects, numbering, fontTable, settings, webSettings and themes. Excel styles and themes. PowerPoint themes, tableStyles, presProps, viewProps, slide layouts and masters, and the rels files of layouts and masters. Nothing else, so no text, cells, slides, comments, pictures, charts, embeddings or macros. |
+| Step | After the main part is found and before the rels are repaired. The donor is read like any package and only parts that are intact in it (CRC verified) can be used. |
+| Which parts | A part is borrowed when it is on the allow-list, a relationship in this file still points at it, and this file's own copy is missing or not intact. The rels of a borrowed layout or master follow it, and the loop runs up to four rounds so that layouts named by a borrowed master are found. |
+| Findings | `DONOR_PART_BORROWED` (Noted) per part. `DONOR_UNUSED` (Noted) when the donor is not a package, is another kind of file, or had nothing the file was missing. |
+| Superseded lines | A borrowed part's own damage lines (truncated, CRC, unreadable, XML repaired or dropped) are removed, since the part is no longer the damaged one. |
+| Salvage | Copy and donor findings are kept in a Salvaged or Could not repair result so the user sees why nothing was taken. |
+
+### B6 limits
+
+- The donor cannot be told apart from another document made from the same template. Styles, themes and layouts then come from the template, which is the intent, and the Noted line says the formatting may differ.
+- A part that is intact in this file is never replaced, even if the donor's differs.
+- A part with no relationship pointing at it is not borrowed.
+- When the main part is missing the donor cannot help, and the row says so.
+
 ## Not yet measured
 
 The Phase B exit numbers (+15 points median text recall on zero512, zero4096, dropblock and bitflip, and the crlf row) need the damage lab and scoreboard run on the corpus. The B1 and B2 gains reach the output file only for zero runs inside deflate entries. Nothing else in Phase B has been measured on the corpus. B5 is exercised only by copies damaged in the test suite, not by corpus files.

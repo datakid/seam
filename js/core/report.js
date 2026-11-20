@@ -35,6 +35,8 @@ export const SEVERITY = {
   ZIP_ENTRY_CHOSEN: 'noted',
   MULTI_PART_FROM: 'noted',
   MULTI_COPY_UNUSED: 'noted',
+  DONOR_PART_BORROWED: 'noted',
+  DONOR_UNUSED: 'noted',
   XML_REENCODED: 'repaired',
   XML_CHARS_REMOVED: 'repaired',
   XML_REPAIRED: 'repaired',
