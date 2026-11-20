@@ -751,5 +751,5 @@ export function inflateTolerant(bytes, options) {
   }
   const { data, holes } = assemble(segments, gapLengths, expected, aligned && segments.length === 2 && expected !== null);
   const complete = segments.length === 1 && head.final && head.err === 0;
-  return { data, holes, gaps, complete, aligned };
+  return { data, holes, gaps, complete, aligned, consumed: complete ? (head.pos + 7) >>> 3 : -1 };
 }

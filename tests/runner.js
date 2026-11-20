@@ -12,6 +12,7 @@ const files = [
   './zip-hardening.test.js',
   './copies.test.js',
   './donor.test.js',
+  './orphans.test.js',
   './xml.test.js',
   './package.test.js',
   './property.test.js',

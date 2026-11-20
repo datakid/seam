@@ -173,6 +173,8 @@ export function strictRead(bytes, prefix = 0) {
       continue;
     }
     const at = lho + shift;
+    entry.lho = at;
+    entry.csize = csize;
     if (at + 30 > n || !startsWith(bytes, SIG.LOCAL, at)) {
       result.errors.push('BAD_LOCAL');
       continue;

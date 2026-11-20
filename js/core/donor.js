@@ -1,5 +1,5 @@
 import { MAIN_PARTS } from './constants.js';
-import { isRelsPath, sourceOfRels, resolveTarget, readRelationships, getTree } from './package.js';
+import { isRelsPath, sourceOfRels, referencedParts } from './package.js';
 
 const BORROWABLE = [
   /^word\/(styles|stylesWithEffects|numbering|fontTable|settings|webSettings)\.xml$/i,
@@ -22,22 +22,6 @@ export function familyOfNames(names) {
   const lower = new Set(names.map((name) => name.toLowerCase()));
   for (const [family, main] of Object.entries(MAIN_PARTS)) if (lower.has(main)) return family;
   return null;
-}
-
-export function referencedParts(ctx) {
-  const out = new Set();
-  for (const name of ctx.index.names()) {
-    if (!isRelsPath(name)) continue;
-    const source = sourceOfRels(name);
-    if (source === null) continue;
-    const tree = getTree(ctx, name);
-    if (!tree) continue;
-    for (const rel of readRelationships(tree)) {
-      if (rel.external || !rel.target) continue;
-      out.add(resolveTarget(source, rel.target).toLowerCase());
-    }
-  }
-  return out;
 }
 
 export function wantedFromDonor(ctx, donorEntries, taken) {

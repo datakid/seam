@@ -2,13 +2,15 @@ import { identify, findTextModeTransfer, removeAddedCarriageReturns } from './id
 import { strictRead } from './zip-read.js';
 import { recoverEntries, mergeEntries, mergeCopies } from './zip-recover.js';
 import { writeZip } from './zip-write.js';
+import { crc32 } from './crc32.js';
 import { decodeXml, cleanChars, encodeUtf8 } from './xml-clean.js';
 import { repairXml } from './xml-repair.js';
 import { spliceHoles, resolveHoles } from './xml-holes.js';
 import { familyOfNames, wantedFromDonor } from './donor.js';
+import { identifyContent } from './orphan-kinds.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
-  repairRootRels, repairRels, sweepReferences, auditReferences, repairContentTypes, flushTrees, addFinding, getTree
+  repairRootRels, repairRels, sweepReferences, auditReferences, repairContentTypes, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
 } from './package.js';
 import { applyDocx } from './formats/docx.js';
 import { applyXlsx, normalizeXlsx } from './formats/xlsx.js';
@@ -45,7 +47,8 @@ function createContext(input) {
     family: null,
     format: null,
     main: null,
-    slideCount: null
+    slideCount: null,
+    orphans: []
   };
 }
 
@@ -54,13 +57,15 @@ function readCopy(bytes, prefix) {
   let entries = strict.entries;
   const dropped = strict.dropped.slice();
   let endsEarly = false;
+  let orphans = [];
   if (!strict.intact) {
     const recovered = recoverEntries(bytes, strict.entries);
+    orphans = recovered.orphans || [];
     entries = mergeEntries(strict.entries, recovered.entries);
     dropped.push(...recovered.dropped);
     endsEarly = recovered.endsEarly;
   }
-  return { strict, entries, dropped, endsEarly };
+  return { strict, entries, dropped, endsEarly, orphans };
 }
 
 function readExtras(copies) {
@@ -89,6 +94,7 @@ function loadEntries(ctx, bytes, identity, copies) {
   let entries = first.entries;
   const dropped = first.dropped;
   let endsEarly = first.endsEarly;
+  ctx.orphans = first.orphans;
   const directoryBroken = !strict.eocdFound || strict.errors.some((e) => STRUCTURAL.has(e)) || strict.parsed !== strict.total;
   const extras = readExtras(copies);
   let merged = null;
@@ -198,6 +204,64 @@ function forgetPart(ctx, name) {
     ctx.index.remove(have);
     ctx.trees.delete(have);
     ctx.dirty.delete(have);
+  }
+}
+
+function orphanPath(ctx, id, referenced) {
+  if (id.kind === 'rels') {
+    if (!id.path) return null;
+    const source = sourceOfRels(id.path);
+    if (source === null || (source !== '' && !ctx.index.has(source))) return null;
+    return ctx.index.has(id.path) ? null : id.path;
+  }
+  if (id.path) return ctx.index.has(id.path) ? null : id.path;
+  if (id.pattern) {
+    const open = Array.from(referenced.values()).filter((path) => id.pattern.test(path) && !ctx.index.has(path));
+    return open.length === 1 ? open[0] : null;
+  }
+  return null;
+}
+
+function sameAsExisting(ctx, data) {
+  const sum = crc32(data);
+  for (const part of ctx.parts.values()) {
+    if (part.bytes && part.bytes.length === data.length && part.state === 'ok' && crc32(part.bytes) === sum) return true;
+  }
+  return false;
+}
+
+async function adoptOrphan(ctx, env, path, orphan) {
+  const part = { name: path, bytes: orphan.data, holeBytes: 0, text: null, isXml: isXmlPath(path), changed: true, state: 'ok', mtime: null, raw: null, repairedXml: false };
+  ctx.parts.set(path, part);
+  ctx.index.add(path);
+  ctx.changed = true;
+  if (part.isXml) await processXml(ctx, part, env);
+  return ctx.parts.has(path);
+}
+
+async function placeOrphans(ctx, env) {
+  let pending = ctx.orphans
+    .filter((orphan) => !sameAsExisting(ctx, orphan.data))
+    .map((orphan) => ({ orphan, id: identifyContent(orphan.data) }));
+  for (let round = 0; round < 3 && pending.length > 0; round++) {
+    const referenced = referencedParts(ctx);
+    const rest = [];
+    for (const item of pending) {
+      const path = orphanPath(ctx, item.id, referenced);
+      if (path === null) {
+        rest.push(item);
+      } else if (await adoptOrphan(ctx, env, path, item.orphan)) {
+        addFinding(ctx, 'ZIP_ORPHAN_NAMED', path, { kind: item.id.kind });
+      }
+    }
+    if (rest.length === pending.length) break;
+    pending = rest;
+  }
+  let number = 1;
+  for (const item of pending) {
+    while (ctx.index.has(`seam-recovered/part${number}.${item.id.ext === 'rels' ? 'xml' : item.id.ext}`)) number++;
+    const path = `seam-recovered/part${number}.${item.id.ext === 'rels' ? 'xml' : item.id.ext}`;
+    if (await adoptOrphan(ctx, env, path, item.orphan)) addFinding(ctx, 'ZIP_ORPHAN_KEPT', path, { kind: item.id.kind });
   }
 }
 
@@ -334,7 +398,7 @@ const REASONS = {
 };
 
 async function salvageOutcome(ctx, env, reason, verifyFailure) {
-  const findings = ctx.findings.filter((f) => f.severity === 'loss' || f.code.startsWith('MULTI_') || f.code.startsWith('DONOR_'));
+  const findings = ctx.findings.filter((f) => f.severity === 'loss' || f.code.startsWith('MULTI_') || f.code.startsWith('DONOR_') || f.code.startsWith('ZIP_ORPHAN_'));
   if (verifyFailure) findings.push(finding('VERIFY_FAILED', null, { check: verifyFailure }));
   const salvaged = salvage(sourcesOf(ctx), ctx.family, baseName(ctx.name));
   if (salvaged.ok) {
@@ -393,6 +457,7 @@ async function execute(input, env, transfer) {
   await xmlStage(ctx, env, progress);
 
   progress('package', 0);
+  if (ctx.orphans.length > 0) await placeOrphans(ctx, env);
   classify(ctx);
   if (!ctx.main) {
     addFinding(ctx, 'NO_MAIN_PART', null, {});

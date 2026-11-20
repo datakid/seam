@@ -189,6 +189,8 @@ export const copy = {
     ZIP_PREFIX_DATA: (d) => `Removed ${d.bytes} bytes of extra data in front of the file.`,
     TRANSFER_CRLF_REVERSED: (d) => `Removed ${d.n} carriage ${plural(d.n, 'return', 'returns')} that a text-mode transfer added before line feeds.`,
     ZIP_ENTRY_CHOSEN: (d) => `The package held ${d.n} different copies of this part. The most complete one was kept.`,
+    ZIP_ORPHAN_NAMED: () => 'Found data whose file name was lost. Its content shows which part it is, so it was put back.',
+    ZIP_ORPHAN_KEPT: () => 'Found data whose file name was lost and could not tell where it belongs. It was kept in this file, not linked to anything.',
     MULTI_PART_FROM: (d) => `Taken from ${d.from}, where it was more complete.`,
     MULTI_COPY_UNUSED: copyUnusedText,
     DONOR_PART_BORROWED: (d) => `Taken from ${d.from}, because this file's own copy was missing or damaged. Formatting that came from it may differ from the original.`,

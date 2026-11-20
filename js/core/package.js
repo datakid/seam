@@ -204,6 +204,23 @@ export function removePart(ctx, name) {
   ctx.changed = true;
 }
 
+export function referencedParts(ctx) {
+  const out = new Map();
+  for (const name of ctx.index.names()) {
+    if (!isRelsPath(name)) continue;
+    const source = sourceOfRels(name);
+    if (source === null) continue;
+    const tree = getTree(ctx, name);
+    if (!tree) continue;
+    for (const rel of readRelationships(tree)) {
+      if (rel.external || !rel.target) continue;
+      const target = resolveTarget(source, rel.target);
+      out.set(target.toLowerCase(), target);
+    }
+  }
+  return out;
+}
+
 export function relativeTarget(source, target) {
   const from = source === '' ? [] : dirName(source).split('/').filter(Boolean);
   const to = target.split('/');

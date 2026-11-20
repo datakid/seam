@@ -71,6 +71,29 @@ Status of the Phase B build on the `v2-bytes` branch and where it differs from `
 - The fixed 16-candidate limit is raised to 64, not removed. It still applies to a streamed entry that the central directory does not describe. A scan with no bound would try to inflate from every `PK` signature inside an embedded stored package.
 - v1 test `merge: ok beats crcMismatch beats partial` expected a later ok copy to win a tie by length. The plan's order puts the central directory copy first, so the test now expects the central copy to stay. Changes an existing test.
 
+## B4: orphan streams
+
+| Item | State |
+|---|---|
+| Directory path | `strictRead` keeps each entry's local header offset and compressed size. When the local header is gone but the central directory entry survives, `recoverHeaderless` looks for the data where the next entry or the directory begins (with and without a data descriptor), and for a deflate entry also at the offsets a header of that name could end. A candidate counts only if it inflates to the directory's size and CRC. The part keeps its true name and ends up `ok`. |
+| Gap scan | `findOrphans` in `zip-orphans.js`. It takes the byte ranges that no recovered entry covers, up to the central directory, and looks for a deflate stream within 800 bytes of the start of each gap. A 2 KB probe rules out almost every offset, and the full decode must finish a final block. The stream must then end exactly at the gap end, or at a data descriptor whose CRC matches. A stream that ends earlier is accepted only when its content is recognised, so two header-less parts in a row both come back. Stored PNG, JPEG and GIF are found by their end markers. |
+| Identification | `orphan-kinds.js`. Root element and namespace for Word, Excel and PowerPoint parts, theme, content types, core and app properties. Relationships by their types. Media by magic bytes (PNG, JPEG, GIF, EMF, WMF, MP4, CFB for macros). |
+| Naming | Placed in the pipeline after the XML stage and before the main part is classified. A part with one fixed path goes there if the path is free. A relationships part goes to its usual path if its source part exists. A numbered part (sheet, slide, layout, picture, theme) goes to the one referenced path of that kind that is free. If there is no such path, or more than one, it is kept as `seam-recovered/partN.<ext>`. |
+| Findings | `ZIP_ORPHAN_NAMED` (Repaired) and `ZIP_ORPHAN_KEPT` (Noted). Both are kept in a Salvaged result. An orphan identical to a part already read is dropped without a finding. |
+
+### B4 differences from the plan
+
+- The part registry from C1 has not landed on `v2`. The root element to path table lives in `orphan-kinds.js` and is meant to be replaced by the registry.
+- The directory path is new. It recovers a part under its real name, which the plan's gap scan cannot.
+- Orphans come from the first copy only.
+
+### B4 limits
+
+- Two header-less sheets (or slides) at once are not told apart. The plan's rule is followed: both are kept under `seam-recovered`.
+- A part whose bits were flipped but whose stream still decodes is named like any other. Its text can carry the flipped characters, as for any silent-garbage damage. In a damage run over three fixtures, bit flips gave seven such parts. Every dropblock orphan was byte-identical to an original part.
+- A streamed entry whose descriptor scan swallows the following header-less data keeps that data inside the first entry.
+- The scan costs under 0.4 s per file in the damage-kind runs on the fixtures. It stops after 3 s and 64 orphans.
+
 ## B5: several copies
 
 | Item | State |

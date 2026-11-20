@@ -5,6 +5,7 @@ import { SIG } from './constants.js';
 import { indexOfBytes } from './identify.js';
 import { decodeName, validNameBytes, normalizeName, dosToDate, findEocdPosition, zip64Extra } from './zip-read.js';
 import { looksWellFormed } from './xml-repair.js';
+import { recoverHeaderless, findOrphans } from './zip-orphans.js';
 
 const MAX_CANDIDATES = 64;
 const MAX_INFLATED = 1 << 28;
@@ -177,6 +178,7 @@ export function recoverEntries(bytes, hints = []) {
   const n = bytes.length;
   const entries = [];
   const dropped = [];
+  const covered = [];
   let pos = 0;
   let lastEnd = 0;
   let headerCut = false;
@@ -196,6 +198,7 @@ export function recoverEntries(bytes, hints = []) {
       const raw = decodeName(bytes.subarray(p + 30, n), false);
       const name = normalizeName(raw);
       if (name) entries.push({ name, method: 0, mtime: null, data: new Uint8Array(0), state: 'unreadable', expectedSize: null, nextPos: n });
+      covered.push([p, n]);
       lastEnd = n;
       break;
     }
@@ -204,12 +207,19 @@ export function recoverEntries(bytes, hints = []) {
     const entry = recoverEntry(bytes, h, name ? spans.get(name.toLowerCase()) : undefined);
     if (name === null || name === '') dropped.push(raw);
     else if (!name.endsWith('/')) entries.push({ ...entry, name });
+    covered.push([p, entry.nextPos]);
     lastEnd = Math.max(lastEnd, entry.nextPos);
     pos = Math.max(entry.nextPos, p + 4);
   }
-  const hasCentral = indexOfBytes(bytes, SIG.CENTRAL, lastEnd) !== -1;
-  const endsEarly = headerCut || (hasCentral && findEocdPosition(bytes) === -1);
-  return { entries, dropped, endsEarly, lastEnd };
+  const central = indexOfBytes(bytes, SIG.CENTRAL, lastEnd);
+  const endsEarly = headerCut || (central !== -1 && findEocdPosition(bytes) === -1);
+  const scanned = new Set(entries.map((entry) => entry.name.toLowerCase()));
+  for (const entry of recoverHeaderless(bytes, hints, scanned)) {
+    entries.push(entry);
+    covered.push(entry.span);
+  }
+  const orphans = findOrphans(bytes, covered, central === -1 ? n : central);
+  return { entries, dropped, endsEarly, lastEnd, orphans };
 }
 
 const RANK = { ok: 4, crcMismatch: 3, partial: 2, unreadable: 1, unsupported: 0 };
