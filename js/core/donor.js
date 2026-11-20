@@ -1,21 +1,13 @@
 import { MAIN_PARTS } from './constants.js';
 import { isRelsPath, sourceOfRels, referencedParts } from './package.js';
-
-const BORROWABLE = [
-  /^word\/(styles|stylesWithEffects|numbering|fontTable|settings|webSettings)\.xml$/i,
-  /^word\/theme\/theme\d*\.xml$/i,
-  /^xl\/styles\.xml$/i,
-  /^xl\/theme\/theme\d*\.xml$/i,
-  /^ppt\/(tableStyles|presProps|viewProps)\.xml$/i,
-  /^ppt\/theme\/theme\d*\.xml$/i,
-  /^ppt\/slideLayouts\/slideLayout\d+\.xml$/i,
-  /^ppt\/slideMasters\/slideMaster\d+\.xml$/i,
-  /^ppt\/slideLayouts\/_rels\/slideLayout\d+\.xml\.rels$/i,
-  /^ppt\/slideMasters\/_rels\/slideMaster\d+\.xml\.rels$/i
-];
+import { isBorrowable as registryBorrowable, hasBorrowableRels } from './registry.js';
 
 export function isBorrowable(name) {
-  return BORROWABLE.some((pattern) => pattern.test(name));
+  if (isRelsPath(name)) {
+    const source = sourceOfRels(name);
+    return source !== null && hasBorrowableRels(source);
+  }
+  return registryBorrowable(name);
 }
 
 export function familyOfNames(names) {

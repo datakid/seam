@@ -1,37 +1,4 @@
-const W = 'wordprocessingml/2006/main';
-const S = 'spreadsheetml/2006/main';
-const P = 'presentationml/2006/main';
-const A = 'drawingml/2006/main';
-
-const BY_ROOT = [
-  ['document', W, { path: 'word/document.xml' }],
-  ['styles', W, { path: 'word/styles.xml' }],
-  ['numbering', W, { path: 'word/numbering.xml' }],
-  ['fontTable', W, { path: 'word/fontTable.xml' }],
-  ['settings', W, { path: 'word/settings.xml' }],
-  ['webSettings', W, { path: 'word/webSettings.xml' }],
-  ['comments', W, { path: 'word/comments.xml' }],
-  ['footnotes', W, { path: 'word/footnotes.xml' }],
-  ['endnotes', W, { path: 'word/endnotes.xml' }],
-  ['hdr', W, { pattern: /^word\/header\d+\.xml$/i }],
-  ['ftr', W, { pattern: /^word\/footer\d+\.xml$/i }],
-  ['workbook', S, { path: 'xl/workbook.xml' }],
-  ['styleSheet', S, { path: 'xl/styles.xml' }],
-  ['sst', S, { path: 'xl/sharedStrings.xml' }],
-  ['calcChain', S, { path: 'xl/calcChain.xml' }],
-  ['worksheet', S, { pattern: /^xl\/worksheets\/sheet\d+\.xml$/i }],
-  ['presentation', P, { path: 'ppt/presentation.xml' }],
-  ['presentationPr', P, { path: 'ppt/presProps.xml' }],
-  ['viewPr', P, { path: 'ppt/viewProps.xml' }],
-  ['sld', P, { pattern: /^ppt\/slides\/slide\d+\.xml$/i }],
-  ['sldMaster', P, { pattern: /^ppt\/slideMasters\/slideMaster\d+\.xml$/i }],
-  ['sldLayout', P, { pattern: /^ppt\/slideLayouts\/slideLayout\d+\.xml$/i }],
-  ['tblStyleLst', A, { path: 'ppt/tableStyles.xml' }],
-  ['theme', A, { pattern: /^(word|xl|ppt)\/theme\/theme\d+\.xml$/i }],
-  ['Types', 'package/2006/content-types', { path: '[Content_Types].xml' }],
-  ['coreProperties', 'package/2006/metadata/core-properties', { path: 'docProps/core.xml' }],
-  ['Properties', 'officeDocument/2006/extended-properties', { path: 'docProps/app.xml' }]
-];
+import { rowsOfRoot } from './registry.js';
 
 const START_TAG = /<([A-Za-z_][\w.-]*:)?([A-Za-z_][\w.-]*)((?:\s[^<>]*)?)>/;
 
@@ -97,8 +64,7 @@ export function identifyContent(data) {
     const text = new TextDecoder('utf-8').decode(data);
     return { kind: 'rels', ext: 'rels', path: relationshipsPath(text), needsSource: true };
   }
-  for (const [local, ns, target] of BY_ROOT) {
-    if (root.local === local && root.ns.includes(ns)) return { kind: local, ext: 'xml', ...target };
-  }
+  const row = rowsOfRoot(root.local, root.ns)[0];
+  if (row) return { kind: row.kind, ext: 'xml', ...(row.path ? { path: row.path } : { pattern: row.pathPattern }) };
   return { kind: 'xml', ext: 'xml' };
 }

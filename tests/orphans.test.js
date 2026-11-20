@@ -128,8 +128,8 @@ test('orphans: content is identified by root element and magic bytes', () => {
     [`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`, 'xl/_rels/workbook.xml.rels']
   ];
   for (const [text, path] of cases) eq(identifyContent(enc(text)).path, path, text.slice(0, 60));
-  eq(identifyContent(enc(`<worksheet xmlns="${s}"/>`)).kind, 'worksheet');
-  eq(identifyContent(enc(`<p:sld xmlns:p="${p}"/>`)).kind, 'sld');
+  eq(identifyContent(enc(`<worksheet xmlns="${s}"/>`)).kind, 'xlWorksheet');
+  eq(identifyContent(enc(`<p:sld xmlns:p="${p}"/>`)).kind, 'pptSlide');
   eq(identifyContent(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0])).kind, 'png');
   eq(identifyContent(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0])).kind, 'jpeg');
   eq(identifyContent(enc('just some notes')).kind, 'unknown');

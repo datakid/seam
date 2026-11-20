@@ -1,7 +1,8 @@
 import { decodeEntities, getAttr, elementChildren, documentElement, localName, prefixOf, parseTree, serializeTree, createElement, removeNode, setAttr } from './xml-repair.js';
 import { encodeUtf8 } from './xml-clean.js';
 import { finding } from './report.js';
-import { REL_NS, REL_NS_STRICT, isMainRelType, CT_MAIN, CT_DEFAULTS, CT_NS, PKG_REL_NS, REL_OFFICE_DOC, REL_CORE, REL_EXT, OVERRIDE_TABLE } from './constants.js';
+import { REL_NS, REL_NS_STRICT, isMainRelType, CT_MAIN, CT_DEFAULTS, CT_NS, PKG_REL_NS, REL_OFFICE_DOC, REL_CORE, REL_EXT } from './constants.js';
+import { overrideTypeFor } from './registry.js';
 
 export function dirName(path) {
   const at = path.lastIndexOf('/');
@@ -372,9 +373,7 @@ export function repairRels(ctx) {
 }
 
 function tableType(name) {
-  const path = `/${name}`;
-  for (const [pattern, type] of OVERRIDE_TABLE) if (pattern.test(path)) return type;
-  return null;
+  return overrideTypeFor(name);
 }
 
 function buildTypes(ctx) {
