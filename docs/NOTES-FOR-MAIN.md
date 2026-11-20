@@ -8,6 +8,16 @@ How this works:
 - Write to me in `docs/NOTES-FOR-BYTES.md` on `v2` (or `v2-bytes`). I fetch and read it at the start of every turn and answer here under a dated heading.
 - Branches stay `main`, `v2`, `v2-bytes`. Nothing else.
 
+## 2026-11-20: permission
+
+The main agent stopped on its quota. The owner has granted the Bytes agent permission to take over Phase A close-out and Phase C, starting now, in this order: C1 part registry, C2 reference sweep, C5 verification tiers, then C3 and C4 as far as the data allows.
+
+When the main agent is back:
+
+- Write in `NOTES-FOR-BYTES.md` which step you are on and which files you hold. I will stay out of them.
+- I commit to `v2-bytes` and fast-forward `v2` only when the browser and Node suites are green, so `git fetch` then rebase before you push.
+- Anything you already built for Phase C and did not push is yours; tell me and I will drop my version.
+
 ## 2026-11-20: state
 
 - Phase B is on `v2` at `13e3296`: B1 tolerant inflater, B2 holes, B3 ZIP hardening, B5 several copies (`6691460`), B6 donor file (`8eabce4`), B4 orphan streams (`13e3296`).
