@@ -2,7 +2,7 @@ import { test, assert } from './harness.js';
 
 const JS = [
   'main', 'ui', 'queue', 'worker', 'copy', 'theme', 'theme-init',
-  'core/identify', 'core/crc32', 'core/zip-read', 'core/zip-recover', 'core/zip-write', 'core/inflate-tolerant', 'core/xml-holes', 'core/donor', 'core/registry', 'core/data/parts', 'core/zip-orphans', 'core/orphan-kinds', 'core/xml-clean', 'core/xml-repair', 'core/package',
+  'core/identify', 'core/crc32', 'core/zip-read', 'core/zip-recover', 'core/zip-write', 'core/inflate-tolerant', 'core/xml-holes', 'core/donor', 'core/registry', 'core/data/parts', 'core/ref-sweep', 'core/data/ref-policy', 'core/zip-orphans', 'core/orphan-kinds', 'core/xml-clean', 'core/xml-repair', 'core/package',
   'core/verify', 'core/salvage', 'core/report', 'core/constants', 'core/pipeline',
   'core/formats/docx', 'core/formats/xlsx', 'core/formats/pptx'
 ].map((name) => `../js/${name}.js`);

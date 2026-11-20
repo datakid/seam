@@ -98,7 +98,7 @@ for (const fmt of ['docx', 'xlsx', 'pptx']) {
       if (c.id === 'C8') {
         eq(result.outcome, 'partial', dump());
         assert(found.includes('REL_REMOVED'), dump());
-        assert(found.includes(fmt === 'docx' ? 'DOCX_IMAGE_REMOVED' : 'PPTX_IMAGE_REMOVED'), dump());
+        assert(result.findings.some((f) => f.code === 'REF_REMOVED' && f.data.loss === 'image'), dump());
         await checkOutput(result, fmt);
         return;
       }

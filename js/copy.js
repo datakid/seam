@@ -1,5 +1,15 @@
+import { REF_LOSS_NAMES } from './core/data/ref-policy.js';
 export function plural(n, one, many) {
   return n === 1 ? one : many;
+}
+
+function refRemovedText(d) {
+  const names = REF_LOSS_NAMES[d.loss];
+  if (!names) return `${d.n} ${plural(d.n, 'reference', 'references')} to content that is no longer in the file ${d.n === 1 ? 'was' : 'were'} removed from this part.`;
+  const noun = plural(d.n, names[0], names[1]);
+  if (d.loss === 'link') return `Removed ${d.n} ${noun} to missing targets. The link text was kept.`;
+  if (d.loss === 'image') return `Removed ${d.n} ${noun} whose data is missing.`;
+  return `Removed ${d.n} ${noun} that pointed to content missing from the file.`;
 }
 
 function list(parts) {
@@ -222,13 +232,10 @@ export const copy = {
     REL_ID_RENAMED: (d) => `Renamed ${d.n} duplicate relationship ${plural(d.n, 'ID', 'IDs')}.`,
     REL_DUPLICATE_DROPPED: (d) => `Dropped ${d.n} duplicate relationship ${plural(d.n, 'ID', 'IDs')} that the document refers to.`,
     EXTENSION_CORRECTED: (d) => (d.from ? `The file was named .${d.from} but is a .${d.to} file. The output uses .${d.to}.` : `The file had no extension. The output uses .${d.to}.`),
-    REF_REMOVED: (d) => `${d.n} ${plural(d.n, 'reference', 'references')} to content that is no longer in the file ${d.n === 1 ? 'was' : 'were'} removed from this part.`,
+    REF_REMOVED: (d) => refRemovedText(d),
     REF_DANGLING: (d) => `${d.n} ${plural(d.n, 'reference', 'references')} in this part point to content that is no longer in the file. They were left in place.`,
     NO_MAIN_PART: () => 'The main document part is missing, so there is no content to rebuild.',
     DOCX_BODY_ADDED: () => 'Added the missing document body element around the existing content.',
-    DOCX_IMAGE_REMOVED: (d) => `Removed ${d.n} ${plural(d.n, 'image', 'images')} whose data is missing.`,
-    DOCX_LINK_REMOVED: (d) => `Removed ${d.n} ${plural(d.n, 'link', 'links')} to missing targets. The link text was kept.`,
-    DOCX_HEADER_REF_REMOVED: (d) => `Removed ${d.n} header or footer ${plural(d.n, 'reference', 'references')} to missing parts.`,
     DOCX_REL_ADDED: (d) => `Added ${d.n} missing ${plural(d.n, 'relationship', 'relationships')} to existing parts.`,
     DOCX_NUMBERING_MISSING: () => 'The numbering part is missing. List formatting may look different.',
     XLSX_SHEET_REMOVED: (d) => `Sheet "${d.name}" was removed because its data part was unreadable.`,
@@ -244,7 +251,6 @@ export const copy = {
     PPTX_SLIDE_IDS: (d) => `Renumbered ${d.n} slide ${plural(d.n, 'ID', 'IDs')}.`,
     PPTX_LAYOUT_RELINKED: (d) => `Slide ${d.number} pointed to a missing layout. It now uses the first layout of the first master.`,
     PPTX_MASTER_REMOVED: (d) => `Removed ${d.n} slide ${plural(d.n, 'master', 'masters')} whose part is missing.`,
-    PPTX_IMAGE_REMOVED: (d) => `Removed ${d.n} ${plural(d.n, 'picture', 'pictures')} whose image data is missing.`,
     VERIFY_FAILED: (d) => `The repaired file failed structural check ${d.check}. It was discarded.`,
     SALVAGE_TEXT_ONLY: () => 'Only text could be recovered. Formatting, images, formulas and layout were not kept.',
     INTERNAL_ERROR: () => 'Seam hit an unexpected error while processing this file. The original is unchanged.',

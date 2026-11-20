@@ -138,7 +138,7 @@ test('docx: a document without a body gets one around the existing content', asy
 test('docx: a dangling hyperlink is unwrapped and its text kept', async () => {
   const entries = change(docxEntries(), 'word/_rels/document.xml.rels', (t) => t.replace(/<Relationship Id="rId3"[^>]*\/>/, ''));
   const result = await run('a.docx', pack(entries));
-  assert(codes(result).includes('DOCX_LINK_REMOVED'), JSON.stringify(codes(result)));
+  assert(result.findings.some((f) => f.code === 'REF_REMOVED' && f.data.loss === 'link'), JSON.stringify(codes(result)));
   eq(result.outcome, 'partial');
   const xml = await textOf(result, 'word/document.xml');
   assert(xml.includes('A link to the project page') && !xml.includes('<w:hyperlink'), 'text kept, link gone');

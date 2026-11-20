@@ -1,15 +1,6 @@
-import { getTree, touch, addFinding, definedRelIds, relsTreeFor, relPrefixSet, relAttr, resolveTarget, readRelationships, addRelationship } from '../package.js';
+import { getTree, touch, addFinding, relsTreeFor, relPrefixSet, relAttr, resolveTarget, readRelationships, addRelationship } from '../package.js';
 import { documentElement, localName, descendants, elementChildren, removeNode, setAttr, getAttr } from '../xml-repair.js';
 import { REL_BASE } from '../constants.js';
-
-function ancestor(node, local) {
-  let current = node.parent;
-  while (current) {
-    if (current.type === 'el' && localName(current.name) === local) return current;
-    current = current.parent;
-  }
-  return null;
-}
 
 export function applyPptx(ctx) {
   const tree = getTree(ctx, ctx.main);
@@ -97,30 +88,6 @@ export function applyPptx(ctx) {
       if (!firstLayout) return { salvage: 'noLayout' };
       addRelationship(ctx, slide.path, REL_BASE + 'slideLayout', firstLayout);
       addFinding(ctx, 'PPTX_LAYOUT_RELINKED', slide.path, { number: slide.number });
-    }
-    const part = ctx.parts.get(slide.path);
-    if (part && typeof part.text === 'string' && part.text.includes('blip')) {
-      const slideTree = getTree(ctx, slide.path);
-      const slideRoot = slideTree ? documentElement(slideTree) : null;
-      if (slideRoot) {
-        const slidePrefixes = relPrefixSet(slideRoot);
-        const defined = definedRelIds(ctx, slide.path);
-        const pics = new Set();
-        for (const blip of descendants(slideRoot, 'blip')) {
-          for (const local of ['embed', 'link']) {
-            const id = relAttr(blip, slidePrefixes, local);
-            if (id && !defined.has(id)) {
-              const holder = ancestor(blip, 'pic');
-              if (holder) pics.add(holder);
-            }
-          }
-        }
-        for (const pic of pics) removeNode(pic);
-        if (pics.size > 0) {
-          touch(ctx, slide.path);
-          addFinding(ctx, 'PPTX_IMAGE_REMOVED', slide.path, { n: pics.size });
-        }
-      }
     }
   }
   ctx.slideCount = slides.length;

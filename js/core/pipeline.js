@@ -8,9 +8,10 @@ import { repairXml } from './xml-repair.js';
 import { spliceHoles, resolveHoles } from './xml-holes.js';
 import { familyOfNames, wantedFromDonor } from './donor.js';
 import { identifyContent } from './orphan-kinds.js';
+import { sweepReferences, auditReferences } from './ref-sweep.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
-  repairRootRels, repairRels, sweepReferences, auditReferences, repairContentTypes, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
+  repairRootRels, repairRels, repairContentTypes, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
 } from './package.js';
 import { applyDocx } from './formats/docx.js';
 import { applyXlsx, normalizeXlsx } from './formats/xlsx.js';
@@ -476,7 +477,7 @@ async function execute(input, env, transfer) {
   if (ctx.changed && ctx.family === 'xlsx') normalizeXlsx(ctx);
   progress('package', 0.8);
   repairContentTypes(ctx, ctx.silentParts);
-  if (ctx.changed) sweepReferences(ctx);
+  sweepReferences(ctx);
   flushTrees(ctx);
   if (ctx.changed) auditReferences(ctx);
   progress('package', 1);

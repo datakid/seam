@@ -1,15 +1,6 @@
-import { getTree, touch, addFinding, definedRelIds, addRelationship, relsTreeFor, relPrefixSet, relAttr, resolveTarget, readRelationships, mainFolderOf } from '../package.js';
-import { documentElement, localName, prefixOf, descendants, elementChildren, removeNode, unwrapNode, createElement, getAttrLocal } from '../xml-repair.js';
+import { getTree, touch, addFinding, addRelationship, relsTreeFor, resolveTarget, readRelationships, mainFolderOf } from '../package.js';
+import { documentElement, localName, prefixOf, descendants, elementChildren, createElement, getAttrLocal } from '../xml-repair.js';
 import { REL_BASE } from '../constants.js';
-
-function ancestor(node, local) {
-  let current = node.parent;
-  while (current) {
-    if (current.type === 'el' && localName(current.name) === local) return current;
-    current = current.parent;
-  }
-  return null;
-}
 
 const LINKED = [
   ['styles.xml', 'styles'],
@@ -35,51 +26,6 @@ export function applyDocx(ctx) {
     addFinding(ctx, 'DOCX_BODY_ADDED', ctx.main);
   }
 
-  const prefixes = relPrefixSet(root);
-  const defined = definedRelIds(ctx, ctx.main);
-
-  const drawings = new Set();
-  for (const blip of descendants(root, 'blip')) {
-    for (const local of ['embed', 'link']) {
-      const id = relAttr(blip, prefixes, local);
-      if (id && !defined.has(id)) {
-        const holder = ancestor(blip, 'drawing');
-        if (holder) drawings.add(holder);
-      }
-    }
-  }
-  for (const image of descendants(root, 'imagedata')) {
-    const id = relAttr(image, prefixes, 'id');
-    if (id && !defined.has(id)) {
-      const holder = ancestor(image, 'pict');
-      if (holder) drawings.add(holder);
-    }
-  }
-  for (const node of drawings) removeNode(node);
-  if (drawings.size > 0) {
-    changed = true;
-    addFinding(ctx, 'DOCX_IMAGE_REMOVED', ctx.main, { n: drawings.size });
-  }
-
-  const links = descendants(root, 'hyperlink').filter((node) => {
-    const id = relAttr(node, prefixes, 'id');
-    return id && !defined.has(id);
-  });
-  for (const node of links) unwrapNode(node);
-  if (links.length > 0) {
-    changed = true;
-    addFinding(ctx, 'DOCX_LINK_REMOVED', ctx.main, { n: links.length });
-  }
-
-  const refs = [...descendants(root, 'headerReference'), ...descendants(root, 'footerReference')].filter((node) => {
-    const id = relAttr(node, prefixes, 'id');
-    return id && !defined.has(id);
-  });
-  for (const node of refs) removeNode(node);
-  if (refs.length > 0) {
-    changed = true;
-    addFinding(ctx, 'DOCX_HEADER_REF_REMOVED', ctx.main, { n: refs.length });
-  }
   if (changed) touch(ctx, ctx.main);
 
   const folder = mainFolderOf(ctx.main);
