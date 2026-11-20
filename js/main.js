@@ -1,7 +1,7 @@
 import { initTheme } from './theme.js';
 import { applyCopy, buildScope, setupScope, createRenderer, summaryCounts, setupDrop } from './ui.js';
 import { copy } from './copy.js';
-import { createQueue } from './queue.js';
+import { createQueue, canAddCopy, LIMITS } from './queue.js';
 import { textReport, baseName, finding } from './core/report.js';
 
 const $ = (id) => document.getElementById(id);
@@ -21,6 +21,8 @@ function showNotice(notices) {
   const lines = [];
   if (notices.duplicates > 0) lines.push(copy.notice.duplicates(notices.duplicates));
   if (notices.overflow) lines.push(copy.notice.limit);
+  if (notices.copiesFull) lines.push(copy.notice.copiesLimit(LIMITS.copies));
+  if (notices.tooLarge) lines.push(copy.notice.tooLarge);
   notice.textContent = lines.join(' ');
   notice.hidden = lines.length === 0;
 }
@@ -75,7 +77,27 @@ queue = createQueue({
   }
 });
 
+const copyInput = document.createElement('input');
+copyInput.type = 'file';
+copyInput.multiple = true;
+copyInput.accept = $('file-input').getAttribute('accept');
+copyInput.className = 'file-input';
+copyInput.tabIndex = -1;
+document.body.appendChild(copyInput);
+let copyTarget = null;
+copyInput.addEventListener('change', () => {
+  const files = Array.from(copyInput.files);
+  copyInput.value = '';
+  if (copyTarget !== null && files.length > 0) queue.addCopies(copyTarget, files);
+  copyTarget = null;
+});
+
 renderer = createRenderer($('list'), {
+  canAddCopy,
+  addCopy(item) {
+    copyTarget = item.id;
+    copyInput.click();
+  },
   download(item, which) {
     queue.downloadOutput(item, which);
   },

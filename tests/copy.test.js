@@ -38,7 +38,7 @@ test('copy lint: no banned words or phrases', () => {
 });
 
 test('copy lint: sentence case buttons', () => {
-  for (const value of [copy.btn.downloadAll, copy.btn.clear, copy.btn.download, copy.btn.downloadSalvage, copy.btn.copyReport, copy.btn.saveReport, copy.drop.button]) {
+  for (const value of [copy.btn.downloadAll, copy.btn.clear, copy.btn.download, copy.btn.downloadSalvage, copy.btn.copyReport, copy.btn.saveReport, copy.btn.addCopy, copy.drop.button]) {
     const words = value.split(' ').slice(1);
     for (const w of words) assert(!/^[A-Z][a-z]/.test(w), `title case in: ${value}`);
   }
@@ -47,6 +47,7 @@ test('copy lint: sentence case buttons', () => {
 const CODES = [
   'TRANSFER_CRLF_REVERSED', 'ZIP_PREFIX_DATA', 'ZIP_DIRECTORY_REBUILT', 'ZIP_ENTRY_TRUNCATED', 'ZIP_ENTRY_CRC', 'ZIP_ENTRY_UNREADABLE',
   'XML_HOLE_DROPPED', 'ZIP_ENTRY_CHOSEN',
+  'MULTI_PART_FROM', 'MULTI_COPY_UNUSED',
   'XML_REENCODED', 'XML_INVALID_BYTES', 'XML_CHARS_REMOVED', 'XML_REPAIRED', 'XML_TRUNCATED_CLOSED', 'XML_UNRECOVERABLE',
   'CT_REBUILT', 'CT_OVERRIDE_REMOVED', 'CT_OVERRIDE_ADDED', 'CT_UNKNOWN_PART', 'ROOT_RELS_REBUILT', 'REL_REMOVED', 'REL_FILE_REMOVED',
   'EXTENSION_CORRECTED', 'REF_DANGLING', 'REF_REMOVED', 'XLSX_STYLE_CLEARED', 'NO_MAIN_PART',
@@ -74,4 +75,14 @@ test('finding coverage: every template has a severity and renders', () => {
 test('copy: summary omits zero groups and uses singular', () => {
   assert(copy.summary({ n: 1, r: 1, p: 0, s: 0, f: 0 }) === '1 file · 1 repaired', 'singular summary');
   assert(copy.summary({ n: 3, r: 2, p: 0, s: 0, f: 1 }) === '3 files · 2 repaired · 1 could not be repaired', 'plural summary');
+});
+
+test('copy: the unused-copy finding names the file and says why', () => {
+  for (const why of ['unreadable', 'different', 'unused']) {
+    const text = finding('MULTI_COPY_UNUSED', null, { name: 'Backup.docx', why }).text;
+    assert(text.includes('Backup.docx') && text.includes('nothing was taken'), text);
+  }
+  const texts = new Set(['unreadable', 'different', 'unused'].map((why) => finding('MULTI_COPY_UNUSED', null, { name: 'x', why }).text));
+  assert(texts.size === 3, 'three distinct texts');
+  assert(finding('MULTI_PART_FROM', 'word/document.xml', { from: 'Backup.docx', n: 2 }).text.includes('Backup.docx'), 'names the copy');
 });

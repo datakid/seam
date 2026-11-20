@@ -126,7 +126,7 @@ test('ui: expanding a row shows the report with grouped findings and actions', a
     assert(headings.includes('Lost') && headings.includes('Repaired'), headings.join(','));
     assert(report.textContent.includes('Passed structural checks.'), 'verify line');
     const buttons = Array.from(report.querySelectorAll('.btn')).map((b) => b.textContent);
-    eq(buttons, ['Download repaired file', 'Copy report', 'Save report (.txt)']);
+    eq(buttons, ['Download repaired file', 'Copy report', 'Save report (.txt)', 'Add another copy']);
   } finally {
     app.close();
   }
@@ -449,6 +449,35 @@ test('ui: a file name with markup is shown as text, not as HTML', async () => {
     await settled(app, 1);
     eq(app.doc.querySelectorAll('#list img').length, 0);
     assert(rows(app)[0].querySelector('.name').textContent.includes('<img src=x'), 'name shown as text');
+  } finally {
+    app.close();
+  }
+});
+
+test('ui: only rows below Repaired offer another copy, and a good copy turns the row into Repaired', async () => {
+  const app = await openApp();
+  try {
+    add(app, mixed());
+    await settled(app, 6);
+    const labels = rows(app).map((row) => Array.from(row.querySelectorAll('.report .btn')).some((b) => b.textContent === 'Add another copy'));
+    eq(labels, [false, true, true, false, false, true]);
+    const row = rows(app)[1];
+    assert(row.querySelector('.report').textContent.includes('Have another copy of this file'), 'hint');
+    const picker = Array.from(app.doc.querySelectorAll('input[type=file]')).find((input) => input.id !== 'file-input');
+    assert(picker, 'second file picker');
+    eq(picker.getAttribute('tabindex'), '-1');
+    assert(app.w.getComputedStyle(picker).opacity === '0', 'picker invisible');
+    Array.from(row.querySelectorAll('.report .btn')).find((b) => b.textContent === 'Add another copy').click();
+    const transfer = new app.w.DataTransfer();
+    transfer.items.add(new app.w.File([xlsx()], 'Budget backup.xlsx', { lastModified: 1700000000001 }));
+    picker.files = transfer.files;
+    picker.dispatchEvent(new app.w.Event('change'));
+    await waitFor(() => rows(app)[1].querySelector('.badge').textContent === 'Repaired', 30000, 'row to become Repaired');
+    const text = rows(app)[1].querySelector('.report').textContent;
+    assert(text.includes('Budget backup.xlsx'), 'names the copy');
+    assert(!Array.from(rows(app)[1].querySelectorAll('.report .btn')).some((b) => b.textContent === 'Add another copy'), 'no more copies once repaired');
+    assert(!rows(app)[1].querySelector('.dl').hidden, 'download button back');
+    eq(app.violations, []);
   } finally {
     app.close();
   }

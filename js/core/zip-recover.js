@@ -267,3 +267,105 @@ export function mergeEntries(primary, secondary) {
   }
   return order.map((key) => map.get(key));
 }
+
+const WRONG_TOLERANCE = 0.005;
+const MIN_EVIDENCE = 256;
+const MIN_CONTRAST = 4096;
+const SHARED_RUN = 512;
+
+function knownAgree(damaged, good) {
+  if (damaged.state !== 'partial') return null;
+  const aligned = Boolean(damaged.holes && damaged.whole);
+  const source = aligned ? damaged.whole : damaged.data;
+  const target = good.data;
+  const limit = Math.min(source.length, target.length);
+  const spans = [];
+  let at = 0;
+  if (aligned) {
+    for (const [start, end] of damaged.holes) {
+      if (start > at) spans.push([at, Math.min(start, limit)]);
+      if (end > at) at = end;
+    }
+  }
+  if (at < limit) spans.push([at, limit]);
+  let known = 0;
+  let wrong = 0;
+  let run = 0;
+  let longest = 0;
+  for (const [a, b] of spans) {
+    run = 0;
+    for (let i = a; i < b; i++) {
+      known++;
+      if (source[i] === target[i]) {
+        run++;
+        if (run > longest) longest = run;
+      } else {
+        wrong++;
+        run = 0;
+      }
+    }
+  }
+  if (known < MIN_EVIDENCE) return null;
+  if (wrong <= known * WRONG_TOLERANCE) return true;
+  if (known >= MIN_CONTRAST && longest < SHARED_RUN && wrong > known * 0.5) return false;
+  return null;
+}
+
+function relation(a, b) {
+  if (a.state === 'ok' && b.state === 'ok') return sameBytes(a, b) ? 'same' : 'conflict';
+  let verdict = null;
+  if (a.state === 'ok') verdict = knownAgree(b, a);
+  else if (b.state === 'ok') verdict = knownAgree(a, b);
+  if (verdict === null) return 'unknown';
+  return verdict ? 'same' : 'conflict';
+}
+
+function agrees(accepted, other) {
+  const index = new Map();
+  for (const list of accepted) {
+    for (const entry of list) {
+      const key = entry.name.toLowerCase();
+      const bucket = index.get(key);
+      if (bucket) bucket.push(entry);
+      else index.set(key, [entry]);
+    }
+  }
+  let shared = 0;
+  for (const entry of other) {
+    const bucket = index.get(entry.name.toLowerCase());
+    if (!bucket) continue;
+    for (const known of bucket) {
+      const verdict = relation(known, entry);
+      if (verdict === 'conflict') return false;
+      if (verdict === 'same') shared++;
+    }
+  }
+  return shared > 0;
+}
+
+export function mergeCopies(lists) {
+  const used = lists.map((list, i) => i === 0);
+  const accepted = [0];
+  for (let i = 1; i < lists.length; i++) {
+    if (agrees(accepted.map((k) => lists[k]), lists[i])) {
+      used[i] = true;
+      accepted.push(i);
+    }
+  }
+  const map = new Map();
+  const order = [];
+  for (const i of accepted) {
+    for (const entry of lists[i]) {
+      entry.copy = i;
+      const key = entry.name.toLowerCase();
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, entry);
+        order.push(key);
+      } else if (better(entry, existing, true)) {
+        map.set(key, entry);
+      }
+    }
+  }
+  return { entries: order.map((key) => map.get(key)), used };
+}

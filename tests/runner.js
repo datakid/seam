@@ -10,6 +10,7 @@ const files = [
   './inflate.test.js',
   './holes.test.js',
   './zip-hardening.test.js',
+  './copies.test.js',
   './xml.test.js',
   './package.test.js',
   './property.test.js',

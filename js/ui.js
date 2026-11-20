@@ -173,6 +173,7 @@ export function createRenderer(list, actions) {
     if (result.output) {
       panel.appendChild(el('p', 'report-note', `${copy.verify.ok} ${copy.verify.advice}`));
     }
+    if (actions.canAddCopy(item)) panel.appendChild(el('p', 'report-note', copy.report.addCopyHint));
     const buttons = el('div', 'actions');
     if (result.output) {
       const label = result.outcome === 'salvaged' ? copy.btn.downloadSalvage : copy.btn.download;
@@ -194,6 +195,12 @@ export function createRenderer(list, actions) {
     saveButton.type = 'button';
     saveButton.addEventListener('click', () => actions.saveReport(item));
     buttons.append(copyButton, saveButton);
+    if (actions.canAddCopy(item)) {
+      const more = el('button', 'btn', copy.btn.addCopy);
+      more.type = 'button';
+      more.addEventListener('click', () => actions.addCopy(item));
+      buttons.appendChild(more);
+    }
     panel.appendChild(buttons);
   }
 
@@ -220,6 +227,12 @@ export function createRenderer(list, actions) {
         ref.built = result;
       }
     } else {
+      ref.dl.hidden = true;
+      ref.li.classList.remove('has-output');
+      ref.progress.classList.remove('done');
+      ref.built = null;
+      ref.report.hidden = true;
+      ref.main.setAttribute('aria-expanded', 'false');
       ref.chip.textContent = extensionChip(item.name);
       ref.badge.className = 'badge b-neutral';
       ref.badge.textContent = item.status === 'working' ? copy.status.working : copy.status.queued;

@@ -35,7 +35,7 @@ async function handleProcess(msg) {
   };
   let result;
   try {
-    result = await runPipeline({ name: msg.name, size: msg.size, buffer: msg.buffer, lastModified: msg.lastModified }, env);
+    result = await runPipeline({ name: msg.name, size: msg.size, buffer: msg.buffer, lastModified: msg.lastModified, copies: msg.copies || [] }, env);
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);
     result = failedResult('INTERNAL_ERROR', copy.reasons.internal);

@@ -1,7 +1,7 @@
 import { test, assert, eq } from './harness.js';
-import { createQueue, LIMITS } from '../js/queue.js';
-import { docxEntries, pack, randomBytes, docx } from './fixtures.js';
-import { deleteDirectory } from './corrupt.js';
+import { createQueue, canAddCopy, LIMITS } from '../js/queue.js';
+import { docxEntries, pack, randomBytes, docx, xlsx } from './fixtures.js';
+import { deleteDirectory, truncate } from './corrupt.js';
 
 async function waitFor(check, ms = 20000, label = 'condition') {
   const started = performance.now();
@@ -125,6 +125,61 @@ test('queue: files over the size limit are Not processed without being read', ()
     eq(queue.items()[0].status, 'done');
     eq(queue.items()[0].result.outcome, 'notProcessed');
   } finally {
+    queue.clear();
+  }
+});
+
+test('queue: another copy is read together with the original and the row is checked again', async () => {
+  const { queue, log } = harness();
+  try {
+    queue.add([file(truncate(xlsx(), 0.5), 'Budget.xlsx', 1)]);
+    await waitFor(() => queue.items()[0].status === 'done', 20000, 'first result');
+    const item = queue.items()[0];
+    eq(item.result.outcome, 'partial');
+    assert(canAddCopy(item), 'a partly repaired row accepts another copy');
+    const notices = queue.addCopies(item.id, [file(xlsx(), 'Backup.xlsx', 2)]);
+    eq(notices.duplicates, 0);
+    eq(item.result, null);
+    assert(item.status === 'queued' || item.status === 'working', `status ${item.status}`);
+    await waitFor(() => item.status === 'done', 20000, 'second result');
+    eq(item.result.outcome, 'repaired');
+    assert(item.result.findings.some((f) => f.code === 'MULTI_PART_FROM' && f.data.from === 'Backup.xlsx'), 'part taken from the copy');
+    assert(item.result.output, 'output');
+    eq(item.file, null);
+    eq(item.copies.length, 0);
+    assert(!canAddCopy(item), 'a repaired row takes no more copies');
+    const before = item.result;
+    queue.addCopies(item.id, [file(xlsx(), 'Another.xlsx', 3)]);
+    eq(item.status, 'done');
+    assert(item.result === before, 'the result is untouched');
+    await waitFor(() => log.idle >= 2, 2000, 'idle after both runs');
+  } finally {
+    queue.clear();
+  }
+});
+
+test('queue: a copy that duplicates the original or exceeds the copy limit does not start another run', async () => {
+  const saved = LIMITS.copies;
+  const { queue } = harness();
+  try {
+    LIMITS.copies = 1;
+    queue.add([file(truncate(xlsx(), 0.5), 'Budget.xlsx', 1)]);
+    await waitFor(() => queue.items()[0].status === 'done', 20000, 'first result');
+    const item = queue.items()[0];
+    const first = item.result;
+    const same = queue.addCopies(item.id, [file(truncate(xlsx(), 0.5), 'Budget.xlsx', 1)]);
+    eq(same.duplicates, 1);
+    assert(item.result === first, 'duplicate did not start a run');
+    queue.addCopies(item.id, [file(new TextEncoder().encode('%PDF-1.7 not a package'), 'Notes.xlsx', 2)]);
+    await waitFor(() => item.status === 'done' && item.result !== first, 20000, 'run with the junk copy');
+    eq(item.result.outcome, 'partial');
+    assert(item.result.findings.some((f) => f.code === 'MULTI_COPY_UNUSED'), 'unused copy reported');
+    const second = item.result;
+    const full = queue.addCopies(item.id, [file(xlsx(), 'Backup.xlsx', 3)]);
+    eq(full.copiesFull, true);
+    assert(item.result === second, 'no run past the limit');
+  } finally {
+    LIMITS.copies = saved;
     queue.clear();
   }
 });

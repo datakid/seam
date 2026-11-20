@@ -1,6 +1,6 @@
 import { identify, findTextModeTransfer, removeAddedCarriageReturns } from './identify.js';
 import { strictRead } from './zip-read.js';
-import { recoverEntries, mergeEntries } from './zip-recover.js';
+import { recoverEntries, mergeEntries, mergeCopies } from './zip-recover.js';
 import { writeZip } from './zip-write.js';
 import { decodeXml, cleanChars, encodeUtf8 } from './xml-clean.js';
 import { repairXml } from './xml-repair.js';
@@ -48,18 +48,53 @@ function createContext(input) {
   };
 }
 
-function loadEntries(ctx, bytes, identity) {
-  const prefix = identity.prefix || 0;
+function readCopy(bytes, prefix) {
   const strict = strictRead(bytes, prefix);
   let entries = strict.entries;
   const dropped = strict.dropped.slice();
   let endsEarly = false;
-  const directoryBroken = !strict.eocdFound || strict.errors.some((e) => STRUCTURAL.has(e)) || strict.parsed !== strict.total;
   if (!strict.intact) {
     const recovered = recoverEntries(bytes, strict.entries);
     entries = mergeEntries(strict.entries, recovered.entries);
     dropped.push(...recovered.dropped);
     endsEarly = recovered.endsEarly;
+  }
+  return { strict, entries, dropped, endsEarly };
+}
+
+function readExtras(copies) {
+  const reads = [];
+  for (const extra of copies) {
+    const bytes = new Uint8Array(extra.buffer);
+    const identity = identify(bytes);
+    reads.push(identity.kind === 'ZIP' ? readCopy(bytes, identity.prefix || 0) : null);
+  }
+  return reads;
+}
+
+function reportUnusedCopies(ctx, copies, extras, merged, entries) {
+  const contributed = new Set(entries.map((entry) => entry.copy));
+  for (let i = 0; i < copies.length; i++) {
+    if (contributed.has(i + 1)) continue;
+    const why = extras[i] === null ? 'unreadable' : merged.used[i + 1] ? 'unused' : 'different';
+    addFinding(ctx, 'MULTI_COPY_UNUSED', null, { name: copies[i].name, why });
+  }
+}
+
+function loadEntries(ctx, bytes, identity, copies) {
+  const prefix = identity.prefix || 0;
+  const first = readCopy(bytes, prefix);
+  const strict = first.strict;
+  let entries = first.entries;
+  const dropped = first.dropped;
+  let endsEarly = first.endsEarly;
+  const directoryBroken = !strict.eocdFound || strict.errors.some((e) => STRUCTURAL.has(e)) || strict.parsed !== strict.total;
+  const extras = readExtras(copies);
+  let merged = null;
+  if (extras.length > 0) {
+    merged = mergeCopies([first.entries, ...extras.map((read) => (read === null ? [] : read.entries))]);
+    entries = merged.entries;
+    if (extras.some((read, i) => read !== null && merged.used[i + 1] && !read.endsEarly)) endsEarly = false;
   }
   const autoShift = (strict.shift === undefined ? 0 : strict.shift) - prefix;
   ctx.strictIntact = strict.intact && prefix === 0 && autoShift === 0 && !identity.damagedStart;
@@ -93,6 +128,10 @@ function loadEntries(ctx, bytes, identity) {
       }
     }
     if (entry.rejected > 0) addFinding(ctx, 'ZIP_ENTRY_CHOSEN', entry.name, { n: entry.rejected + 1 });
+    if (entry.copy > 0) {
+      ctx.changed = true;
+      addFinding(ctx, 'MULTI_PART_FROM', entry.name, { from: copies[entry.copy - 1].name, n: entry.copy + 1 });
+    }
     if (entry.state === 'partial') {
       const kept = holeBytes > 0 ? entry.whole.length - holeBytes : entry.data.length;
       const pct = entry.expectedSize > 0 ? Math.min(99, Math.floor((kept / entry.expectedSize) * 100)) : null;
@@ -103,6 +142,7 @@ function loadEntries(ctx, bytes, identity) {
     ctx.parts.set(entry.name, { name: entry.name, bytes, holeBytes, text: null, isXml: isXmlPath(entry.name), changed: false, state: entry.state, mtime: entry.mtime, raw: null, repairedXml: false });
     ctx.index.add(entry.name);
   }
+  if (merged !== null) reportUnusedCopies(ctx, copies, extras, merged, entries);
 }
 
 async function processXml(ctx, part, env) {
@@ -294,7 +334,7 @@ async function execute(input, env, transfer) {
     addFinding(ctx, 'TRANSFER_CRLF_REVERSED', null, { n: transfer.pairs });
   }
   progress('zip', 0);
-  loadEntries(ctx, bytes, identity);
+  loadEntries(ctx, bytes, identity, input.copies || []);
   progress('zip', 1);
   await xmlStage(ctx, env, progress);
 

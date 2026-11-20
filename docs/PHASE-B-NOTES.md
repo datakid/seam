@@ -71,10 +71,34 @@ Status of the Phase B build on the `v2-bytes` branch and where it differs from `
 - The fixed 16-candidate limit is raised to 64, not removed. It still applies to a streamed entry that the central directory does not describe. A scan with no bound would try to inflate from every `PK` signature inside an embedded stored package.
 - v1 test `merge: ok beats crcMismatch beats partial` expected a later ok copy to win a tie by length. The plan's order puts the central directory copy first, so the test now expects the central copy to stay. Changes an existing test.
 
-### Not yet measured
+## B5: several copies
 
-The Phase B exit numbers (+15 points median text recall on zero512, zero4096, dropblock and bitflip, and the crlf row) need the damage lab and scoreboard run on the corpus. The B1 and B2 gains reach the output file only for zero runs inside deflate entries. Nothing else in Phase B has been measured on the corpus.
+| Item | State |
+|---|---|
+| UI | A row below Repaired (Partially repaired, Salvaged text, Could not repair) that still holds its file gets an "Add another copy" button and a one-line hint. The file picker is hidden and takes up to 4 extra copies per row. The row goes back to Queued and the job runs again with every buffer. A repaired row drops its file handles. |
+| Worker | The `process` message carries `copies: [{name, buffer}]`. The time budget scales with the number of buffers. |
+| Pipeline | Each copy goes through the strict read and `recoverEntries` on its own, with its own prefix and directory. `mergeCopies` then picks one entry per part name. |
+| Selection | An earlier copy wins a tie. A later copy wins only with a strictly better state, using the B3.2 ranks (ok, then CRC mismatch, then partial with holes, then partial). Two intact copies of one part never swap. |
+| Findings | `MULTI_PART_FROM` (Noted) names the copy a part came from. `MULTI_COPY_UNUSED` (Noted) names a copy that gave nothing, and says why: not a package, not the same file, or nothing more complete. |
+| Cut-short flag | `ZIP_ENDS_EARLY` is dropped when an accepted copy ends cleanly. Otherwise it would stay a Lost line and keep the row at Partially repaired with nothing lost. |
 
-### Speed
+### B5 same-file check
+
+A copy is used only when it agrees with the copies already accepted. Parts that are intact in both must be byte-identical, and at least one such part, or one damaged part whose known bytes match, must exist. Otherwise the copy is refused as a different version and nothing is taken from it.
+
+A damaged part is compared by its known bytes (the exact head, and the bytes after each hole). It counts as a conflict only when at least 4096 bytes are known, no 512-byte run matches, and more than half differ. A bit flip leaves garbage that the decoder cannot tell from text, so a lower bar rejected good copies in testing.
+
+### B5 limits
+
+- A different version whose damaged part is unreadable in the first copy cannot be told apart. If the other parts are identical (same template), its content part is taken, and `MULTI_PART_FROM` says so.
+- Parts are selected whole. Two copies damaged in different places of the same part do not fill each other's holes. The better of the two is kept.
+- The text-mode transfer reversal applies to the first copy only.
+- Copies are compared on part bytes, so a copy saved by a different program that rewrites every part is refused.
+
+## Not yet measured
+
+The Phase B exit numbers (+15 points median text recall on zero512, zero4096, dropblock and bitflip, and the crlf row) need the damage lab and scoreboard run on the corpus. The B1 and B2 gains reach the output file only for zero runs inside deflate entries. Nothing else in Phase B has been measured on the corpus. B5 is exercised only by copies damaged in the test suite, not by corpus files.
+
+## Speed
 
 `tests/inflate.test.js` asserts the undamaged path is within twice the time of fflate on a 20 MB part.

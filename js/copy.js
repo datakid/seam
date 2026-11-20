@@ -20,6 +20,12 @@ function xmlRepairText(d) {
   return `Repaired the XML structure: ${list(parts)}.`;
 }
 
+function copyUnusedText(d) {
+  if (d.why === 'unreadable') return `${d.name} could not be read as a package, so nothing was taken from it.`;
+  if (d.why === 'different') return `${d.name} does not match this file. Parts that should be identical differ, so nothing was taken from it.`;
+  return `Nothing in ${d.name} was more complete than this file, so nothing was taken from it.`;
+}
+
 export const copy = {
   title: 'Seam',
   headline: 'Repair damaged Word, Excel and PowerPoint files.',
@@ -47,7 +53,8 @@ export const copy = {
     downloadSalvage: 'Download salvaged text',
     copyReport: 'Copy report',
     saveReport: 'Save report (.txt)',
-    close: 'Close'
+    close: 'Close',
+    addCopy: 'Add another copy'
   },
   copied: 'Copied',
   status: { queued: 'Queued', working: 'Checking' },
@@ -63,6 +70,9 @@ export const copy = {
       return `Skipped ${n} duplicate ${plural(n, 'file', 'files')}.`;
     },
     limit: 'Only the first 50 files were added. Add the rest after these finish.',
+    copiesLimit(n) {
+      return `A file can take up to ${n} extra copies.`;
+    },
     tooLarge: 'This file is larger than 200 MB. Seam processes files in memory, and very large files can exceed browser limits.'
   },
   live: {
@@ -164,12 +174,15 @@ export const copy = {
     output: 'Output',
     bytes: 'bytes',
     groups: { loss: 'Lost', repaired: 'Repaired', noted: 'Noted' },
-    previewTitle: 'Recovered text'
+    previewTitle: 'Recovered text',
+    addCopyHint: 'Have another copy of this file, such as a backup or an earlier download? A part that is damaged here may be intact there.'
   },
   findings: {
     ZIP_PREFIX_DATA: (d) => `Removed ${d.bytes} bytes of extra data in front of the file.`,
     TRANSFER_CRLF_REVERSED: (d) => `Removed ${d.n} carriage ${plural(d.n, 'return', 'returns')} that a text-mode transfer added before line feeds.`,
     ZIP_ENTRY_CHOSEN: (d) => `The package held ${d.n} different copies of this part. The most complete one was kept.`,
+    MULTI_PART_FROM: (d) => `Taken from ${d.from}, where it was more complete.`,
+    MULTI_COPY_UNUSED: copyUnusedText,
     ZIP_DIRECTORY_REBUILT: (d) => `Rebuilt the ZIP directory from ${d.n} recovered ${plural(d.n, 'entry', 'entries')}.`,
     ZIP_ENDS_EARLY: () => 'The file ends inside its ZIP directory, so it was cut short. Data after the cut, if any, is not in the file.',
     ZIP_ENTRY_TRUNCATED: (d) => (d.pct === null || d.pct === undefined ? `This part was cut short. ${d.bytes} bytes were recovered.` : `This part was cut short. ${d.pct}% of it was recovered.`),
