@@ -2,6 +2,7 @@ import { decodeEntities, documentElement, localName, prefixOf, removeNode, unwra
 import { REL_NS, REL_NS_STRICT } from './constants.js';
 import { getTree, touch, addFinding, readRelationships, relsPathFor } from './package.js';
 import { REF_POLICY } from './data/ref-policy.js';
+import { rowOfPath } from './registry.js';
 
 const REL_URIS = new Set([REL_NS, REL_NS_STRICT]);
 const DECLARED = /xmlns:([A-Za-z_][\w.-]*)\s*=\s*["'](?:http:\/\/schemas\.openxmlformats\.org\/officeDocument\/2006\/relationships|http:\/\/purl\.oclc\.org\/ooxml\/officeDocument\/relationships)["']/g;
@@ -87,12 +88,19 @@ function hasAncestorIn(node, set) {
   return false;
 }
 
-function partsToScan(ctx) {
+function guarded(ctx, name) {
+  if (name === ctx.main) return ctx.family === 'docx';
+  const row = rowOfPath(name);
+  return Boolean(row && row.kind === 'pptSlide');
+}
+
+function partsToScan(ctx, onlyGuarded) {
   const out = [];
   for (const name of ctx.parts.keys()) {
     if (name === '[Content_Types].xml' || name.toLowerCase().endsWith('.rels')) continue;
     const part = ctx.parts.get(name);
     if (typeof part.text !== 'string') continue;
+    if (onlyGuarded && !guarded(ctx, name)) continue;
     out.push(name);
   }
   return out;
@@ -109,13 +117,13 @@ function scanPart(ctx, name) {
   return hits.length > 0 ? hits : null;
 }
 
-function plan(hits) {
+function plan(hits, onlyGuarded) {
   const doomed = new Map();
   const unwrapped = new Map();
   const dropped = [];
   for (const { node, missing } of hits) {
     const policy = policyFor(node, missing[0]);
-    if (policy.action === 'keep') continue;
+    if (policy.action === 'keep' || (onlyGuarded && !policy.always)) continue;
     if (policy.action === 'unwrap') {
       unwrapped.set(node, policy);
     } else if (policy.action === 'remove') {
@@ -170,19 +178,24 @@ function apply(plans) {
   return counts;
 }
 
-export function sweepReferences(ctx) {
-  for (const name of partsToScan(ctx)) {
+function sweepPass(ctx, onlyGuarded) {
+  for (const name of partsToScan(ctx, onlyGuarded)) {
     const hits = scanPart(ctx, name);
     if (!hits) continue;
-    const counts = apply(plan(hits));
+    const counts = apply(plan(hits, onlyGuarded));
     if (counts.size === 0) continue;
     touch(ctx, name);
     for (const [loss, n] of counts) addFinding(ctx, 'REF_REMOVED', name, { n, loss });
   }
 }
 
+export function sweepReferences(ctx) {
+  if (!ctx.changed) sweepPass(ctx, true);
+  if (ctx.changed) sweepPass(ctx, false);
+}
+
 export function auditReferences(ctx) {
-  for (const name of partsToScan(ctx)) {
+  for (const name of partsToScan(ctx, false)) {
     const hits = scanPart(ctx, name);
     if (!hits) continue;
     let missing = 0;

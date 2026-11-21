@@ -37,7 +37,8 @@ Status of the Phase C build and the places where it differs from `PLAN-V2.md`. W
 | `js/core/data/ref-policy.js` | `REF_POLICY` keyed `element@attribute` by local name (prefixes differ between producers), a `*` fallback, and `REF_LOSS_NAMES` for the finding text. About 45 entries: images, charts, diagrams, embedded objects, links, header and footer references, embedded content blocks, template links, embedded fonts, slide, layout, master and notes entries, media, drawings, tables, data links. |
 | `js/core/ref-sweep.js` | `sweepReferences` and `auditReferences`, moved out of `package.js`. Actions: `remove`, `unwrap`, `removeContainer` (outermost named ancestor, with `otherwise` of `dropAttribute`, `remove` or `keep`) and `keep`. Removing from a list fixes the list's `count` and can drop the list when it empties (`tablePart`). |
 | Detection | The attribute namespace is resolved per element, so a prefix declared on a nested element (`<c:chart xmlns:rel="..." rel:id="...">`) is found. The old code only read the root. |
-| Cost | The sweep now runs on every file. A text scan finds relationship attributes whose id is not in the part's relationships, and only a part with such a reference is parsed. Healthy files build no extra trees. |
+| When it runs | On a package that is otherwise intact, only the rules flagged `always` run, and only on the main Word part and on slides. That is exactly what the removed hand-written cases did. Once something else has been repaired the sweep covers every part. A wider always-on sweep turned `libreoffice-cool14390_chart_external_ref` (a chart data link with no relationship, which Office-made and LibreOffice-made files carry) into a Partial; the healthy corpus now gives the same 5 repaired files that `corpus/manifest/triage.json` lists and 295 untouched. |
+| Cost | The sweep reads every file. A text scan finds relationship attributes whose id is not in the part's relationships, and only a part with such a reference is parsed. Healthy files build no extra trees. |
 | Findings | `REF_REMOVED` carries `n` and `loss` and is written per part per loss type. `REF_DANGLING` is unchanged. |
 | Removed | The hand-written cases in `formats/docx.js` (images, links, header and footer references) and `formats/pptx.js` (pictures), and the finding codes `DOCX_IMAGE_REMOVED`, `DOCX_LINK_REMOVED`, `DOCX_HEADER_REF_REMOVED`, `PPTX_IMAGE_REMOVED`. Their tests now assert `REF_REMOVED` with the matching loss. |
 | `tests/refsweep.test.js` | Policy shape, a dangling picture in an intact package, a nested prefix, a link in a header part, a table entry and its list, list count kept in step, healthy fixtures untouched. |
@@ -50,3 +51,12 @@ Status of the Phase C build and the places where it differs from `PLAN-V2.md`. W
 - `sheet@id` in the workbook is not in the table. The Excel rules remove such sheets and fix names and views first, so what is left is reported by the audit.
 - `pivotCache@id` and `externalReference@id` are not in the table. Removing them breaks pivot tables and formulas that refer to them by number.
 - The copy for `REF_REMOVED` changed to name the loss. It needs the owner's approval like the other copy.
+
+### Healthy corpus check (300 files, run in the authoring sandbox)
+
+The corpus is reachable from the sandbox through raw GitHub, so `npm run corpus` works and `node tools/run-seam.mjs` runs. Result on `v2` after C1 and C2: 295 no problems, 5 repaired, none partial or failed. The 5 are the files in `corpus/manifest/triage.json`. `libreoffice-bnc591147` now ends repaired (the `.avi` default was the missing piece) instead of failing.
+
+Two false alarms were found and fixed by this run before they reached the scoreboard:
+
+- `xl/theme/theme.xml` (no number) matched the theme pattern after C1 widened it, so three LibreOffice-made workbooks gained a content type override. The numbered and the bare theme are now separate rows, and only the numbered one gets an override.
+- The always-on sweep described above.

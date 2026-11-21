@@ -10,6 +10,7 @@ const NS_S = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 const NS_W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const NS_A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
 const NS_C = 'http://schemas.openxmlformats.org/drawingml/2006/chart';
+const NS_STALE = 'stale/gone.xml';
 const WML = 'application/vnd.openxmlformats-officedocument.wordprocessingml.';
 const SML = 'application/vnd.openxmlformats-officedocument.spreadsheetml.';
 
@@ -24,6 +25,10 @@ function change(entries, name, fn) {
 
 function lost(result, loss, part) {
   return result.findings.filter((f) => f.code === 'REF_REMOVED' && f.data.loss === loss && (!part || f.part === part));
+}
+
+function stale(entries) {
+  return change(entries, '[Content_Types].xml', (t) => t.replace('</Types>', `<Override PartName="/${NS_STALE}" ContentType="application/xml"/></Types>`));
 }
 
 async function accepted(result, key) {
@@ -59,7 +64,7 @@ test('ref sweep: a picture reference that points nowhere is removed from an othe
 test('ref sweep: a reference whose prefix is declared on the element itself is found', async () => {
   const chart = `<w:p><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="9525" cy="9525"/><wp:docPr id="9" name="Chart 1"/><a:graphic xmlns:a="${NS_A}"><a:graphicData uri="${NS_C}"><c:chart xmlns:c="${NS_C}" xmlns:rel="${NS_R}" rel:id="rId50"/></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
   const entries = change(docxEntries(), 'word/document.xml', (t) => t.replace('</w:body>', `${chart}</w:body>`));
-  const result = await run('a.docx', pack(entries));
+  const result = await run('a.docx', pack(stale(entries)));
   eq(lost(result, 'chart', 'word/document.xml').length, 1);
   const parts = await accepted(result, 'docx');
   const xml = strFromU8(parts['word/document.xml']);
@@ -72,7 +77,7 @@ test('ref sweep: a link in a part other than the main part is unwrapped and its 
   entries = change(entries, '[Content_Types].xml', (t) => t.replace('</Types>', `<Override PartName="/word/header1.xml" ContentType="${WML}header+xml"/></Types>`));
   entries = change(entries, 'word/_rels/document.xml.rels', (t) => t.replace('</Relationships>', `<Relationship Id="rId8" Type="${NS_R}/header" Target="header1.xml"/></Relationships>`));
   entries.push(['word/header1.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:hdr xmlns:w="${NS_W}" xmlns:r="${NS_R}"><w:p><w:hyperlink r:id="rId7"><w:r><w:t>Header link text</w:t></w:r></w:hyperlink></w:p></w:hdr>`]);
-  const result = await run('a.docx', pack(entries));
+  const result = await run('a.docx', pack(stale(entries)));
   eq(lost(result, 'link', 'word/header1.xml').length, 1);
   const parts = await accepted(result, 'docx');
   const header = strFromU8(parts['word/header1.xml']);
@@ -90,14 +95,14 @@ function withTables(entries, listed, existing) {
 }
 
 test('ref sweep: a table entry that points nowhere is removed, and an emptied list goes with it', async () => {
-  const result = await run('a.xlsx', pack(withTables(xlsxEntries(), ['rId1'], false)));
+  const result = await run('a.xlsx', pack(stale(withTables(xlsxEntries(), ['rId1'], false))));
   eq(lost(result, 'table', 'xl/worksheets/sheet1.xml').length, 1);
   const parts = await accepted(result, 'xlsx');
   assert(!strFromU8(parts['xl/worksheets/sheet1.xml']).includes('tablePart'), 'list removed');
 });
 
 test('ref sweep: the count of a list is kept in step when one entry is removed and another stays', async () => {
-  const result = await run('a.xlsx', pack(withTables(xlsxEntries(), ['rId1', 'rId2'], true)));
+  const result = await run('a.xlsx', pack(stale(withTables(xlsxEntries(), ['rId1', 'rId2'], true))));
   eq(lost(result, 'table', 'xl/worksheets/sheet1.xml').length, 1);
   const parts = await accepted(result, 'xlsx');
   const sheet = strFromU8(parts['xl/worksheets/sheet1.xml']);
@@ -110,4 +115,21 @@ test('ref sweep: healthy fixtures are not touched', async () => {
     eq(result.outcome, 'noProblems', name);
     eq(result.findings.filter((f) => f.code === 'REF_REMOVED' || f.code === 'REF_DANGLING').length, 0, name);
   }
+});
+
+test('ref sweep: a dangling data link in an otherwise intact package is left alone', async () => {
+  const chart = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<c:chartSpace xmlns:c="${NS_C}" xmlns:r="${NS_R}"><c:chart><c:plotArea/></c:chart><c:externalData r:id="rId1"><c:autoUpdate val="0"/></c:externalData></c:chartSpace>`;
+  let entries = change(xlsxEntries(), '[Content_Types].xml', (t) => t.replace('</Types>', '<Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/></Types>'));
+  entries.push(['xl/charts/chart1.xml', chart]);
+  const result = await run('a.xlsx', pack(entries));
+  eq(result.outcome, 'noProblems');
+  eq(lost(result, 'data').length, 0);
+});
+
+test('ref sweep: the same data link is removed once the package is being repaired for another reason', async () => {
+  const chart = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<c:chartSpace xmlns:c="${NS_C}" xmlns:r="${NS_R}"><c:chart><c:plotArea/></c:chart><c:externalData r:id="rId1"><c:autoUpdate val="0"/></c:externalData></c:chartSpace>`;
+  let entries = change(xlsxEntries(), '[Content_Types].xml', (t) => t.replace('</Types>', '<Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/></Types>'));
+  entries.push(['xl/charts/chart1.xml', chart]);
+  const result = await run('a.xlsx', pack(stale(entries)));
+  eq(lost(result, 'data', 'xl/charts/chart1.xml').length, 1);
 });

@@ -213,9 +213,17 @@ export const PARTS = [
   part('theme', 'shared', {
     contentType: `${OFFICE}theme+xml`,
     ...office('theme'),
-    pathPattern: /^(word|xl|ppt)\/theme\/theme\d*\.xml$/i,
+    pathPattern: /^(word|xl|ppt)\/theme\/theme\d+\.xml$/i,
     root: { ns: A, name: 'theme' },
     source: ['wordDocument', 'xlWorkbook', 'pptPresentation', 'pptSlideMaster', 'pptNotesMaster', 'pptHandoutMaster'],
+    content: false,
+    borrow: true
+  }),
+  part('themeBare', 'shared', {
+    ...office('theme'),
+    pathPattern: /^(word|xl|ppt)\/theme\/theme\.xml$/i,
+    root: { ns: A, name: 'theme' },
+    source: ['wordDocument', 'xlWorkbook', 'pptPresentation'],
     content: false,
     borrow: true
   }),

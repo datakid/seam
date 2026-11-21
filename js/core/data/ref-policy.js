@@ -1,14 +1,14 @@
 const FRAMES = ['drawing', 'twoCellAnchor', 'oneCellAnchor', 'absoluteAnchor', 'graphicFrame'];
 const PICTURES = ['drawing', 'pict', 'twoCellAnchor', 'oneCellAnchor', 'absoluteAnchor', 'pic'];
 
-const image = { action: 'removeContainer', container: PICTURES, otherwise: 'dropAttribute', loss: 'image' };
+const image = { action: 'removeContainer', container: PICTURES, otherwise: 'dropAttribute', loss: 'image', always: true };
 const frame = (loss) => ({ action: 'removeContainer', container: FRAMES, otherwise: 'keep', loss });
 const drop = (loss) => ({ action: 'remove', loss });
 
 export const REF_POLICY = {
   'blip@embed': image,
   'blip@link': image,
-  'imagedata@id': { action: 'removeContainer', container: ['pict'], otherwise: 'remove', loss: 'image' },
+  'imagedata@id': { action: 'removeContainer', container: ['pict'], otherwise: 'remove', loss: 'image', always: true },
   'picture@id': drop('image'),
 
   'chart@id': frame('chart'),
@@ -21,13 +21,13 @@ export const REF_POLICY = {
   'oleObj@id': { action: 'removeContainer', container: ['pict', ...FRAMES], otherwise: 'keep', loss: 'object' },
   'OLEObject@id': { action: 'removeContainer', container: ['object'], otherwise: 'remove', loss: 'object' },
 
-  'hyperlink@id': { action: 'unwrap', loss: 'link' },
+  'hyperlink@id': { action: 'unwrap', loss: 'link', always: true },
   'hlinkClick@id': drop('link'),
   'hlinkHover@id': drop('link'),
   'hlinkMouseOver@id': drop('link'),
 
-  'headerReference@id': drop('header'),
-  'footerReference@id': drop('footer'),
+  'headerReference@id': { action: 'remove', loss: 'header', always: true },
+  'footerReference@id': { action: 'remove', loss: 'footer', always: true },
   'altChunk@id': drop('embedded content'),
   'attachedTemplate@id': drop('template'),
   'embedRegular@id': drop('font'),

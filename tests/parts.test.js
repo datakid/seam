@@ -112,6 +112,9 @@ test('parts: paths and patterns find the right row, and a part with a type gets 
   eq(overrideTypeFor('word/media/image1.png'), null);
   eq(overrideTypeFor('xl/worksheets/sheet1.xml'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml');
   eq(overrideTypeFor('word/vbaProject.bin'), CT_VBA);
+  eq(overrideTypeFor('xl/theme/theme.xml'), null);
+  eq(rowOfPath('xl/theme/theme.xml').kind, 'themeBare');
+  assert(rowOfPath('xl/theme/theme.xml').borrow, 'bare theme stays borrowable');
 });
 
 test('parts: a root element is found by name and namespace in both namespace families, and the font table root is fonts', () => {
