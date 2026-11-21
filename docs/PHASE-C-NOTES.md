@@ -85,3 +85,15 @@ Not confirmed by the SDK itself yet. That needs a score run.
 Evidence. On 1,215 damaged cases the sweep left a dangling reference in 28 cases on `74aeea5`: `pageSetup@id` 23, `pivotCache` 6, `control` 4, `externalReference` 2, `snd` 2, `objectPr` and `oleObject` 2 each, `tags` 1. It now leaves 1, an `externalBook`, on purpose, because that part and its `externalReference` have to go together. The healthy corpus (318 files) has 0 label changes.
 
 Known gap. Removing a pivot cache does not yet remove the pivot tables that depend on it.
+
+## C1 additions (main agent, merged onto the registry above)
+
+| Item | State |
+|---|---|
+| `js/core/data/parts.js` | Fourteen rows: `printerSettingsExcel`, `printerSettingsPowerPoint`, `chartEx`, `ctrlProp`, `revisionHeaders`, `userNames`, `revisionLog`, `queryTable`, `tableSingleCells`, `xmlMaps`, `volatileDependencies`, `macrosheet`, `revisionInfo` and `changesInfo`. Every row was checked against the content types and relationship types seen in the corpus. `xmlMaps` has no content type, because its type is the generic one. The `part()` builder gains `relTypeAlt`. The core-properties row lists the older `officedocument/2006/relationships/metadata/core-properties` URL as an alias. |
+| `js/core/registry.js` | One line: `relTypeAlt` entries are indexed with the other relationship types. |
+| `tests/parts-extra.test.js` | Six cases: the rows are unique and found by kind and path, their relationship types resolve (strict too), the alias resolves, a control property part with no type is typed through its worksheet, and an OLE attachment that is a legacy workbook keeps its type. |
+
+Not added, because the registry already has it or it is wrong to type: an `oleObject` content type. The existing row has none, so OLE attachments keep the type their `Default` entry gives. Typing them from the relationship would retype legacy `.xls` and `.pdf` attachments.
+
+Evidence. Outputs with a wrong or missing content type on a related part fall from 1 to 0 on the 221-case sample (the one left was `xl/ctrlProps/ctrlProps1.xml`). The healthy corpus (318 files) and the damaged sample have 0 label or finding changes.

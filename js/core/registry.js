@@ -34,6 +34,7 @@ for (const row of PARTS) {
   byKind.set(row.kind, row);
   if (row.relType) push(byRel, row.relType, row);
   if (row.relTypeStrict) push(byRel, row.relTypeStrict, row);
+  for (const alt of row.relTypeAlt) push(byRel, alt, row);
   if (row.contentType) byContentType.set(row.contentType, row);
   for (const alt of row.contentTypeAlt) byContentType.set(alt, row);
   if (row.root) push(byRoot, `${row.root.ns}|${row.root.name}`, row);

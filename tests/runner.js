@@ -16,6 +16,7 @@ const files = [
   './crlf-restore.test.js',
   './parts.test.js',
   './ct-fix.test.js',
+  './parts-extra.test.js',
   './ref-policy-excel.test.js',
   './refsweep.test.js',
   './xml.test.js',

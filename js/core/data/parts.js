@@ -34,6 +34,7 @@ function part(kind, family, fields) {
     contentTypeAlt: [],
     relType: null,
     relTypeStrict: null,
+    relTypeAlt: [],
     path: null,
     pathPattern: null,
     root: null,
@@ -118,6 +119,7 @@ export const PARTS = [
   part('coreProperties', 'shared', {
     contentType: `${PKG}core-properties+xml`,
     relType: `${PKG_REL}metadata/core-properties`,
+    relTypeAlt: [`${NS}officedocument/2006/relationships/metadata/core-properties`],
     path: 'docProps/core.xml',
     root: { ns: `${NS}package/2006/metadata/core-properties`, name: 'coreProperties' },
     source: ['package'],
@@ -738,6 +740,82 @@ export const PARTS = [
     pathPattern: /^ppt\/tags\/tag\d+\.xml$/i,
     root: { ns: P, name: 'tagLst' },
     source: ['pptPresentation', 'pptSlide'],
+    content: false
+  }),
+  part('printerSettingsExcel', 'xlsx', {
+    contentType: `${SML}printerSettings`,
+    ...office('printerSettings'),
+    pathPattern: /^xl\/printerSettings\/printerSettings\d+\.bin$/i,
+    content: false
+  }),
+  part('printerSettingsPowerPoint', 'pptx', {
+    contentType: `${PML}printerSettings`,
+    ...office('printerSettings'),
+    pathPattern: /^ppt\/printerSettings\/printerSettings\d+\.bin$/i,
+    content: false
+  }),
+  part('chartEx', 'shared', {
+    contentType: 'application/vnd.ms-office.chartex+xml',
+    ...microsoft(`${MS}2014/relationships/chartEx`),
+    pathPattern: /^(word|xl|ppt)\/charts\/chartEx\d+\.xml$/i
+  }),
+  part('ctrlProp', 'xlsx', {
+    contentType: 'application/vnd.ms-excel.controlproperties+xml',
+    ...office('ctrlProp'),
+    pathPattern: /^xl\/ctrlProps\/ctrlProps?\d+\.xml$/i,
+    content: false
+  }),
+  part('revisionHeaders', 'xlsx', {
+    contentType: `${SML}revisionHeaders+xml`,
+    ...office('revisionHeaders'),
+    path: 'xl/revisions/revisionHeaders.xml'
+  }),
+  part('userNames', 'xlsx', {
+    contentType: `${SML}userNames+xml`,
+    ...office('usernames'),
+    path: 'xl/revisions/userNames.xml'
+  }),
+  part('revisionLog', 'xlsx', {
+    contentType: `${SML}revisionLog+xml`,
+    ...office('revisionLog'),
+    pathPattern: /^xl\/revisions\/revisionLog\d+\.xml$/i
+  }),
+  part('queryTable', 'xlsx', {
+    contentType: `${SML}queryTable+xml`,
+    ...office('queryTable'),
+    pathPattern: /^xl\/queryTables\/queryTable\d+\.xml$/i
+  }),
+  part('tableSingleCells', 'xlsx', {
+    contentType: `${SML}tableSingleCells+xml`,
+    ...office('tableSingleCells'),
+    pathPattern: /^xl\/tables\/tableSingleCells\d+\.xml$/i
+  }),
+  part('xmlMaps', 'xlsx', {
+    ...office('xmlMaps'),
+    path: 'xl/xmlMaps.xml',
+    content: false
+  }),
+  part('volatileDependencies', 'xlsx', {
+    contentType: `${SML}volatileDependencies+xml`,
+    ...office('volatileDependencies'),
+    path: 'xl/volatileDependencies.xml',
+    content: false
+  }),
+  part('macrosheet', 'xlsx', {
+    contentType: 'application/vnd.ms-excel.macrosheet+xml',
+    ...microsoft(`${MS}2006/relationships/xlMacrosheet`),
+    pathPattern: /^xl\/macrosheets\/sheet\d+\.xml$/i
+  }),
+  part('revisionInfo', 'pptx', {
+    contentType: 'application/vnd.ms-powerpoint.revisioninfo+xml',
+    ...microsoft(`${MS}2015/10/relationships/revisionInfo`),
+    path: 'ppt/revisionInfo.xml',
+    content: false
+  }),
+  part('changesInfo', 'pptx', {
+    contentType: 'application/vnd.ms-powerpoint.changesinfo+xml',
+    ...microsoft(`${MS}2016/11/relationships/changesInfo`),
+    pathPattern: /^ppt\/changesInfos\/changesInfo\d+\.xml$/i,
     content: false
   })
 ];
