@@ -124,7 +124,9 @@ function plan(hits, onlyGuarded) {
   for (const { node, missing } of hits) {
     const policy = policyFor(node, missing[0]);
     if (policy.action === 'keep' || (onlyGuarded && !policy.always)) continue;
-    if (policy.action === 'unwrap') {
+    if (policy.action === 'dropAttribute') {
+      dropped.push({ node, missing, policy });
+    } else if (policy.action === 'unwrap') {
       unwrapped.set(node, policy);
     } else if (policy.action === 'remove') {
       doomed.set(node, policy);

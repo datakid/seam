@@ -72,3 +72,16 @@ Two false alarms were found and fixed by this run before they reached the scoreb
 Evidence. In `score-sample-6` the SDK rejected 30 Partial outputs, 12 of which did not open, mostly for an unexpected content type on a related part and for a malformed `Default` entry. `tools/ct-conformance.mjs` reproduces the check without the SDK. On the 221-case sample, outputs with a wrong or missing content type fell from 2 to 1 with this change. The one left is `xl/ctrlProps/ctrlProps1.xml`, which has no registry row yet. The healthy corpus (318 files) has 0 label changes. One damaged case changes, `libreoffice-fdo63053__bitflip__1`, which gains `CT_OVERRIDE_FIXED`, and its label stays Partial.
 
 Not confirmed by the SDK itself yet. That needs a score run.
+
+## C2 additions (main agent, merged onto the sweep above)
+
+| Item | State |
+|---|---|
+| `js/core/data/ref-policy.js` | Eight entries: `pageSetup@id` (drop the attribute), `pivotCache@id`, `externalReference@id`, `control@id`, `oleObject@id`, `objectPr@id`, `snd@embed` and `tags@id`. Lists left empty are dropped with `dropEmptyParent`. Six new names in `REF_LOSS_NAMES`. |
+| `js/core/ref-sweep.js` | `dropAttribute` is now also a primary action. Before it was only the `otherwise` of `removeContainer`. One branch in `plan`. |
+| `tests/ref-policy-excel.test.js` | Ten cases for the new entries in Excel and PowerPoint markup. Seven failed on `74aeea5`. |
+| `tests/refsweep.test.js` | One line: the shape test now allows `dropAttribute`. |
+
+Evidence. On 1,215 damaged cases the sweep left a dangling reference in 28 cases on `74aeea5`: `pageSetup@id` 23, `pivotCache` 6, `control` 4, `externalReference` 2, `snd` 2, `objectPr` and `oleObject` 2 each, `tags` 1. It now leaves 1, an `externalBook`, on purpose, because that part and its `externalReference` have to go together. The healthy corpus (318 files) has 0 label changes.
+
+Known gap. Removing a pivot cache does not yet remove the pivot tables that depend on it.

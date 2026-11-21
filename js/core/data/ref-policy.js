@@ -53,6 +53,15 @@ export const REF_POLICY = {
   'legacyDrawingHF@id': drop('drawing'),
   'tablePart@id': { action: 'remove', loss: 'table', parentCount: true, dropEmptyParent: true },
 
+  'pageSetup@id': { action: 'dropAttribute', loss: 'printer setting' },
+  'pivotCache@id': { action: 'remove', loss: 'pivot cache', dropEmptyParent: true },
+  'externalReference@id': { action: 'remove', loss: 'external link', dropEmptyParent: true },
+  'control@id': { action: 'removeContainer', container: ['AlternateContent'], otherwise: 'remove', loss: 'control', dropEmptyParent: true },
+  'oleObject@id': { action: 'removeContainer', container: ['AlternateContent'], otherwise: 'remove', loss: 'object', dropEmptyParent: true },
+  'objectPr@id': { action: 'removeContainer', container: ['AlternateContent'], otherwise: 'remove', loss: 'object', dropEmptyParent: true },
+  'snd@embed': { action: 'removeContainer', container: ['sndAc'], otherwise: 'remove', loss: 'sound' },
+  'tags@id': { action: 'remove', loss: 'tag', dropEmptyParent: true },
+
   '*': { action: 'keep', loss: 'unknown' }
 };
 
@@ -71,6 +80,12 @@ export const REF_LOSS_NAMES = {
   media: ['media item', 'media items'],
   drawing: ['drawing', 'drawings'],
   table: ['table', 'tables'],
+  'printer setting': ['printer setting', 'printer settings'],
+  'pivot cache': ['pivot cache', 'pivot caches'],
+  'external link': ['external link', 'external links'],
+  control: ['form control', 'form controls'],
+  sound: ['sound', 'sounds'],
+  tag: ['custom tag', 'custom tags'],
   font: ['embedded font', 'embedded fonts'],
   template: ['template link', 'template links'],
   'embedded content': ['embedded content block', 'embedded content blocks'],

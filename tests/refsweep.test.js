@@ -40,7 +40,7 @@ async function accepted(result, key) {
 }
 
 test('ref policy: every entry has a known action, a container list where needed and a named loss', () => {
-  const actions = new Set(['remove', 'unwrap', 'removeContainer', 'keep']);
+  const actions = new Set(['remove', 'unwrap', 'removeContainer', 'dropAttribute', 'keep']);
   for (const [key, entry] of Object.entries(REF_POLICY)) {
     assert(key === '*' || /^[A-Za-z0-9]+@[A-Za-z0-9*]+$/.test(key), `bad key ${key}`);
     assert(actions.has(entry.action), `${key}: action ${entry.action}`);
