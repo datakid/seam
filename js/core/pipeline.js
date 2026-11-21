@@ -154,6 +154,23 @@ function loadEntries(ctx, bytes, identity, copies) {
   if (merged !== null) reportUnusedCopies(ctx, copies, extras, merged, entries);
 }
 
+const CUT_STEPS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256];
+
+async function cutBack(env, text, fallback) {
+  let at = text.length;
+  let tags = 0;
+  for (const step of CUT_STEPS) {
+    while (tags < step && at > 0) {
+      at = text.lastIndexOf('<', at - 1);
+      tags++;
+      if (at <= 0) return fallback;
+    }
+    const candidate = repairXml(text.slice(0, at));
+    if (candidate.hasRoot && (await checkWellFormed(env, candidate.text))) return candidate;
+  }
+  return fallback;
+}
+
 async function processXml(ctx, part, env) {
   const decoded = decodeXml(part.bytes);
   const holed = resolveHoles(decoded.text);
@@ -166,7 +183,8 @@ async function processXml(ctx, part, env) {
   if (cleaned.changed) found.push(['XML_CHARS_REMOVED', { n: cleaned.removed + cleaned.escaped }]);
 
   if (!(await checkWellFormed(env, text))) {
-    const repaired = repairXml(text);
+    let repaired = repairXml(text);
+    if ((!repaired.hasRoot || !(await checkWellFormed(env, repaired.text))) && (part.state === 'partial' || part.state === 'crcMismatch')) repaired = await cutBack(env, text, repaired);
     if (!repaired.hasRoot || !(await checkWellFormed(env, repaired.text))) {
       ctx.lost.set(part.name, text);
       ctx.parts.delete(part.name);

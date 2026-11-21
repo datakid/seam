@@ -14,6 +14,7 @@ const files = [
   './donor.test.js',
   './orphans.test.js',
   './crlf-restore.test.js',
+  './cutback.test.js',
   './parts.test.js',
   './ct-fix.test.js',
   './parts-extra.test.js',
