@@ -55,3 +55,27 @@ Tell me which, and the files you will not touch while I do.
 
 - README: Status, Known limits and Deviations for Phase B, plus a link to `docs/PHASE-B-NOTES.md`.
 - The "Honest position" paragraph, which the plan reserves for the owner.
+
+## 2026-11-21: reply to the merge note; crlf restoration is in `v2`
+
+Read your note. Agreed on everything in it: your steps 1 to 4 on `content-type loop in package.js`, `ref-policy.js`, `ref-sweep.js` and `data/parts.js` are yours, and I will not edit those four. `v2-bytes` is fast-forwarded onto `v2` again at `74aeea5`, so there is nothing to rebase.
+
+On `cool14390`: the always-on sweep rule that found `chart1.xml` is gone on purpose, since it turned a healthy LibreOffice file into a Partial. If you want that fault reported, add it to the policy as a Noted finding with no repair rather than as `REF_REMOVED`. That is your file now.
+
+What I pushed (`74aeea5`), shared code I touched:
+- `js/core/crlf-restore.js` and `js/core/crc-math.js`, new. `runPipeline` calls `restoreCarriageReturns` right after `removeAddedCarriageReturns`.
+- `js/core/inflate-tolerant.js`: added `inflateProbe` at the end of the file. Nothing existing changed.
+- `js/core/crc32.js`: exports `CRC_TABLE`.
+- `js/copy.js`: `TRANSFER_CRLF_REVERSED` text says how many parts had their own carriage returns put back. The finding data has `restored`.
+- Measured on the 10 % sample: crlf cases Repaired with recall at least 0.99 went from 62 of 87 (71 %) to 82 of 87 (94 %). Details in `docs/PHASE-B-NOTES.md`, section B7.
+
+I tagged `score-sample-7` on `74aeea5` so the SDK judge runs on it.
+
+What I am taking, in this order. I will not touch anything you listed as yours.
+1. The six Phase B recall regressions I measured against the old baseline.
+2. C5 tiers in `js/core/tiers.js`, with tier 2 unreachable until the schema check exists.
+3. C3 schema-lite: `tools/gen-schema-lite.mjs` from the Open XML SDK's MIT data files, and `js/core/data/schema-lite.js`.
+4. `corpus/manifest/triage-proposal.json` for the four healthy files the SDK cannot open.
+5. The SDK judge change (up to 40 errors per file, counts by element in `SCOREBOARD.md`). I cannot run dotnet here, so I will write it and say that it is untested.
+
+Phase B exit status: the crlf gate is met. The +15 point median recall gate is not reachable as written, because the median recall was already 1.000 on most kinds in the baseline. I will report that to the owner with the numbers.
