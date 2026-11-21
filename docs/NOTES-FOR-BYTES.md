@@ -34,3 +34,52 @@ Tasks for you, from my earlier list. Skip the registry move, you did it:
 - C5 tiers in a new `js/core/tiers.js`, with tier 2 unreachable until the schema check exists.
 
 I will not touch `v2-bytes`. After my pushes you will need to rebase it onto `v2`.
+
+## 2026-11-21: steps 1 to 3 are on `v2`, `score-sample-7` confirms them, and C3 has a source and a contract
+
+Thank you for the score run. All three steps are pushed to `v2` as fast-forwards: C4 `80918ac`, the sweep entries `36018ca`, the registry rows `18fdf9a`. Each was checked on the 318 healthy files (0 label changes) and the damaged sample before pushing. I touched two of your files by one line each: `tests/refsweep.test.js` (the shape test now allows `dropAttribute`) and `js/core/registry.js` (`relTypeAlt` is indexed). `ref-sweep.js` got one `dropAttribute` branch.
+
+`score-sample-7` is commit `74aeea5`, so it includes C4 but not the sweep entries or the rows:
+
+| | `score-sample-6` | `score-sample-7` |
+|---|---|---|
+| Repaired outputs a judge rejects | 0 of 47 | 0 of 59 |
+| Partial outputs a judge rejects | 30 | 22 |
+| of those, not opening at all | 12 | 3 |
+| Browser differences in 588 cases | 3 | 2 |
+
+No content-type message is left among the SDK errors. 16 of the 22 are "incomplete content" in `p:sp`, `x:worksheet`, `p:notesMaster`, `p:spTree` and theme parts. That is C3.
+
+### C3: a source, and the data shape
+
+The owner has not yet confirmed the source. Please build the generator against it anyway, and do not commit the generated table until the owner confirms. The licence question is only about shipping.
+
+Source I recommend: the Open XML SDK's own schema model, `data/schemas/*.json` in `dotnet/Open-XML-SDK`. The repository is MIT, the files are already parsed, and the model is the one the validator that rejects our outputs uses. Each type has `Particle` with `Kind` (`Sequence`, `Choice` or `All`) and `Items`. An item with no `Occurs` appears exactly once. `Occurs: [{Max: 1}]` is optional. Names look like `p:CT_Shape/p:sp`. The `Attributes` list has `QName`, `Type` and required-ness. The alternative is the ECMA XSD zip in `apache/poi` under `poi-ooxml-full/src/main/xmlschema/org/apache/poi/schemas`. Pin the commit of whichever source is used.
+
+Data shape for `js/core/data/schema-lite.json`. This is the contract between us. Please keep to it, and tell me before you change it:
+
+```
+{ "source": { "repo": "...", "commit": "...", "licence": "MIT" },
+  "elements": {
+    "<namespace uri>|<local name>": {
+      "kind": "sequence" | "choice" | "all",
+      "items": [ { "ns": "...", "local": "...", "min": 1, "max": 1 },
+                 { "kind": "choice", "min": 1, "max": 1, "items": [ ... ] } ],
+      "attrs": [ { "local": "useBgFill", "required": false } ]
+    } } }
+```
+
+`min` defaults to 1 and `max` to 1. `max: null` means unbounded. Use the namespace URI, not the prefix. Keep Transitional namespaces. Add the Strict namespaces as aliases to the same entries.
+
+Your task, a new file only: `tools/gen-schema-lite.mjs` and its test. Beyond a shape test, add a differential test: every element in the 318 healthy files must fit its entry for child order and required children. Report each disagreement with file and element. That test measures the false-alarm rate of the schema pass before it exists. If it finds disagreements, tell me which. Either the table or the file is wrong, and I would like to know which.
+
+My task: `js/core/schema-close.js`, which reads the table. It completes required children on a tree that was closed after truncation, and later feeds C5 tier 2. I will test it against a small hand-written table in the same shape, so I do not wait for yours. I will not edit `xml-repair.js`. The pass runs on the parsed trees afterwards, from `package.js`.
+
+### Earlier tasks still open
+
+- Make the SDK judge record up to 40 errors per file and count messages by element in `SCOREBOARD.md`.
+- The triage proposal for the four healthy files whose originals the SDK cannot open. The latest scoreboard still lists them as pending.
+- C5 tiers in a new `js/core/tiers.js`, with tier 2 unreachable until the schema pass exists.
+
+I will keep my hands off: `donor.js`, `orphan-kinds.js`, `zip-*.js`, `inflate-tolerant.js`, `xml-*.js` and `tools/judge-*`.
+
