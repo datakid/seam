@@ -1,4 +1,5 @@
 import { identify, findTextModeTransfer, removeAddedCarriageReturns } from './identify.js';
+import { restoreCarriageReturns } from './crlf-restore.js';
 import { strictRead } from './zip-read.js';
 import { recoverEntries, mergeEntries, mergeCopies } from './zip-recover.js';
 import { writeZip } from './zip-write.js';
@@ -450,7 +451,7 @@ async function execute(input, env, transfer) {
   const ctx = createContext(input);
   if (transfer) {
     ctx.changed = true;
-    addFinding(ctx, 'TRANSFER_CRLF_REVERSED', null, { n: transfer.pairs });
+    addFinding(ctx, 'TRANSFER_CRLF_REVERSED', null, { n: transfer.pairs, restored: transfer.restored || 0 });
   }
   progress('zip', 0);
   loadEntries(ctx, bytes, identity, input.copies || []);
@@ -550,7 +551,9 @@ export async function runPipeline(input, env) {
     const transfer = findTextModeTransfer(original);
     if (!transfer) return first;
     const reversed = removeAddedCarriageReturns(original);
-    const second = await execute({ ...input, size: reversed.length, buffer: reversed.buffer }, env, transfer);
+    const restored = restoreCarriageReturns(reversed);
+    const bytes = restored ? restored.bytes : reversed;
+    const second = await execute({ ...input, size: bytes.length, buffer: bytes.buffer }, env, { ...transfer, restored: restored ? restored.restored : 0 });
     return (OUTCOME_RANK[second.outcome] || 0) > (OUTCOME_RANK[first.outcome] || 0) ? second : first;
   } catch (error) {
     console.error(error && error.stack ? error.stack : error);

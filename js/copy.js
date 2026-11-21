@@ -197,7 +197,7 @@ export const copy = {
   },
   findings: {
     ZIP_PREFIX_DATA: (d) => `Removed ${d.bytes} bytes of extra data in front of the file.`,
-    TRANSFER_CRLF_REVERSED: (d) => `Removed ${d.n} carriage ${plural(d.n, 'return', 'returns')} that a text-mode transfer added before line feeds.`,
+    TRANSFER_CRLF_REVERSED: (d) => `Removed ${d.n} carriage ${plural(d.n, 'return', 'returns')} that a text-mode transfer added before line feeds${d.restored > 0 ? ` and put back the original ones in ${d.restored} ${plural(d.restored, 'part', 'parts')}` : ''}.`,
     ZIP_ENTRY_CHOSEN: (d) => `The package held ${d.n} different copies of this part. The most complete one was kept.`,
     ZIP_ORPHAN_NAMED: () => 'Found data whose file name was lost. Its content shows which part it is, so it was put back.',
     ZIP_ORPHAN_KEPT: () => 'Found data whose file name was lost and could not tell where it belongs. It was kept in this file, not linked to anything.',

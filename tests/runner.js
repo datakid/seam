@@ -13,6 +13,7 @@ const files = [
   './copies.test.js',
   './donor.test.js',
   './orphans.test.js',
+  './crlf-restore.test.js',
   './parts.test.js',
   './ct-fix.test.js',
   './refsweep.test.js',

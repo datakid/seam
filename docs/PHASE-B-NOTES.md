@@ -138,6 +138,31 @@ A damaged part is compared by its known bytes (the exact head, and the bytes aft
 - A part with no relationship pointing at it is not borrowed.
 - When the main part is missing the donor cannot help, and the row says so.
 
+## B7 Original carriage returns after a text-mode transfer
+
+A text-mode transfer adds a CR before every LF that has none. Reversing it by deleting every CR LF pair also deletes the CR of each pair the file had before the transfer, and the bytes inside entries then no longer match their checksums. In the 10% sample, 24 of the 25 crlf cases that stayed Partial or worse had such pairs inside stored or deflated entry data. None were in headers or the directory.
+
+| Item | State |
+|---|---|
+| Module | `js/core/crlf-restore.js`, hooked in `runPipeline` right after `removeAddedCarriageReturns`. The CRC arithmetic is in `js/core/crc-math.js`. |
+| Layout | The central directory survives the transfer. Each entry's declared compressed size minus the bytes now present is the number of CRs it lost. The lost CRs must add up to the gap between the directory offset and the directory position, or nothing is changed. |
+| Stored entries | Every lost CR sat before an LF, so the candidates are the LF positions. CRC of the entry with a CR inserted at chosen positions is a linear function of the positions, so one lost CR is a scan, two is a hash lookup, three and four are a meet in the middle. One unique solution is accepted. Three or four lost CRs also need a structural check, which exists for PNG (every chunk CRC and IEND). All LFs lost is accepted on the CRC alone. |
+| Deflate entries | Decoder errors guide a search for the missing CR. A misaligned Huffman stream often decodes cleanly without error, so when the guided search finds nothing and at most three CRs are lost, every combination is tried against the declared size and CRC. |
+| Limits | More than four lost CRs in a stored entry, three or four in a stored entry that is not a PNG, more than three in a deflated entry whose misaligned stream decodes without error, and more than 10 seconds of search for one package. Those entries stay as they were and the result is Partial as before. |
+| Finding | `TRANSFER_CRLF_REVERSED` carries `restored`, the number of parts that got their own CRs back, and the text says so. |
+
+### B7 measurement
+
+10% sample, 87 crlf cases: Repaired with recall at least 0.99 went from 62 (71%) to 82 (94%). Over all 1,139 cases Repaired went from 289 to 309, Partial from 528 to 510 and Salvaged from 72 to 70. The leftover ZIP_ENTRY_CHOSEN notes on repaired crlf files are gone because the damaged copies no longer exist.
+
+The five cases that stay Partial:
+
+- `oxml-sdk-Document__crlf__1`: a 749 KB deflated binary with 8 lost CRs.
+- `oxml-sdk-Presentation-2__crlf__0`: a 528 KB deflated JPEG with 5 lost CRs.
+- `poi-LIBRE_OFFICE-128382-0__crlf__0`: three deflated images with 3, 13 and 14 lost CRs.
+- `poi-58325_lt__crlf__1`: a 921 KB stored embed with 17 lost CRs.
+- `libreoffice-cool14390_chart_external_ref__crlf__2`: unrelated to carriage returns; a chart refers to data with no relationship.
+
 ## Not yet measured
 
 The Phase B exit numbers (+15 points median text recall on zero512, zero4096, dropblock and bitflip, and the crlf row) need the damage lab and scoreboard run on the corpus. The B1 and B2 gains reach the output file only for zero runs inside deflate entries. Nothing else in Phase B has been measured on the corpus. B5 is exercised only by copies damaged in the test suite, not by corpus files.

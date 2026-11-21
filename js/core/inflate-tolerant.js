@@ -753,3 +753,12 @@ export function inflateTolerant(bytes, options) {
   const complete = segments.length === 1 && head.final && head.err === 0;
   return { data, holes, gaps, complete, aligned, consumed: complete ? (head.pos + 7) >>> 3 : -1 };
 }
+
+export function inflateProbe(bytes, maxOut) {
+  const src = new Uint8Array(bytes.length + PAD);
+  src.set(bytes);
+  const st = createState(src, bytes.length, NO_RUNS, false, maxOut > 0 ? maxOut : DEFAULT_MAX, Math.max(65536, bytes.length * 4));
+  runBlocks(st, 0);
+  const ok = st.final && st.err === 0;
+  return { ok, errByte: ok ? -1 : st.errBit >>> 3, consumed: ok ? (st.pos + 7) >>> 3 : -1, out: ok ? st.out.subarray(0, st.op) : null };
+}

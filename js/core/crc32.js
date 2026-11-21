@@ -1,4 +1,4 @@
-const TABLE = (() => {
+export const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
     let c = n;
@@ -10,6 +10,6 @@ const TABLE = (() => {
 
 export function crc32(bytes, previous = 0) {
   let crc = (previous ^ 0xffffffff) >>> 0;
-  for (let i = 0; i < bytes.length; i++) crc = TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+  for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
   return (crc ^ 0xffffffff) >>> 0;
 }
