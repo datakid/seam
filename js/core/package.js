@@ -1,8 +1,8 @@
-import { decodeEntities, getAttr, elementChildren, documentElement, localName, prefixOf, parseTree, serializeTree, createElement, removeNode, setAttr } from './xml-repair.js';
+import { decodeEntities, getAttr, elementChildren, documentElement, localName, prefixOf, parseTree, serializeTree, createElement, removeNode, setAttr, removeAttr } from './xml-repair.js';
 import { encodeUtf8 } from './xml-clean.js';
 import { finding } from './report.js';
 import { REL_NS, REL_NS_STRICT, isMainRelType, CT_MAIN, CT_DEFAULTS, CT_NS, PKG_REL_NS, REL_OFFICE_DOC, REL_CORE, REL_EXT } from './constants.js';
-import { overrideTypeFor } from './registry.js';
+import { overrideTypeFor, rowsOfRelType } from './registry.js';
 
 export function dirName(path) {
   const at = path.lastIndexOf('/');
@@ -394,6 +394,78 @@ function buildTypes(ctx) {
   return `${DECL}<Types xmlns="${CT_NS}">${defaults}${overrides.join('')}</Types>`;
 }
 
+const MEDIA_TOKEN = "[A-Za-z0-9!#$&^_.+-]+";
+const CONTENT_TYPE_PATTERN = new RegExp(`^${MEDIA_TOKEN}/${MEDIA_TOKEN}(\\s*;\\s*${MEDIA_TOKEN}=("[^"]*"|[^\\s;"]+))*$`);
+const EXTENSION_PATTERN = /^[A-Za-z0-9_~%+@!$&'()*,;:=-]+$/;
+
+export function isValidContentType(value) {
+  return typeof value === 'string' && CONTENT_TYPE_PATTERN.test(value);
+}
+
+export function isValidExtension(value) {
+  return typeof value === 'string' && EXTENSION_PATTERN.test(value);
+}
+
+export function isValidPartName(value) {
+  return typeof value === 'string' && /^\/[^\s"<>\\]+$/.test(value) && !value.includes('//') && !value.endsWith('/');
+}
+
+function cleanContentTypeEntries(root) {
+  let cleaned = 0;
+  const seen = { Default: new Set(), Override: new Set() };
+  for (const node of elementChildren(root)) {
+    const kind = localName(node.name);
+    const allowed = kind === 'Default' ? ['Extension', 'ContentType'] : kind === 'Override' ? ['PartName', 'ContentType'] : null;
+    if (!allowed) {
+      removeNode(node);
+      cleaned++;
+      continue;
+    }
+    const key = getAttr(node, allowed[0]);
+    const type = getAttr(node, 'ContentType');
+    const keyOk = kind === 'Default' ? isValidExtension(key) : isValidPartName(key);
+    const identity = keyOk ? key.toLowerCase() : null;
+    if (!keyOk || !isValidContentType(type) || seen[kind].has(identity)) {
+      removeNode(node);
+      cleaned++;
+      continue;
+    }
+    seen[kind].add(identity);
+    let stripped = false;
+    for (const pair of [...node.attrs]) {
+      if (!allowed.includes(pair[0]) && !pair[0].startsWith('xmlns')) {
+        removeAttr(node, pair[0]);
+        stripped = true;
+      }
+    }
+    if (stripped) cleaned++;
+  }
+  return cleaned;
+}
+
+function relationshipTypedParts(ctx) {
+  const found = new Map();
+  const family = ctx.format.family;
+  for (const relsName of ctx.index.names()) {
+    if (!isRelsPath(relsName)) continue;
+    const source = sourceOfRels(relsName);
+    if (source === null || (source !== '' && !ctx.index.has(source))) continue;
+    const tree = getTree(ctx, relsName);
+    if (!tree) continue;
+    for (const rel of readRelationships(tree)) {
+      if (!rel.id || !rel.target || rel.external || rel.target === 'NULL') continue;
+      const target = resolveTarget(source, rel.target);
+      if (!ctx.index.has(target) || target === ctx.main) continue;
+      const rows = rowsOfRelType(rel.type);
+      const row = rows.find((candidate) => candidate.family === family) || rows.find((candidate) => candidate.family === 'shared');
+      if (!row || row.main || !row.contentType || row.contentType === CT_DEFAULTS.xml || row.kind === 'relationships') continue;
+      const key = target.toLowerCase();
+      if (!found.has(key)) found.set(key, { part: ctx.index.canonical(target) || target, row });
+    }
+  }
+  return found;
+}
+
 export function repairContentTypes(ctx, silentParts) {
   const name = '[Content_Types].xml';
   const canonical = ctx.index.canonical(name);
@@ -407,6 +479,12 @@ export function repairContentTypes(ctx, silentParts) {
   }
   const root = ct.root;
   let changed = false;
+  const cleanedEntries = cleanContentTypeEntries(root);
+  if (cleanedEntries > 0) {
+    changed = true;
+    ct = readContentTypes(tree);
+    addFinding(ctx, 'CT_ENTRIES_CLEANED', name, { n: cleanedEntries });
+  }
   const append = (node) => {
     node.parent = root;
     root.children.push(node);
@@ -451,7 +529,25 @@ export function repairContentTypes(ctx, silentParts) {
       addedOverrides++;
     }
   }
+  let fixedOverrides = 0;
+  for (const { part, row } of relationshipTypedParts(ctx).values()) {
+    const effective = contentTypeOf(part, ct);
+    if (effective && effective.toLowerCase() === row.contentType.toLowerCase()) continue;
+    if (effective && row.contentTypeAlt.some((alt) => alt.toLowerCase() === effective.toLowerCase())) continue;
+    const key = part.toLowerCase();
+    const node = elementChildren(root, 'Override').find((candidate) => normalizePartPath(getAttr(candidate, 'PartName') || '').toLowerCase() === key);
+    if (node) {
+      setAttr(node, 'ContentType', row.contentType);
+      changed = true;
+    } else {
+      append(createElement('Override', [['PartName', `/${part}`], ['ContentType', row.contentType]]));
+    }
+    ct.overrides.set(key, row.contentType);
+    if (effective === null || effective === CT_DEFAULTS.xml) addedOverrides++;
+    else fixedOverrides++;
+  }
   if (addedOverrides > 0) addFinding(ctx, 'CT_OVERRIDE_ADDED', name, { n: addedOverrides });
+  if (fixedOverrides > 0) addFinding(ctx, 'CT_OVERRIDE_FIXED', name, { n: fixedOverrides });
 
   const firstOverride = elementChildren(root, 'Override')[0];
   const insertDefault = (ext, type) => {

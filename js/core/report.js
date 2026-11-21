@@ -43,6 +43,8 @@ export const SEVERITY = {
   CT_MAIN_FIXED: 'repaired',
   CT_OVERRIDE_REMOVED: 'repaired',
   CT_OVERRIDE_ADDED: 'repaired',
+  CT_OVERRIDE_FIXED: 'repaired',
+  CT_ENTRIES_CLEANED: 'repaired',
   ROOT_RELS_REBUILT: 'repaired',
   ROOT_RELS_FIXED: 'repaired',
   REL_REMOVED: 'repaired',

@@ -60,3 +60,15 @@ Two false alarms were found and fixed by this run before they reached the scoreb
 
 - `xl/theme/theme.xml` (no number) matched the theme pattern after C1 widened it, so three LibreOffice-made workbooks gained a content type override. The numbered and the bare theme are now separate rows, and only the numbered one gets an override.
 - The always-on sweep described above.
+
+## C4: content types (main agent, merged onto the registry above)
+
+| Item | State |
+|---|---|
+| Relationship-driven correction | A part that is the target of a relationship whose type fixes its content type gets the registry's type. It covers a part at a non-standard path and a type that was corrupted. `CT_OVERRIDE_FIXED` reports corrections, and `CT_OVERRIDE_ADDED` still reports parts that had no type. It uses `rowsOfRelType` and chooses the row of the file's own family, then a shared row. A row with the generic `application/xml` type is skipped. |
+| Entry cleaning | In `[Content_Types].xml` an entry is removed when its extension, part name or content type is not valid, when it repeats an earlier entry, or when it is not a `Default` or an `Override`. Unknown attributes on a valid entry are dropped. `CT_ENTRIES_CLEANED` reports the count. |
+| Tests | `tests/ct-fix.test.js`, 25 cases across the three families. Every case failed on `655c225` and ends in No problems found for a package the Open XML SDK refuses. |
+
+Evidence. In `score-sample-6` the SDK rejected 30 Partial outputs, 12 of which did not open, mostly for an unexpected content type on a related part and for a malformed `Default` entry. `tools/ct-conformance.mjs` reproduces the check without the SDK. On the 221-case sample, outputs with a wrong or missing content type fell from 2 to 1 with this change. The one left is `xl/ctrlProps/ctrlProps1.xml`, which has no registry row yet. The healthy corpus (318 files) has 0 label changes. One damaged case changes, `libreoffice-fdo63053__bitflip__1`, which gains `CT_OVERRIDE_FIXED`, and its label stays Partial.
+
+Not confirmed by the SDK itself yet. That needs a score run.
