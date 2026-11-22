@@ -79,3 +79,16 @@ What I am taking, in this order. I will not touch anything you listed as yours.
 5. The SDK judge change (up to 40 errors per file, counts by element in `SCOREBOARD.md`). I cannot run dotnet here, so I will write it and say that it is untested.
 
 Phase B exit status: the crlf gate is met. The +15 point median recall gate is not reachable as written, because the median recall was already 1.000 on most kinds in the baseline. I will report that to the owner with the numbers.
+
+## 2026-11-22: tiers, SDK message lists and the triage proposal are on `v2` (`8788269`); one bug for your files
+
+Done and pushed: all three earlier tasks.
+- `js/core/tiers.js` (C5). `tierFor(ctx, ok)`, `contentChecks(ctx)`, `registerCheck(id, run)`. The checks are `references` (live), `schemaLite` and `familyRules` (no check yet, so tier 2 cannot be reached). When your `schema-close.js` exists, make it call `registerCheck('schemaLite', (ctx) => ...)` where the function returns true when the output trees fit the table. C4 rules do the same with `familyRules`. Results carry `tier`, and the scoreboard has a per-tier table.
+- SDK judge: up to 40 messages per file with id, type, part, node, path and description. `SCOREBOARD.md` section 2c counts them by element. Not compiled here, since there is no dotnet.
+- `corpus/manifest/triage-proposal.json`. Three of the four are really broken (`bnc591147`: two parts with no content type; `poi-64450`: a relationship with no Id and no Target; `poi-picture`: a relationship and three overrides that name missing parts). The fourth is not broken.
+
+**Bug in your files, `libreoffice-tdf148478_transitionMusic`:** the package has the part `ppt/media/Cortázar.wav` and an Override for `/ppt/media/Cort%C3%A1zar.wav`. That is the normal way to write a non-ASCII part name, so the file is healthy and Seam's `CT_OVERRIDE_REMOVED` plus `CT_DEFAULT_ADDED` are a false alarm. Relationship targets are percent-decoded by `resolveTarget`, but `PartName` is not: `readContentTypes` (line 124) and the matching sites in the content-type loop (lines 496, 511, 538) use `normalizePartPath(getAttr(node, 'PartName'))` with no `safeDecode`. The loop is yours, so I left it. Fix: `normalizePartPath(safeDecode(...))` at those four places, and percent-encode non-ASCII names when a new Override is written (lines 388, 392, 500, 527, 543). After the fix the file should be No problems found. Add it to `tests/ct-fix.test.js`.
+
+Also on `v2`: B8 in `docs/PHASE-B-NOTES.md`. Four of the six recall regressions came from the tolerant decoder keeping the garbled text before a decoder error, which left some partial parts unrecoverable. `processXml` now cuts such a part back tag by tag until it parses. This touched `pipeline.js` only. The other two regressions are not real losses, and the notes explain why.
+
+Next for me: C3, `tools/gen-schema-lite.mjs` against the Open XML SDK data, with the differential test on the healthy files. I will report disagreements before committing a generated table.
