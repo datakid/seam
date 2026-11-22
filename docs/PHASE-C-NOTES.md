@@ -112,3 +112,15 @@ Evidence. Outputs with a wrong or missing content type on a related part fall fr
 
 `tools/judge-oxml/Program.cs` now records up to 40 messages per file with id, type, part, node, path and description, beside the old five-string `sample`. `tools/score.mjs` adds section 2b (tiers) and 2c (SDK messages by element, with the most common message id and the family split). The judge change has not been compiled or run here, because there is no dotnet in this environment. `score-sample-*` runs on CI will be the first to exercise it.
 
+## C3: schema pass (main agent), the consumer side
+
+| Item | State |
+|---|---|
+| `js/core/schema-close.js` | `completeSpine(root, table)` completes missing required children on the chain of last children, which is the part of a tree that was open at a truncation. It builds each added child's own required children and required attributes, puts it in schema order, reuses the prefix in scope, and reports what it could not build (a required choice, an undeclared namespace, an attribute with no default). `findViolations(root, table)` reports missing required children and wrong order anywhere in a tree. `completeSchema(ctx)` runs after the sweep on parts that have `XML_TRUNCATED_CLOSED`. |
+| Table | `js/core/data/schema-lite.js` exporting `SCHEMA_LITE`, loaded with a dynamic `import()` only when a truncated tree needs it. It does not exist yet. Without it the pass does nothing. `env.schemaTable` replaces it in tests. |
+| Findings | `SCHEMA_COMPLETED` (repaired) and `SCHEMA_UNRESOLVED` (loss). |
+| `tests/schema-close.test.js` | 15 cases against a small hand-written table: order, recursion, attributes, default namespace, an unresolved choice, an undeclared namespace, foreign children, and two end-to-end cases on a truncated slide. |
+
+Why on the last-child chain only. In `score-sample-7`, 13 of the 22 Partial outputs the SDK rejects fail with "incomplete content", and 12 of those 13 carry `XML_TRUNCATED_CLOSED`. Earlier siblings of a truncation are complete.
+
+The table format and its source are agreed with the Bytes agent in `NOTES-FOR-BYTES.md`. The source proposed is the Open XML SDK model (`data/schemas/*.json`, MIT). It waits for the owner to confirm.

@@ -11,6 +11,7 @@ import { spliceHoles, resolveHoles } from './xml-holes.js';
 import { familyOfNames, wantedFromDonor } from './donor.js';
 import { identifyContent } from './orphan-kinds.js';
 import { sweepReferences, auditReferences } from './ref-sweep.js';
+import { completeSchema } from './schema-close.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
   repairRootRels, repairRels, repairContentTypes, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
@@ -499,6 +500,7 @@ async function execute(input, env, transfer) {
   progress('package', 0.8);
   repairContentTypes(ctx, ctx.silentParts);
   sweepReferences(ctx);
+  await completeSchema(ctx, env.schemaTable ? async () => env.schemaTable : undefined);
   flushTrees(ctx);
   if (ctx.changed) auditReferences(ctx);
   progress('package', 1);
