@@ -124,3 +124,66 @@ Evidence. Outputs with a wrong or missing content type on a related part fall fr
 Why on the last-child chain only. In `score-sample-7`, 13 of the 22 Partial outputs the SDK rejects fail with "incomplete content", and 12 of those 13 carry `XML_TRUNCATED_CLOSED`. Earlier siblings of a truncation are complete.
 
 The table format and its source are agreed with the Bytes agent in `NOTES-FOR-BYTES.md`. The source proposed is the Open XML SDK model (`data/schemas/*.json`, MIT). It waits for the owner to confirm.
+
+## C3 Schema-lite
+
+Not shipped: the generated table is not committed until the owner confirms the source. Everything needed to produce it is.
+
+| Item | State |
+|---|---|
+| Source | Open XML SDK (`dotnet/Open-XML-SDK`, MIT), `data/schemas/*.json` and `data/namespaces.json`, commit `431ab05cf160248cc3885a4a766026d4f8243792`. The generator records repo, commit and licence in the table. |
+| Generator | `tools/gen-schema-lite.mjs --sdk <checkout> --out <file.js or file.json>`, built on `tools/lib/schema-lite-build.mjs`. The default output is `js/core/data/schema-lite.js` (an ES module with a default export, because `connect-src 'none'` and the no-`fetch` rule rule out loading JSON). |
+| Reader and matcher | `js/core/schema-fit.js`: `openTable(raw)`, `fitChildren(table, entry, children)`, `checkTree(table, root)`, `childEntry`, `requiredChildren`. Pure functions on the parsed tree from `xml-repair.js`. |
+| Differential run | `tools/schema-lite-diff.mjs --table <file>` checks every element of every healthy file against the table and prints each distinct disagreement with file, part and path. |
+| Patches | `tools/data/schema-lite-patches.json`: places where Office writes what the SDK model lacks. Each one carries its evidence. |
+| Tests | `tests/schema-lite.test.mjs` (24 cases) on a miniature SDK-format fixture: shape, shared models, base-type attributes, dropped namespaces, patches, every matcher outcome, 200,000-child runs, `mc:Ignorable`, `mc:AlternateContent`, strict namespaces, a hand-written table in the plain contract shape, and the generator end to end. |
+
+### What the table holds
+
+2,398 elements, 1,637 content models, 137 namespaces, 255,835 bytes. The contract shape written out in full came to 1.48 MB, because the same content model was repeated for every element that uses it and every child carried its namespace URI. The file shares models, stores each namespace once, and groups elements by namespace:
+
+```
+{ source, format: 2, namespaces: [uri], namespaceAliases: { strictUri: transitionalUri }, tolerated: ["uri|local"],
+  types: [ [kind, items, requiredAttrs, min?, max?] ],
+  elements: { uri: { local: typeId } } }
+```
+
+`kind` is `s`, `c`, `a` (all) or `o` (open: children are not checked). An item is `[namespaceIndex, local, typeId, min?, max?]`, a wildcard is `["*", min, max]` and a nested group is `[kind, min, max, items]`. `openTable` turns that into the contract shape (`elements["uri|local"]` is `{ kind, min, max, items, attrs }`) and a plain table in the contract shape goes through the same function unchanged.
+
+Three things the contract did not say, all needed to be right:
+- **A name can have several definitions.** `w:rPr` is `CT_RPr`, `CT_ParaRPr`, `CT_RPrStyle` and others, depending on the parent. 142 names are like that. They are not in `elements`; a child is resolved through its parent's item (`childEntry`), and `checkTree` does so.
+- **Attributes come from the abstract base type.** `w:CT_OnOff/w:b` has none of its own. The base is found by its type name, not by class name, because `TwipsMeasureType` exists in `w:` and in `m:` with different attributes. Only required attributes are stored.
+- **The root particle has its own occurrence.** A choice that repeats without limit is a choice with `max: null` at the top.
+
+Dropped on purpose: VML and the other `urn:schemas-microsoft-com:` namespaces (their parents become unchecked rather than stricter), abstract types, and optional attributes.
+
+### Matching
+
+Children are matched against the model with position sets, so a model may be ambiguous without backtracking blow-ups. Children in namespaces the table does not know, in `mc:Ignorable` namespaces and the `mc:` elements themselves are skipped; a model with a wildcard sees foreign children. `mc:AlternateContent` is read through its first `Choice`, and through its `Fallback` if that does not fit.
+
+A failed match is classified by looking at the children without their order: `order` (all children are allowed and present, but in the wrong order), `missing` (a required child is absent), `unexpected` (a child the model does not allow), `repeat` (more than the model allows). `order` is the soft class. A required attribute that is absent is `attr`.
+
+### Differential result on the 300 healthy files
+
+3,968,205 elements checked, 1,229,614 of them with at least one required child or attribute.
+
+| | Files |
+|---|---|
+| No disagreement | 262 |
+| Child order only | 18 |
+| Missing, unexpected or repeated child, or missing attribute | 20 |
+
+All 38 are LibreOffice (29 of 164) or POI (8 of 61) test files, except `oxml-sdk-5Errors.docx` (1 of 75), which is a deliberately invalid test file. None of the 74 other files from the SDK's own corpus, written by Word, Excel and PowerPoint, disagrees. What the disagreements are:
+- LibreOffice writes `w:b`, `w:i` and `w:sz` twice in one `w:rPr`, `w:pPrChange` before `w:rPr`, a `w:pPrChange` with no `w:pPr`, and spreadsheet `font` children in the order name, size, bold, colour (the SDK model is a fixed sequence; Excel opens it).
+- LibreOffice and POI write `w:style` children out of order (`basedOn` before `name`), `w:tcBorders` and `w:tblBorders` as left, top, right, bottom, `w:compat` items out of order, and `c:extLst` before `c:showDLblsOverMax`.
+- LibreOffice writes `w:highlight` in a style's `w:rPr` (the SDK's style type has no `highlight`), `w:pBdr/w:insideH`, a `w:tbl` with no `w:tblGrid` and an empty `x14:sparklineGroups`.
+
+In every one of these the file, not the table, differs from the schema.
+
+Table gaps found and fixed. The SDK model has no `w:smartTag`, `w:smartTagType` or `w:doNotEmbedSmartTags` (13 SDK templates and one 2005 document use them), requires a `customPropertyEditor` that Word leaves out, lists `a14:m` with no children (it holds `m:oMathPara`), and models `c16r3:dataDisplayOptions16` as if `dispNaAsBlank` were a direct child of `c:ext`. They are in the patch file: three tolerated, three opened.
+
+Detection check. Delete one required child from a healthy part (448 trials over 33 healthy files): the table reported a finding in 447.
+
+### Not done yet
+
+`registerCheck('schemaLite', ...)` in `tiers.js`. What counts as clean for tier 2 is a decision for the main agent's `schema-close.js` and the owner: a file from LibreOffice or POI that was already off-schema in its input should not lose tier 2 for output that is no worse. `checkTree` returns the kind per finding for that.

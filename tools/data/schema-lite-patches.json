@@ -1,0 +1,32 @@
+{
+  "tolerate": [
+    {
+      "element": "http://schemas.openxmlformats.org/wordprocessingml/2006/main|smartTag",
+      "evidence": "oxml-sdk-complex2005_12rtm.docx word/document.xml, written by Word; the SDK model has no smart tag"
+    },
+    {
+      "element": "http://schemas.openxmlformats.org/wordprocessingml/2006/main|smartTagType",
+      "evidence": "oxml-sdk-complex2005_12rtm.docx word/settings.xml"
+    },
+    {
+      "element": "http://schemas.openxmlformats.org/wordprocessingml/2006/main|doNotEmbedSmartTags",
+      "evidence": "13 oxml-sdk-*.dotx templates, word/settings.xml"
+    }
+  ],
+  "open": [
+    {
+      "element": "http://schemas.microsoft.com/office/2006/customDocumentInformationPanel|customPropertyEditors",
+      "evidence": "5 oxml-sdk-*.dotx templates, customXml/item*.xml: Word writes it without customPropertyEditor"
+    },
+    {
+      "element": "http://schemas.microsoft.com/office/drawing/2010/main|m",
+      "evidence": "poi-LIBRE_OFFICE-128382-0.xlsx: a14:m wraps m:oMathPara, the SDK model lists no children"
+    }
+  ],
+  "openTypes": [
+    {
+      "type": "c16r3:CT_DataDisplayOptions16",
+      "evidence": "libreoffice-tdf137116.docx word/charts/chart1.xml: Excel-style c:ext wraps dispNaAsBlank in c16r3:dataDisplayOptions16, the SDK model has it as a direct child"
+    }
+  ]
+}
