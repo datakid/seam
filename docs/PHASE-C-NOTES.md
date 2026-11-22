@@ -97,3 +97,18 @@ Known gap. Removing a pivot cache does not yet remove the pivot tables that depe
 Not added, because the registry already has it or it is wrong to type: an `oleObject` content type. The existing row has none, so OLE attachments keep the type their `Default` entry gives. Typing them from the relationship would retype legacy `.xls` and `.pdf` attachments.
 
 Evidence. Outputs with a wrong or missing content type on a related part fall from 1 to 0 on the 221-case sample (the one left was `xl/ctrlProps/ctrlProps1.xml`). The healthy corpus (318 files) and the damaged sample have 0 label or finding changes.
+
+## C5 Verification tiers
+
+| Item | State |
+|---|---|
+| Module | `js/core/tiers.js`: `tierOf(structuralOk, checks)`, `contentChecks(ctx)`, `tierFor(ctx, ok)` and `registerCheck(id, run)`. |
+| Levels | 0 fails the structural checks, 1 passes them, 2 passes them and every content check. |
+| Content checks | `references` is live: no `REF_DANGLING` finding is left. `schemaLite` and `familyRules` have no check behind them yet, so they read as unavailable and tier 2 cannot be reached. C3 and C4 register theirs with `registerCheck`. |
+| Result | `verifyPackage` returns `tier` beside `ok`. Repaired and Partial results carry `tier`, Salvaged carries 1, a healthy file carries none. The harness stores it, and `tools/score.mjs` reports per tier: outputs, LibreOffice loads, SDK opens and the median SDK error count. |
+| Copy | Unchanged. "Passed structural checks." is still the only phrase. A tier 2 phrase needs the owner's approval; the plan's proposal is "Passed structural and content checks.". It is not in `copy.js`. |
+
+### Scoreboard additions
+
+`tools/judge-oxml/Program.cs` now records up to 40 messages per file with id, type, part, node, path and description, beside the old five-string `sample`. `tools/score.mjs` adds section 2b (tiers) and 2c (SDK messages by element, with the most common message id and the family split). The judge change has not been compiled or run here, because there is no dotnet in this environment. `score-sample-*` runs on CI will be the first to exercise it.
+

@@ -111,6 +111,8 @@ function judgeVerdict(judges) {
   return reasons;
 }
 
+const sdkByElement = new Map();
+
 for (const damagedDir of damagedDirs) {
   const seam = readJson(join(damagedDir, 'seam.json'), { cases: {} });
   damagedSeam.browser = damagedSeam.browser || seam.browser || null;
@@ -138,7 +140,19 @@ for (const damagedDir of damagedDirs) {
     const isBlind = Boolean(blind[c.source] || (c.otherId && blind[c.otherId]));
     if (isBlind && out) blindCases++;
     const bases = [healthyOxml[c.source], c.otherId ? healthyOxml[c.otherId] : null].filter(Boolean).map((r) => r.errors).filter((v) => typeof v === 'number');
-    const oxmlRow = out && oxml[id] ? { ...oxml[id], baselineErrors: bases.length > 0 ? Math.max(...bases) : undefined } : null;
+    if (out && oxml[id] && Array.isArray(oxml[id].list)) {
+      for (const message of oxml[id].list) {
+        const key = message.node || 'unknown';
+        const row = sdkByElement.get(key) || { messages: 0, files: new Set(), ids: new Map(), families: new Map() };
+        row.messages++;
+        row.files.add(id);
+        row.ids.set(message.id, (row.ids.get(message.id) || 0) + 1);
+        row.families.set(c.family, (row.families.get(c.family) || 0) + 1);
+        sdkByElement.set(key, row);
+      }
+    }
+    const { list: dropped, ...oxmlSlim } = oxml[id] || {};
+    const oxmlRow = out && oxml[id] ? { ...oxmlSlim, baselineErrors: bases.length > 0 ? Math.max(...bases) : undefined } : null;
     const judges = {
       lo: out && loOut[id] && !isBlind ? { load: loOut[id].load, roundtrip: loOut[id].roundtrip } : null,
       oxml: oxmlRow,
@@ -152,6 +166,7 @@ for (const damagedDir of damagedDirs) {
       kind: c.kind,
       seed: c.seed,
       seamLabel: s.outcome,
+      tier: typeof s.tier === 'number' ? s.tier : null,
       findings: s.findings.map((f) => f.code),
       judges,
       rejectedBy: out ? judgeVerdict(judges) : [],
@@ -183,6 +198,28 @@ const perKind = kinds.map((kind) => {
     withBaseline: withBase.length
   };
 });
+
+const TIERS = [[0, 'Fails structural checks'], [1, 'Structural checks'], [2, 'Structural and content checks']];
+const perTier = TIERS.map(([tier, name]) => {
+  const list = rows.filter((r) => r.tier === tier && r.seamLabel !== 'noProblems');
+  const judged = list.filter((r) => r.judged);
+  const lo = judged.filter((r) => r.judges.lo);
+  const sdk = judged.filter((r) => r.judges.oxml);
+  return {
+    tier,
+    name,
+    outputs: list.length,
+    judged: judged.length,
+    loPass: lo.filter((r) => r.judges.lo.load === true).length,
+    loJudged: lo.length,
+    sdkOpens: sdk.filter((r) => r.judges.oxml.opens === true).length,
+    sdkJudged: sdk.length,
+    sdkMedianErrors: median(sdk.filter((r) => r.judges.oxml.opens === true).map((r) => r.judges.oxml.errors))
+  };
+});
+const sdkElements = [...sdkByElement.entries()]
+  .map(([element, v]) => ({ element, messages: v.messages, files: v.files.size, topId: [...v.ids.entries()].sort((a, b) => b[1] - a[1])[0][0], families: Object.fromEntries(v.families) }))
+  .sort((a, b) => b.messages - a.messages);
 
 const overLabels = rows.filter((r) => r.seamLabel === 'repaired' && r.rejectedBy.length > 0);
 const partialRejected = rows.filter((r) => r.seamLabel === 'partial' && r.rejectedBy.length > 0);
@@ -237,7 +274,7 @@ const board = {
       return m;
     }, {})).sort((a, b) => b[1] - a[1])
   },
-  damaged: { cases: rows.length, perKind, overLabels: overLabels.map((r) => r.file), partialRejected: partialRejected.map((r) => r.file) },
+  damaged: { cases: rows.length, perKind, perTier, sdkElements: sdkElements.slice(0, 40), overLabels: overLabels.map((r) => r.file), partialRejected: partialRejected.map((r) => r.file) },
   performance: { medianMs: median(allMs), p95Ms: percentile(allMs, 95), maxMs: Math.max(0, ...allMs), maxPeakMB: Math.max(0, ...allMb), memoryMethod: 'js-heap-sampled (Chromium performance.memory, sampled at stage boundaries)' },
   gaps,
   cases: rows,
@@ -286,6 +323,26 @@ md.push('| Kind | Cases | No problems | Repaired | Partial | Salvaged | Failed |
 md.push('|---|---|---|---|---|---|---|---|---|---|---|---|');
 for (const k of perKind) {
   md.push(`| ${k.kind} | ${k.n} | ${k.labels.noProblems} | ${k.labels.repaired} | ${k.labels.partial} | ${k.labels.salvaged} | ${k.labels.failed + k.labels.timeout} | ${k.labels.notSupported} | ${k.repairedJudged === 0 ? 'n/a' : `${k.repairedPass}/${k.repairedJudged}`} | ${num(k.medianRecall)} | ${num(k.medianBaseline)} | ${k.withBaseline === 0 ? 'n/a' : `${k.betterThanBaseline}/${k.withBaseline}`} |`);
+}
+md.push('');
+md.push('## 2b. Verification tiers');
+md.push('');
+md.push('Per tier of the output Seam produced: how many outputs, how many each judge accepted, and the median number of Open XML SDK errors on files it opens. Tier 2 stays empty until the schema check and family rules exist.');
+md.push('');
+md.push('| Tier | Meaning | Outputs | LibreOffice loads | Open XML SDK opens | SDK median errors |');
+md.push('|---|---|---|---|---|---|');
+for (const t of perTier) md.push(`| ${t.tier} | ${t.name} | ${t.outputs} | ${t.loJudged === 0 ? 'n/a' : `${t.loPass}/${t.loJudged}`} | ${t.sdkJudged === 0 ? 'n/a' : `${t.sdkOpens}/${t.sdkJudged}`} | ${t.sdkJudged === 0 ? 'n/a' : num(t.sdkMedianErrors, 0)} |`);
+md.push('');
+md.push('## 2c. Open XML SDK messages by element');
+md.push('');
+if (sdkElements.length === 0) {
+  md.push('No per-message data. The judge records up to 40 messages per file; run it again to fill this table.');
+} else {
+  md.push('Counted over the first 40 messages the SDK reported for each output. Element is the node the message names.');
+  md.push('');
+  md.push('| Element | Messages | Files | Most common message ID | By family |');
+  md.push('|---|---|---|---|---|');
+  for (const e of sdkElements.slice(0, 25)) md.push(`| ${e.element} | ${e.messages} | ${e.files} | ${e.topId} | ${Object.entries(e.families).map(([f, n]) => `${f} ${n}`).join(', ')} |`);
 }
 md.push('');
 md.push('## 3. Over-labels');

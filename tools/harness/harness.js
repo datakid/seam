@@ -48,6 +48,7 @@ window.seamRun = async (sourceUrl, name, outId) => {
     outcome: result.outcome,
     detected: result.detected ? result.detected.kind : null,
     verified: result.verified === true,
+    tier: typeof result.tier === 'number' ? result.tier : null,
     findings: (result.findings || []).map((f) => ({ code: f.code, severity: f.severity, part: f.part, elements: f.data && f.data.elements ? f.data.elements : undefined })),
     sentence: result.sentence || '',
     outputs,

@@ -1,5 +1,6 @@
 import { identify, findTextModeTransfer, removeAddedCarriageReturns } from './identify.js';
 import { restoreCarriageReturns } from './crlf-restore.js';
+import { tierFor, TIER_STRUCTURAL } from './tiers.js';
 import { strictRead } from './zip-read.js';
 import { recoverEntries, mergeEntries, mergeCopies } from './zip-recover.js';
 import { writeZip } from './zip-write.js';
@@ -433,7 +434,8 @@ async function salvageOutcome(ctx, env, reason, verifyFailure) {
         output: { bytes: salvaged.bytes, name: salvaged.name, mime: salvaged.mime },
         extraOutput: null,
         preview: salvaged.preview,
-        verified: true
+        verified: true,
+        tier: TIER_STRUCTURAL
       };
     }
   }
@@ -525,7 +527,8 @@ async function execute(input, env, transfer) {
         output: { bytes, name: `${baseName(ctx.name)} (repaired).${ctx.format.ext}`, mime: OUTPUT_MIME[ctx.format.key] },
         extraOutput: null,
         preview: null,
-        verified: true
+        verified: true,
+        tier: tierFor(ctx, true)
       };
     }
   }
@@ -554,7 +557,8 @@ async function execute(input, env, transfer) {
     output: { bytes: out, name: `${baseName(ctx.name)} (repaired).${ctx.format.ext}`, mime: OUTPUT_MIME[ctx.format.key] },
     extraOutput,
     preview,
-    verified: true
+    verified: true,
+    tier: tierFor(ctx, true)
   };
 }
 

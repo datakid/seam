@@ -1,4 +1,5 @@
 import { strictRead } from './zip-read.js';
+import { TIER_FAILED, TIER_STRUCTURAL } from './tiers.js';
 import { decodeXml } from './xml-clean.js';
 import { parseTree, documentElement, localName, elementChildren, descendants, looksWellFormed } from './xml-repair.js';
 import { CT_MAIN, FAMILY_KEYS, isMainRelType } from './constants.js';
@@ -22,7 +23,7 @@ export async function verifyPackage(bytes, env, expected = null) {
   const names = read.entries.map((entry) => entry.name);
   if (!read.intact || read.entries.length === 0) failed.push({ check: 1, detail: 'zip' });
   else if (read.entries[0].name !== '[Content_Types].xml') failed.push({ check: 1, detail: 'order' });
-  if (failed.length > 0) return { ok: false, failed };
+  if (failed.length > 0) return { ok: false, tier: TIER_FAILED, failed };
 
   const index = new PartIndex(names);
   const texts = new Map();
@@ -38,7 +39,7 @@ export async function verifyPackage(bytes, env, expected = null) {
       break;
     }
   }
-  if (!wellFormed) return { ok: false, failed };
+  if (!wellFormed) return { ok: false, tier: TIER_FAILED, failed };
 
   function tree(name) {
     if (!trees.has(name)) trees.set(name, parseTree(texts.get(name)));
@@ -52,7 +53,7 @@ export async function verifyPackage(bytes, env, expected = null) {
       if (rel.external || rel.target === 'NULL') continue;
       if (source !== null && !index.has(resolveTarget(source, rel.target))) {
         failed.push({ check: 3, detail: `${name} ${rel.target}` });
-        return { ok: false, failed };
+        return { ok: false, tier: TIER_FAILED, failed };
       }
     }
   }
@@ -60,13 +61,13 @@ export async function verifyPackage(bytes, env, expected = null) {
   const ct = readContentTypes(tree('[Content_Types].xml'));
   if (!ct.root) {
     failed.push({ check: 4, detail: 'types' });
-    return { ok: false, failed };
+    return { ok: false, tier: TIER_FAILED, failed };
   }
   for (const name of names) {
     if (name === '[Content_Types].xml') continue;
     if (!contentTypeOf(name, ct)) {
       failed.push({ check: 4, detail: name });
-      return { ok: false, failed };
+      return { ok: false, tier: TIER_FAILED, failed };
     }
   }
 
@@ -77,7 +78,7 @@ export async function verifyPackage(bytes, env, expected = null) {
   }
   if (!main || !index.has(main)) {
     failed.push({ check: 5, detail: 'main' });
-    return { ok: false, failed };
+    return { ok: false, tier: TIER_FAILED, failed };
   }
   main = index.canonical(main);
   const family = familyOfMain(main);
@@ -85,13 +86,13 @@ export async function verifyPackage(bytes, env, expected = null) {
   const allowed = family ? FAMILY_KEYS[family].map((key) => CT_MAIN[key]) : [];
   if (!family || !allowed.includes(mainType) || (expected && CT_MAIN[expected.key] !== mainType)) {
     failed.push({ check: 5, detail: 'type' });
-    return { ok: false, failed };
+    return { ok: false, tier: TIER_FAILED, failed };
   }
 
   const root = documentElement(tree(main));
   if (!root) {
     failed.push({ check: 5, detail: 'root' });
-    return { ok: false, failed };
+    return { ok: false, tier: TIER_FAILED, failed };
   }
   if (family === 'docx') {
     if (localName(root.name) !== 'document' || elementChildren(root, 'body').length === 0) failed.push({ check: 5, detail: 'body' });
@@ -118,5 +119,5 @@ export async function verifyPackage(bytes, env, expected = null) {
     });
     if (!ok) failed.push({ check: 5, detail: 'masters' });
   }
-  return { ok: failed.length === 0, failed, main, family };
+  return { ok: failed.length === 0, tier: failed.length === 0 ? TIER_STRUCTURAL : TIER_FAILED, failed, main, family };
 }

@@ -22,7 +22,16 @@ foreach (var file in Directory.EnumerateFiles(args[0]).OrderBy(f => f, StringCom
         {
             opens = true,
             errors = errors.Count,
-            sample = errors.Take(5).Select(e => $"{e.Path?.XPath}: {e.Description}").ToArray()
+            sample = errors.Take(5).Select(e => $"{e.Path?.XPath}: {e.Description}").ToArray(),
+            list = errors.Take(40).Select(e => new
+            {
+                id = e.Id,
+                type = e.ErrorType.ToString(),
+                part = e.Part?.Uri.ToString(),
+                node = e.Node?.LocalName,
+                path = e.Path?.XPath,
+                description = e.Description
+            }).ToArray()
         };
     }
     catch (Exception e)

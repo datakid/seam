@@ -163,6 +163,24 @@ The five cases that stay Partial:
 - `poi-58325_lt__crlf__1`: a 921 KB stored embed with 17 lost CRs.
 - `libreoffice-cool14390_chart_external_ref__crlf__2`: unrelated to carriage returns; a chart refers to data with no relationship.
 
+### B8 Garbled tails, and the six recall regressions
+
+The Phase B measurement found six damaged cases that lose text recall against the old baseline. Four are explained below, and two are not regressions in any useful sense.
+
+| Case | Baseline | Now | Cause |
+|---|---|---|---|
+| `tdf104354_firstParaInSection__insert__2` | 0.756, Partial | 0.024, Salvaged | The tolerant decoder keeps the garbled text produced just before a decoder error. The old decoder cut it off by feeding 96 byte chunks. The garbled tail left the XML unrecoverable. |
+| `test_diff_aggregation__insert__1` | 1.000 | 0.698 | Same cause. |
+| `oxml-sdk-2007calendar...insert__1` | 0.924 | 0.915 | Same cause. |
+| `poi-45545_Comment__bitflip__0` | 0.774 | 0.761 | Same cause. |
+| `poi-52348__padzero__0` | 0.286 | 0.196 | Not a loss. After the first zero run the old decoder replayed earlier text out of the zero bits: 533 cells, only 56 of them different. The new output holds the 56 real cells. |
+| `tdf125298...zero512__0` | 0.608 | 0.596 | Label improved from Salvaged to Partial. The text difference is the closing of a truncated part at a different tag. |
+
+The fix is in `processXml`: when a part that decoded only partly, or failed its checksum, will not parse even after repair, the text is cut back tag by tag, in growing steps up to 256 tags, until the repaired text is well formed. Back to baseline recall on the first four cases: 0.756, 1.000, 0.930, 0.774. An earlier try that trimmed 32 to 96 input bytes before the error did worse than the cut-back alone and was dropped.
+
+Full 10 % sample, 1,139 cases, with B7 and B8: Repaired 309, Partial 519, Salvaged 64, Failed 156, No problems 83, Not supported 8. Before B7: Repaired 289, Partial 528, Salvaged 72, Failed 168.
+
+
 ## Not yet measured
 
 The Phase B exit numbers (+15 points median text recall on zero512, zero4096, dropblock and bitflip, and the crlf row) need the damage lab and scoreboard run on the corpus. The B1 and B2 gains reach the output file only for zero runs inside deflate entries. Nothing else in Phase B has been measured on the corpus. B5 is exercised only by copies damaged in the test suite, not by corpus files.

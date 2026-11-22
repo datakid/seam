@@ -1,0 +1,88 @@
+{
+  "about": "Proposal only. No file was moved. Evidence comes from a scan of each original with an XML parser, and from the Seam findings on the healthy run. The Open XML SDK was not run here (no dotnet), so the SDK result on each original is the main agent's and is not repeated.",
+  "source": "corpus/manifest/triage.json",
+  "files": [
+    {
+      "id": "libreoffice-bnc591147",
+      "current": "pending-judge",
+      "proposal": "confirmed-broken",
+      "action": "Move to the wild or broken set and tag broken: true. Keep out of the healthy set.",
+      "evidence": [
+        "ppt/media/audio.mp3 and ppt/media/video.avi have no Default for their extension and no Override.",
+        "Every part must have a content type in a package, so the original is not a valid package."
+      ],
+      "seam": {
+        "label": "repaired",
+        "findings": [
+          "CT_DEFAULT_ADDED",
+          "CT_DEFAULT_ADDED"
+        ],
+        "verdict": "correct repair, so a true positive once the file is not counted as healthy"
+      },
+      "afterMove": "The file becomes a regression case for the avi and mp3 defaults in the part registry."
+    },
+    {
+      "id": "libreoffice-tdf148478_transitionMusic",
+      "current": "pending-judge",
+      "proposal": "healthy-seam-false-alarm",
+      "action": "Keep in the healthy set. Do not move. Fix Seam.",
+      "evidence": [
+        "The Override names /ppt/media/Cort%C3%A1zar.wav. The package holds ppt/media/Cortázar.wav. A percent-encoded PartName is the normal way to write a non-ASCII part name, so the override and the part match and the type is present.",
+        "A parse of [Content_Types].xml, with the PartName decoded, finds no part without a type and no override for a missing part."
+      ],
+      "seam": {
+        "label": "repaired",
+        "findings": [
+          "CT_OVERRIDE_REMOVED",
+          "CT_DEFAULT_ADDED"
+        ],
+        "verdict": "false alarm caused by Seam: readContentTypes and the content-type loop in package.js compare PartName without percent-decoding, while relationship targets are decoded by resolveTarget"
+      },
+      "fix": "Decode each PartName with safeDecode before normalizePartPath in readContentTypes and at the four matching sites in the content-type repair loop, and percent-encode non-ASCII names when writing a new Override. Expected label after the fix: No problems found.",
+      "open": "The Open XML SDK could not open the original according to the main agent. The reason is not known here. Check it with the SDK judge once the fix is in; if the SDK still fails, the file stays healthy by LibreOffice and by this scan, and the SDK failure is a judge limit to record."
+    },
+    {
+      "id": "poi-64450",
+      "current": "pending-judge",
+      "proposal": "confirmed-broken",
+      "action": "Move to the wild or broken set and tag broken: true.",
+      "evidence": [
+        "xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels holds one Relationship with only Type and TargetMode=\"External\". It has no Id and no Target, and both are required.",
+        "The triage note says the relationship points at a missing part. The scan shows it points at nothing; no relationship in the package targets a missing internal part."
+      ],
+      "seam": {
+        "label": "repaired",
+        "findings": [
+          "REL_REMOVED",
+          "XLSX_SST_COUNTS"
+        ],
+        "verdict": "correct repair: the invalid relationship is dropped"
+      },
+      "afterMove": "Keep as a regression case for relationships that lack Id or Target."
+    },
+    {
+      "id": "poi-picture",
+      "current": "pending-judge",
+      "proposal": "confirmed-broken",
+      "action": "Move to the wild or broken set and tag broken: true.",
+      "evidence": [
+        "xl/_rels/workbook.xml.rels has a relationship to connections.xml and the package has no xl/connections.xml.",
+        "[Content_Types].xml has Overrides for /xl/theme/theme1.xml, /docProps/custom.xml and /xl/connections.xml, and none of the three parts exists."
+      ],
+      "seam": {
+        "label": "repaired",
+        "findings": [
+          "REL_REMOVED",
+          "CT_OVERRIDE_REMOVED",
+          "XLSX_SST_COUNTS"
+        ],
+        "verdict": "correct repair"
+      },
+      "afterMove": "Keep as a regression case for a workbook relationship to a missing connections part."
+    }
+  ],
+  "effect": {
+    "healthyAfterMoves": "Three files leave the healthy set (bnc591147, poi-64450, poi-picture). tdf148478 stays and becomes a No problems case after the Seam fix.",
+    "manifestNote": "Set triage status to confirmed-broken for three and to seam-bug for tdf148478 once the owner agrees."
+  }
+}
