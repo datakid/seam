@@ -132,15 +132,15 @@ Not shipped: the generated table is not committed until the owner confirms the s
 | Item | State |
 |---|---|
 | Source | Open XML SDK (`dotnet/Open-XML-SDK`, MIT), `data/schemas/*.json` and `data/namespaces.json`, commit `431ab05cf160248cc3885a4a766026d4f8243792`. The generator records repo, commit and licence in the table. |
-| Generator | `tools/gen-schema-lite.mjs --sdk <checkout> --out <file.js or file.json>`, built on `tools/lib/schema-lite-build.mjs`. The default output is `js/core/data/schema-lite.js` (an ES module with a default export, because `connect-src 'none'` and the no-`fetch` rule rule out loading JSON). |
-| Reader and matcher | `js/core/schema-fit.js`: `openTable(raw)`, `fitChildren(table, entry, children)`, `checkTree(table, root)`, `childEntry`, `requiredChildren`. Pure functions on the parsed tree from `xml-repair.js`. |
+| Generator | `tools/gen-schema-lite.mjs --sdk <checkout> --corpus <healthy packages> --out <file.js or file.json>`, built on `tools/lib/schema-lite-build.mjs` and `tools/lib/schema-lite-defaults.mjs`. The default output is `js/core/data/schema-lite.js`: an ES module exporting `SCHEMA_LITE_RAW` (the compact table) and `SCHEMA_LITE` (`openTable` of it, which is what `schema-close.js` loads). JSON is not loadable, because `connect-src 'none'` and the no-`fetch` rule forbid it. |
+| Reader and matcher | `js/core/schema-fit.js`: `openTable(raw)`, `fitChildren(table, entry, children)`, `checkTree(table, root)`, `childEntry`, `requiredChildren`, `minimalElement`, `attributeDefault`. Pure functions on the parsed tree from `xml-repair.js`. |
 | Differential run | `tools/schema-lite-diff.mjs --table <file>` checks every element of every healthy file against the table and prints each distinct disagreement with file, part and path. |
 | Patches | `tools/data/schema-lite-patches.json`: places where Office writes what the SDK model lacks. Each one carries its evidence. |
-| Tests | `tests/schema-lite.test.mjs` (24 cases) on a miniature SDK-format fixture: shape, shared models, base-type attributes, dropped namespaces, patches, every matcher outcome, 200,000-child runs, `mc:Ignorable`, `mc:AlternateContent`, strict namespaces, a hand-written table in the plain contract shape, and the generator end to end. |
+| Tests | `tests/schema-lite.test.mjs` (32 cases) on a miniature SDK-format fixture: shape, shared models, base-type attributes, dropped namespaces, patches, every matcher outcome, 200,000-child runs, `mc:Ignorable`, `mc:AlternateContent`, strict namespaces, a hand-written table in the plain contract shape, minimal elements, corpus defaults, `completeSpine` and `findViolations` from `schema-close.js` run over a generated table, and the generator end to end. |
 
 ### What the table holds
 
-2,398 elements, 1,637 content models, 137 namespaces, 255,835 bytes. The contract shape written out in full came to 1.48 MB, because the same content model was repeated for every element that uses it and every child carried its namespace URI. The file shares models, stores each namespace once, and groups elements by namespace:
+2,398 elements, 1,662 content models, 136 namespaces, 270,695 bytes with defaults. The contract shape written out in full came to 1.48 MB, because the same content model was repeated for every element that uses it and every child carried its namespace URI. The file shares models, stores each namespace once, and groups elements by namespace:
 
 ```
 { source, format: 2, namespaces: [uri], namespaceAliases: { strictUri: transitionalUri }, tolerated: ["uri|local"],
@@ -154,6 +154,8 @@ Three things the contract did not say, all needed to be right:
 - **A name can have several definitions.** `w:rPr` is `CT_RPr`, `CT_ParaRPr`, `CT_RPrStyle` and others, depending on the parent. 142 names are like that. They are not in `elements`; a child is resolved through its parent's item (`childEntry`), and `checkTree` does so.
 - **Attributes come from the abstract base type.** `w:CT_OnOff/w:b` has none of its own. The base is found by its type name, not by class name, because `TwipsMeasureType` exists in `w:` and in `m:` with different attributes. Only required attributes are stored.
 - **The root particle has its own occurrence.** A choice that repeats without limit is a choice with `max: null` at the top.
+
+Required attributes carry a `type` (`string`, `number`, `boolean`, `enum`, `other`) and, when a healthy file shows one, a `default`: the most common value of that attribute in the 300 healthy files (345 attributes). Relationship ids never get one. `minimalElement` builds the smallest valid content for an entry from that: required items repeated `min` times, the cheapest alternative of each required choice, required attributes from `default` or `type`. For all 2,398 elements, 2,199 build with nothing unresolved, and each of those passes `checkTree`.
 
 Dropped on purpose: VML and the other `urn:schemas-microsoft-com:` namespaces (their parents become unchecked rather than stricter), abstract types, and optional attributes.
 
@@ -183,6 +185,10 @@ In every one of these the file, not the table, differs from the schema.
 Table gaps found and fixed. The SDK model has no `w:smartTag`, `w:smartTagType` or `w:doNotEmbedSmartTags` (13 SDK templates and one 2005 document use them), requires a `customPropertyEditor` that Word leaves out, lists `a14:m` with no children (it holds `m:oMathPara`), and models `c16r3:dataDisplayOptions16` as if `dispNaAsBlank` were a direct child of `c:ext`. They are in the patch file: three tolerated, three opened.
 
 Detection check. Delete one required child from a healthy part (448 trials over 33 healthy files): the table reported a finding in 447.
+
+### With the pipeline (table in place for one run, not committed)
+
+The 308 damaged cases that carry `XML_TRUNCATED_CLOSED`, with and without the table, current `v2` code. 94 cases are completed and 53 have something unresolved; no outcome changes. Files with a missing required child fall from 98 to 50 (`p:sp` without `spPr`, `a:themeElements` without `fmtScheme`, `worksheet` without `sheetData`, `p:sldMaster` without `clrMap`, `p:spTree` without `grpSpPr`). The pass inserts one required element and stops, so the inserted element is itself incomplete (empty style lists, colours without a child, `fontRef` without `idx`), and missing-child findings rise from 165 to 235 and missing-attribute findings from 33 to 153. `minimalElement` is the fix for that; `schema-close.js` does not use it yet.
 
 ### Not done yet
 

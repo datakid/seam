@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { buildTable, tableText } from './lib/schema-lite-build.mjs';
+import { collectDefaults, applyDefaults } from './lib/schema-lite-defaults.mjs';
 
 const args = process.argv.slice(2);
 function option(name, fallback) {
@@ -11,7 +12,7 @@ function option(name, fallback) {
 
 const sdk = option('sdk', null);
 if (!sdk) {
-  console.error('usage: node tools/gen-schema-lite.mjs --sdk <Open-XML-SDK checkout> [--out <file.js|file.json>] [--commit <sha>] [--drop <uri fragment,...>] [--report]');
+  console.error('usage: node tools/gen-schema-lite.mjs --sdk <Open-XML-SDK checkout> [--out <file.js|file.json>] [--commit <sha>] [--drop <uri fragment,...>] [--corpus <dir of healthy packages>] [--report]');
   process.exit(2);
 }
 const out = resolve(option('out', 'js/core/data/schema-lite.js'));
@@ -43,6 +44,13 @@ const { table, stats } = buildTable({
   dropNamespace: (ns) => drops.some((fragment) => ns.includes(fragment)),
   patches,
 });
+const corpus = option('corpus', '');
+if (corpus) {
+  const collected = collectDefaults(table, resolve(corpus));
+  const applied = applyDefaults(table, collected);
+  table.source.defaults = `most common value of each required attribute in ${collected.files} healthy packages`;
+  console.log(`${applied} required attributes got a default from ${collected.files} healthy packages`);
+}
 const text = tableText(table, out);
 writeFileSync(out, text);
 console.log(`${stats.elements} elements, ${stats.types} content models, ${table.namespaces.length} namespaces, ${text.length} bytes`);

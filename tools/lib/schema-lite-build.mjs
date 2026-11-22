@@ -1,17 +1,31 @@
 import { readFileSync } from 'node:fs';
 import { toStrictNs } from '../../js/core/registry.js';
 
-const MODULE_HEAD = 'export default ';
+const MODULE_HEAD = "import { openTable } from '../schema-fit.js';\nexport const SCHEMA_LITE_RAW = ";
+const MODULE_TAIL = ';\nexport const SCHEMA_LITE = openTable(SCHEMA_LITE_RAW);\nexport default SCHEMA_LITE;\n';
 
 export function tableText(table, path) {
   const json = JSON.stringify(table);
-  return path.endsWith('.js') ? `${MODULE_HEAD}${json};\n` : json;
+  return path.endsWith('.js') ? `${MODULE_HEAD}${json}${MODULE_TAIL}` : json;
 }
 
 export function readTableFile(path) {
   const text = readFileSync(path, 'utf8');
   if (!path.endsWith('.js')) return JSON.parse(text);
-  return JSON.parse(text.slice(MODULE_HEAD.length).replace(/;\s*$/, ''));
+  if (!text.startsWith(MODULE_HEAD) || !text.endsWith(MODULE_TAIL)) throw new Error(`${path} is not a schema table module`);
+  return JSON.parse(text.slice(MODULE_HEAD.length, text.length - MODULE_TAIL.length));
+}
+
+const NUMBER_TYPES = new Set(['UInt32Value', 'Int32Value', 'Int64Value', 'UInt64Value', 'UInt16Value', 'Int16Value', 'ByteValue', 'SByteValue', 'IntegerValue', 'DoubleValue', 'DecimalValue', 'SingleValue']);
+const BOOLEAN_TYPES = new Set(['BooleanValue', 'OnOffValue', 'TrueFalseValue', 'TrueFalseBlankValue']);
+
+function typeCode(raw) {
+  const base = String(raw || '').replace(/<.*$/, '');
+  if (base === 'StringValue') return 's';
+  if (NUMBER_TYPES.has(base)) return 'n';
+  if (BOOLEAN_TYPES.has(base)) return 'b';
+  if (base === 'EnumValue') return 'e';
+  return 'o';
 }
 
 const MC_NS = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
@@ -114,7 +128,7 @@ function attributesOf(type, abstractTypes, prefixes, problems) {
       const id = `${ns}|${local}`;
       if (seen.has(id)) continue;
       seen.add(id);
-      if (required) list.push({ ns, local });
+      if (required) list.push({ ns, local, type: typeCode(attribute.Type) });
     }
     cursor = baseOf(cursor, abstractTypes);
   }
@@ -223,7 +237,7 @@ export function buildTable({ schemas, namespaces, source, dropNamespace = () => 
         if (item.any) return ['*', item.min, item.max];
         return [item.kind, item.min, item.max, mapItems(item.items)];
       });
-    return JSON.stringify([content.kind, mapItems(content.items), content.min, content.max, content.required.map((r) => [r.ns, r.local])]);
+    return JSON.stringify([content.kind, mapItems(content.items), content.min, content.max, content.required.map((r) => [r.ns, r.local, r.type])]);
   };
   for (let round = 0; round < 40; round++) {
     const seen = new Map();
@@ -253,7 +267,7 @@ export function buildTable({ schemas, namespaces, source, dropNamespace = () => 
       }
     };
     walk(contents.get(keys[id]).content.items);
-    for (const r of contents.get(keys[id]).content.required) nsUsed.add(r.ns);
+    for (const r of contents.get(keys[id]).content.required) if (r.ns !== '') nsUsed.add(r.ns);
   };
 
   const elements = {};
@@ -293,7 +307,7 @@ export function buildTable({ schemas, namespaces, source, dropNamespace = () => 
     const { content } = contents.get(keys[id]);
     const row = [content.kind, encodeItems(content.items)];
     const plain = content.min === 1 && content.max === 1;
-    if (content.required.length > 0 || !plain) row.push(content.required.map((r) => (r.ns === '' ? r.local : [nsIndex.get(r.ns), r.local])));
+    if (content.required.length > 0 || !plain) row.push(content.required.map((r) => [r.ns === '' ? -1 : nsIndex.get(r.ns), r.local, r.type]));
     if (!plain) row.push(content.min, content.max);
     return row;
   });

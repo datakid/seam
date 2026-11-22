@@ -1,8 +1,11 @@
-import { localName, prefixOf } from './xml-repair.js';
+import { decodeEntities, localName, prefixOf } from './xml-repair.js';
 
 const MC_NS = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
 const XMLNS_NS = 'http://www.w3.org/2000/xmlns/';
 const KIND = { s: 'sequence', c: 'choice', a: 'all', o: 'open' };
+const RELATIONSHIPS_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const MAX_REPEAT = 16;
+const ATTR_TYPE = { s: 'string', n: 'number', b: 'boolean', e: 'enum', o: 'other' };
 
 function readAliases(raw) {
   return new Map(Object.entries(raw.namespaceAliases || {}));
@@ -52,9 +55,15 @@ export function openTable(raw) {
       min: row.length > 3 ? row[3] : 1,
       max: row.length > 3 ? row[4] : 1,
       items: [],
-      attrs: (row[2] || []).map((a) => (typeof a === 'string' ? { ns: '', local: a, required: true } : { ns: namespaces[a[0]], local: a[1], required: true })),
+      attrs: (row[2] || []).map((a) => {
+        const attr = { ns: a[0] < 0 ? '' : namespaces[a[0]], local: a[1], required: true, type: ATTR_TYPE[a[2]] || 'other' };
+        if (a.length > 3) attr.default = a[3];
+        return attr;
+      }),
+      id: 0,
     }));
     raw.types.forEach((row, i) => {
+      entries[i].id = i;
       entries[i].items = expandItems(row[1], namespaces, entries);
     });
     for (const [ns, group] of Object.entries(raw.elements)) for (const [local, id] of Object.entries(group)) elements[`${ns}|${local}`] = entries[id];
@@ -78,6 +87,11 @@ export function openTable(raw) {
     for (const entry of convert.values()) link(entry.items);
   }
   for (const strict of aliases.keys()) known.add(strict);
+  const strictOf = new Map([...aliases].map(([strict, transitional]) => [transitional, strict]));
+  for (const key of Object.keys(elements)) {
+    const strict = strictOf.get(key.slice(0, key.indexOf('|')));
+    if (strict) elements[`${strict}${key.slice(key.indexOf('|'))}`] = elements[key];
+  }
   return {
     source: raw.source || null,
     aliases,
@@ -310,7 +324,7 @@ export function fitChildren(table, entry, children) {
   if (ends.includes(n)) return { ok: true };
   const at = furthest < n ? origin[furthest] : children.length;
   const loose = looseFit(table, entry, names, origin);
-  if (loose.ok) return { ok: false, kind: 'order', at, expected: [...expected].sort() };
+  if (loose.ok) return { ok: false, kind: furthest >= n ? 'missing' : 'order', at, expected: [...expected].sort() };
   return { ok: false, kind: loose.kind, at: loose.kind === 'missing' ? children.length : loose.at, expected: loose.expected };
 }
 
@@ -398,7 +412,7 @@ export function requiredChildren(table, entry) {
   return names.sort();
 }
 
-export function checkTree(table, root, limit = 200) {
+export function checkTree(table, root, limit = 200, visit = null) {
   const findings = [];
   let checked = 0;
   let constrained = 0;
@@ -421,12 +435,13 @@ export function checkTree(table, root, limit = 200) {
       if (entry.attrs.length > 0 || requiredChildren(table, entry).length > 0) constrained++;
       for (const attr of entry.attrs) {
         if (!attr.required) continue;
-        const present = node.attrs.some(([name]) => {
+        const present = node.attrs.find(([name]) => {
           if (localName(name) !== attr.local) return false;
           const owner = resolveName(name, scope, true);
           return owner !== null && table.normalise(owner) === table.normalise(attr.ns);
         });
         if (!present) findings.push({ kind: 'attr', path: pathOf(frame), name: node.name, expected: [attr.local], at: -1, found: null });
+        else if (visit) visit(entry, attr, decodeEntities(present[1]));
       }
       let fit = fitChildren(table, entry, kids.map((k) => ({ ns: k.ns, local: k.local })));
       if (!fit.ok && gathered.alternate) {
@@ -445,4 +460,95 @@ export function checkTree(table, root, limit = 200) {
     }
   }
   return { findings, checked, constrained };
+}
+
+export function attributeDefault(attr) {
+  if (attr.default !== undefined && attr.default !== null) return String(attr.default);
+  if (attr.ns === RELATIONSHIPS_NS) return null;
+  if (attr.type === 'number') return '0';
+  if (attr.type === 'boolean') return 'false';
+  if (attr.type === 'string') return '';
+  return null;
+}
+
+const MINIMAL = new WeakMap();
+
+function minimalContent(table, entry, stack) {
+  const known = MINIMAL.get(entry);
+  if (known) return known;
+  const content = { attrs: [], children: [], unresolved: [], size: 0 };
+  if (stack.has(entry)) {
+    content.unresolved.push('cycle');
+    return content;
+  }
+  stack.add(entry);
+  for (const attr of entry.attrs) {
+    if (!attr.required) continue;
+    const value = attributeDefault(attr);
+    if (value === null) content.unresolved.push(`@${attr.local}`);
+    else content.attrs.push({ ns: attr.ns, local: attr.local, value });
+  }
+  if (entry.kind !== 'open') {
+    const wanted = [];
+    planNode(table, entry, wanted, content.unresolved, stack);
+    for (const pick of wanted) {
+      const child = minimalElement(table, pick.ns, pick.local, pick.entry, stack);
+      content.children.push(child);
+      content.size += 1 + child.size;
+      for (const reason of child.unresolved) content.unresolved.push(`${pick.local}/${reason}`);
+    }
+  }
+  stack.delete(entry);
+  MINIMAL.set(entry, content);
+  return content;
+}
+
+function planNode(table, node, out, unresolved, stack) {
+  if (node.min > MAX_REPEAT) unresolved.push('repeat');
+  const times = Math.min(node.min, MAX_REPEAT);
+  for (let i = 0; i < times; i++) planOnce(table, node, out, unresolved, stack);
+}
+
+function weighAlternative(table, item, stack) {
+  const out = [];
+  const unresolved = [];
+  planNode(table, { ...item, min: Math.max(item.min, 1) }, out, unresolved, stack);
+  let weight = unresolved.length * 1000;
+  for (const pick of out) {
+    const child = minimalElement(table, pick.ns, pick.local, pick.entry, stack);
+    weight += 1 + child.size + child.unresolved.length * 1000;
+  }
+  return weight;
+}
+
+function planOnce(table, node, out, unresolved, stack) {
+  if (node.any) {
+    unresolved.push('*');
+    return;
+  }
+  if (node.local !== undefined) {
+    out.push({ ns: node.ns, local: node.local, entry: node.entry || table.entryFor(node.ns, node.local) });
+    return;
+  }
+  if (node.kind === 'choice') {
+    if (node.items.length === 0) return;
+    let best = null;
+    let bestWeight = Infinity;
+    for (const item of node.items) {
+      const weight = weighAlternative(table, item, stack);
+      if (weight < bestWeight) {
+        best = item;
+        bestWeight = weight;
+      }
+    }
+    planNode(table, { ...best, min: Math.max(best.min, 1) }, out, unresolved, stack);
+    return;
+  }
+  for (const item of node.items) planNode(table, item, out, unresolved, stack);
+}
+
+export function minimalElement(table, ns, local, entry, stack = new Set()) {
+  if (!entry) return { ns, local, attrs: [], children: [], unresolved: [], size: 0 };
+  const content = minimalContent(table, entry, stack);
+  return { ns, local, attrs: content.attrs, children: content.children, unresolved: content.unresolved, size: content.size };
 }

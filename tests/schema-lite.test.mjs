@@ -5,8 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { buildTable, readTableFile, tableText } from '../tools/lib/schema-lite-build.mjs';
-import { openTable, fitChildren, checkTree, childEntry, requiredChildren } from '../js/core/schema-fit.js';
-import { parseTree } from '../js/core/xml-repair.js';
+import { collectDefaults, applyDefaults } from '../tools/lib/schema-lite-defaults.mjs';
+import { zipSync, strToU8 } from '../vendor/fflate.module.js';
+import { openTable, fitChildren, checkTree, childEntry, requiredChildren, minimalElement } from '../js/core/schema-fit.js';
+import { parseTree, documentElement } from '../js/core/xml-repair.js';
+import { completeSpine, findViolations } from '../js/core/schema-close.js';
 
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const WS = 'http://purl.oclc.org/ooxml/wordprocessingml/main';
@@ -27,7 +30,7 @@ const schemas = [
       {
         Name: 'w:CT_Doc/w:doc',
         Attributes: [
-          { QName: 'w:id', Validators: REQUIRED },
+          { QName: 'w:id', Type: 'UInt32Value', Validators: REQUIRED },
           { QName: ':lang' },
         ],
         Particle: {
@@ -45,7 +48,7 @@ const schemas = [
       },
       { Name: 'w:CT_Text/w:title', ClassName: 'Title', BaseClass: 'TextType', IsDerived: true, IsLeafElement: true },
       { Name: 'w:CT_Text/w:sub', ClassName: 'Sub', BaseClass: 'TextType', IsDerived: true, IsLeafElement: true },
-      { Name: 'w:CT_Text/', ClassName: 'TextType', IsAbstract: true, IsLeafElement: true, Attributes: [{ QName: 'w:val', Validators: REQUIRED }] },
+      { Name: 'w:CT_Text/', ClassName: 'TextType', IsAbstract: true, IsLeafElement: true, Attributes: [{ QName: 'w:val', Type: 'StringValue', Validators: REQUIRED }] },
       { Name: 'm:CT_Text/', ClassName: 'TextType', IsAbstract: true, IsLeafElement: true, Attributes: [{ QName: 'm:val' }] },
       { Name: 'm:CT_Text/m:t', ClassName: 'MathText', BaseClass: 'TextType', IsDerived: true, IsLeafElement: true },
       { Name: 'w:CT_Para/w:p', Particle: { Kind: 'Sequence', Items: [{ Name: 'w:CT_Run/w:r', Occurs: [{}] }] } },
@@ -88,7 +91,7 @@ test('the builder writes the compact table shape with shared models and grouped 
   assert.equal(table.elements[W].p, undefined);
   const header = table.types[table.elements[W].doc];
   assert.equal(header[0], 's');
-  assert.deepEqual(header[2], [[table.namespaces.indexOf(W), 'id']]);
+  assert.deepEqual(header[2], [[table.namespaces.indexOf(W), 'id', 'n']]);
 });
 
 test('elements that share a content type share one model', () => {
@@ -99,7 +102,7 @@ test('elements that share a content type share one model', () => {
 test('attributes come from the abstract base of the same type, not from a base with the same class name elsewhere', () => {
   const opened = openTable(build().table);
   const title = opened.entryFor(W, 'title');
-  assert.deepEqual(title.attrs.map((a) => [a.ns, a.local, a.required]), [[W, 'val', true]]);
+  assert.deepEqual(title.attrs.map((a) => [a.ns, a.local, a.required, a.type]), [[W, 'val', true, 'string']]);
   assert.equal(opened.entryFor(M, 't'), null);
 });
 
@@ -160,6 +163,16 @@ test('matching: children in the wrong order are reported as order, not as missin
   assert.deepEqual(result.expected, [`${W}|head`]);
   const head = opened.entryFor(W, 'head');
   assert.equal(fitChildren(opened, head, [el(W, 'sub'), el(W, 'title')]).kind, 'order');
+});
+
+test('matching: an empty element whose content is a required choice is missing, not out of order', () => {
+  const choiceSchemas = [{ Types: [{ Name: 'w:CT_Pick/w:pick', Particle: { Kind: 'Choice', Items: [{ Name: 'w:CT_Run/w:r' }, { Name: 'w:CT_Run/w:q' }] } }, { Name: 'w:CT_Run/w:r', IsLeafElement: true }, { Name: 'w:CT_Run/w:q', IsLeafElement: true }] }];
+  const opened = openTable(buildTable({ schemas: choiceSchemas, namespaces, source }).table);
+  const pick = opened.entryFor(W, 'pick');
+  const empty = fitChildren(opened, pick, []);
+  assert.equal(empty.kind, 'missing');
+  assert.deepEqual(empty.expected, [`${W}|q`, `${W}|r`]);
+  assert.deepEqual(fitChildren(opened, pick, [el(W, 'q')]), { ok: true });
 });
 
 test('matching: a child the model does not know and a repeated single child are reported', () => {
@@ -298,7 +311,9 @@ test('a table written as a module can be read back, and equals the json form', (
     const asJson = join(dir, 'table.json');
     writeFileSync(asModule, tableText(table, asModule));
     writeFileSync(asJson, tableText(table, asJson));
-    assert.ok(readFileSync(asModule, 'utf8').startsWith('export default {'));
+    const moduleText = readFileSync(asModule, 'utf8');
+    assert.ok(moduleText.includes('export const SCHEMA_LITE_RAW = {'));
+    assert.ok(moduleText.includes('export const SCHEMA_LITE = openTable(SCHEMA_LITE_RAW);'));
     assert.deepEqual(readTableFile(asModule), table);
     assert.deepEqual(readTableFile(asJson), table);
   } finally {
@@ -321,6 +336,126 @@ test('the generator writes a table from an SDK checkout and stays within the siz
     assert.ok(text.length < 300 * 1024);
     assert.ok(Object.keys(table.elements).length > 0);
     assert.ok(!table.namespaces.some((namespace) => namespace.startsWith('urn:schemas-microsoft-com:')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const boxSchemas = [
+  {
+    Types: [
+      { Name: 'w:CT_Box/w:box', Particle: { Kind: 'Sequence', Items: [{ Name: 'w:CT_Req/w:req' }, { Name: 'w:CT_Req/w:more', Occurs: [{ Max: 1 }] }] } },
+      { Name: 'w:CT_Req/w:req', IsLeafElement: true, Attributes: [{ QName: ':count', Type: 'UInt32Value', Validators: REQUIRED }, { QName: ':flag', Type: 'BooleanValue', Validators: REQUIRED }] },
+      { Name: 'w:CT_Req/w:more', IsLeafElement: true, Attributes: [{ QName: ':count', Type: 'UInt32Value', Validators: REQUIRED }, { QName: ':flag', Type: 'BooleanValue', Validators: REQUIRED }] },
+    ],
+  },
+];
+
+test('strict namespaces are also keys of the opened elements, and unprefixed children are foreign', () => {
+  const opened = openTable(build().table);
+  assert.equal(opened.elements[`${WS}|doc`], opened.elements[`${W}|doc`]);
+  const doc = opened.entryFor(W, 'doc');
+  assert.deepEqual(fitChildren(opened, doc, [el(W, 'head'), el('', 'stray')]), { ok: true });
+  assert.equal(opened.known.has(''), false);
+});
+
+test('required attributes carry a type the consumer can build a default from', () => {
+  const { table } = buildTable({ schemas: boxSchemas, namespaces, source });
+  const opened = openTable(table);
+  const req = opened.entryFor(W, 'box').items[0].entry;
+  assert.deepEqual(req.attrs.map((a) => [a.local, a.type, a.ns]), [['count', 'number', ''], ['flag', 'boolean', '']]);
+});
+
+test('the opened table is read by the consumer side: required children and attributes are completed and violations found', () => {
+  const { table } = buildTable({ schemas: boxSchemas, namespaces, source });
+  const opened = openTable(table);
+  const root = documentElement(parseTree(`<w:box xmlns:w="${W}"/>`));
+  const state = completeSpine(root, opened);
+  assert.deepEqual(state.added, [{ parent: 'box', child: 'req' }]);
+  const made = root.children.find((c) => c.type === 'el');
+  assert.equal(made.name, 'w:req');
+  assert.deepEqual(made.attrs, [['count', '0'], ['flag', 'false']]);
+  const bare = documentElement(parseTree(`<w:box xmlns:w="${W}"/>`));
+  assert.deepEqual(findViolations(bare, opened), [{ element: 'box', problem: 'missing', child: 'req' }]);
+  const strict = documentElement(parseTree(`<w:box xmlns:w="${WS}"/>`));
+  assert.deepEqual(findViolations(strict, opened), [{ element: 'box', problem: 'missing', child: 'req' }]);
+});
+
+const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+const relNamespaces = [...namespaces, { Prefix: 'r', Uri: REL }];
+
+const minimalSchemas = [
+  {
+    Types: [
+      {
+        Name: 'w:CT_Style/w:style',
+        Particle: {
+          Kind: 'Sequence',
+          Items: [
+            { Name: 'w:CT_Fill/w:fill' },
+            { Name: 'w:CT_Line/w:line', Occurs: [{ Min: 3 }] },
+            { Name: 'w:CT_Line/w:opt', Occurs: [{ Max: 1 }] },
+          ],
+        },
+      },
+      {
+        Name: 'w:CT_Fill/w:fill',
+        Particle: { Kind: 'Choice', Items: [{ Name: 'w:CT_Big/w:big' }, { Name: 'w:CT_Line/w:line' }, { Name: 'w:CT_Pic/w:pic' }] },
+      },
+      { Name: 'w:CT_Big/w:big', Particle: { Kind: 'Sequence', Items: [{ Name: 'w:CT_Line/w:line' }, { Name: 'w:CT_Line/w:line' }] } },
+      { Name: 'w:CT_Line/w:line', IsLeafElement: true, Attributes: [{ QName: ':w', Type: 'UInt32Value', Validators: REQUIRED }, { QName: ':on', Type: 'BooleanValue', Validators: REQUIRED }, { QName: ':name', Type: 'StringValue', Validators: REQUIRED }] },
+      { Name: 'w:CT_Pic/w:pic', IsLeafElement: true, Attributes: [{ QName: 'r:embed', Type: 'StringValue', Validators: REQUIRED }] },
+      { Name: 'w:CT_Strange/w:strange', Particle: { Kind: 'Sequence', Items: [{ Kind: 'Any' }] }, Attributes: [{ QName: ':mode', Type: 'EnumValue<X.Y>', Validators: REQUIRED }] },
+    ],
+  },
+];
+
+function minimal(local, extra = {}) {
+  const { table } = buildTable({ schemas: minimalSchemas, namespaces: relNamespaces, source, ...extra });
+  const opened = openTable(table);
+  return { opened, spec: minimalElement(opened, W, local, opened.entryFor(W, local)) };
+}
+
+test('a minimal element repeats required items, picks the cheapest choice and fills attributes by type', () => {
+  const { spec } = minimal('style');
+  assert.deepEqual(spec.children.map((c) => c.local), ['fill', 'line', 'line', 'line']);
+  assert.deepEqual(spec.children[0].children.map((c) => c.local), ['line']);
+  assert.deepEqual(spec.children[1].attrs.map((a) => [a.local, a.value]), [['name', ''], ['on', 'false'], ['w', '0']]);
+  assert.deepEqual(spec.unresolved, []);
+  assert.equal(spec.size, 5);
+});
+
+test('a minimal element reports what it cannot invent', () => {
+  assert.deepEqual(minimal('strange').spec.unresolved.sort(), ['*', '@mode']);
+  const { opened } = minimal('style');
+  const pic = opened.entryFor(W, 'fill').items.find((i) => i.local === 'pic').entry;
+  assert.deepEqual(minimalElement(opened, W, 'pic', pic).unresolved, ['@embed']);
+});
+
+test('a minimal element passes the table it was made from', () => {
+  const { opened, spec } = minimal('style');
+  const render = (node) => `<w:${node.local}${node.attrs.map((a) => ` ${a.local}="${a.value}"`).join('')}>${node.children.map(render).join('')}</w:${node.local}>`;
+  const xml = render(spec).replace('<w:style', `<w:style xmlns:w="${W}"`);
+  const result = checkTree(opened, parseTree(xml));
+  assert.deepEqual(result.findings, []);
+  assert.equal(result.checked, 6);
+});
+
+test('defaults come from the most common value in the healthy packages and are used by the minimal element', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'schema-defaults-'));
+  try {
+    const part = (count, flag) => `<w:box xmlns:w="${W}"><w:req count="${count}" flag="${flag}"/></w:box>`;
+    const pack = (name, ...parts) => writeFileSync(join(dir, name), zipSync(Object.fromEntries(parts.map((xml, i) => [`word/part${i}.xml`, strToU8(xml)]))));
+    pack('a.docx', part(7, 'true'), part(7, 'true'));
+    pack('b.docx', part(5, 'true'));
+    pack('c.txt', part(99, 'false'));
+    const { table } = buildTable({ schemas: boxSchemas, namespaces, source });
+    const collected = collectDefaults(table, dir);
+    assert.equal(collected.files, 2);
+    assert.equal(applyDefaults(table, collected), 2);
+    const opened = openTable(table);
+    const spec = minimalElement(opened, W, 'box', opened.entryFor(W, 'box'));
+    assert.deepEqual(spec.children[0].attrs.map((a) => [a.local, a.value]), [['count', '7'], ['flag', 'true']]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
