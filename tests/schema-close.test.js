@@ -146,7 +146,7 @@ test('schema pipeline: a slide cut off inside a shape gets the shape completed w
 });
 
 test('schema pipeline: without a table the slide is closed as before and nothing is added', async () => {
-  const result = await runTruncatedSlide({});
+  const result = await runTruncatedSlide({ schemaTable: null });
   const codes = result.findings.map((f) => f.code);
   assert(codes.includes('XML_TRUNCATED_CLOSED'), 'tree was closed');
   assert(!codes.includes('SCHEMA_COMPLETED') && !codes.includes('SCHEMA_UNRESOLVED'), 'no schema findings');

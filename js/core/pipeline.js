@@ -500,7 +500,7 @@ async function execute(input, env, transfer) {
   progress('package', 0.8);
   repairContentTypes(ctx, ctx.silentParts);
   sweepReferences(ctx);
-  await completeSchema(ctx, env.schemaTable ? async () => env.schemaTable : undefined);
+  await completeSchema(ctx, env.schemaTable !== undefined ? async () => env.schemaTable : undefined);
   flushTrees(ctx);
   if (ctx.changed) auditReferences(ctx);
   progress('package', 1);
