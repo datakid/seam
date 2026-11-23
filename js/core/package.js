@@ -9,6 +9,24 @@ export function dirName(path) {
   return at === -1 ? '' : path.slice(0, at);
 }
 
+export function decodePartName(name) {
+  return name.split('/').map((segment) => {
+    try {
+      return decodeURIComponent(segment);
+    } catch {
+      return segment;
+    }
+  }).join('/');
+}
+
+export function encodePartName(name) {
+  return name.split('/').map((segment) => encodeURIComponent(segment).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)).join('/');
+}
+
+function overridePartName(node) {
+  return decodePartName(normalizePartPath(getAttr(node, 'PartName') || ''));
+}
+
 export function normalizePartPath(path) {
   const out = [];
   for (const part of path.split('/')) {
@@ -121,7 +139,7 @@ export function readContentTypes(tree) {
   for (const node of elementChildren(root, 'Override')) {
     const name = getAttr(node, 'PartName');
     const type = getAttr(node, 'ContentType');
-    if (name && type) overrides.set(normalizePartPath(name).toLowerCase(), type);
+    if (name && type) overrides.set(decodePartName(normalizePartPath(name)).toLowerCase(), type);
   }
   return { defaults, overrides, root };
 }
@@ -385,11 +403,11 @@ function buildTypes(ctx) {
     }
   }
   const defaults = Array.from(exts).map((ext) => `<Default Extension="${ext}" ContentType="${CT_DEFAULTS[ext]}"/>`).join('');
-  const overrides = [`<Override PartName="/${ctx.main}" ContentType="${CT_MAIN[ctx.format.key]}"/>`];
+  const overrides = [`<Override PartName="/${encodePartName(ctx.main)}" ContentType="${CT_MAIN[ctx.format.key]}"/>`];
   for (const name of ctx.index.names()) {
     if (name === ctx.main || name === '[Content_Types].xml') continue;
     const type = tableType(name);
-    if (type) overrides.push(`<Override PartName="/${name}" ContentType="${type}"/>`);
+    if (type) overrides.push(`<Override PartName="/${encodePartName(name)}" ContentType="${type}"/>`);
   }
   return `${DECL}<Types xmlns="${CT_NS}">${defaults}${overrides.join('')}</Types>`;
 }
@@ -493,11 +511,11 @@ export function repairContentTypes(ctx, silentParts) {
 
   const mainKey = ctx.main.toLowerCase();
   const wantMain = CT_MAIN[ctx.format.key];
-  const mainOverrideNode = elementChildren(root, 'Override').find((node) => normalizePartPath(getAttr(node, 'PartName') || '').toLowerCase() === mainKey);
+  const mainOverrideNode = elementChildren(root, 'Override').find((node) => overridePartName(node).toLowerCase() === mainKey);
   let addedOverrides = 0;
   if (!mainOverrideNode) {
     if (contentTypeOf(ctx.main, ct) !== wantMain) {
-      append(createElement('Override', [['PartName', `/${ctx.main}`], ['ContentType', wantMain]]));
+      append(createElement('Override', [['PartName', `/${encodePartName(ctx.main)}`], ['ContentType', wantMain]]));
       addedOverrides++;
     }
   } else if (getAttr(mainOverrideNode, 'ContentType') !== wantMain) {
@@ -508,7 +526,7 @@ export function repairContentTypes(ctx, silentParts) {
 
   const removedNames = [];
   for (const node of elementChildren(root, 'Override')) {
-    const partName = normalizePartPath(getAttr(node, 'PartName') || '');
+    const partName = overridePartName(node);
     if (!partName || !ctx.index.has(partName)) {
       removeNode(node);
       changed = true;
@@ -524,7 +542,7 @@ export function repairContentTypes(ctx, silentParts) {
     if (!wanted) continue;
     const effective = contentTypeOf(partName, ct);
     if (effective === null || effective === CT_DEFAULTS.xml) {
-      append(createElement('Override', [['PartName', `/${partName}`], ['ContentType', wanted]]));
+      append(createElement('Override', [['PartName', `/${encodePartName(partName)}`], ['ContentType', wanted]]));
       ct.overrides.set(partName.toLowerCase(), wanted);
       addedOverrides++;
     }
@@ -535,12 +553,12 @@ export function repairContentTypes(ctx, silentParts) {
     if (effective && effective.toLowerCase() === row.contentType.toLowerCase()) continue;
     if (effective && row.contentTypeAlt.some((alt) => alt.toLowerCase() === effective.toLowerCase())) continue;
     const key = part.toLowerCase();
-    const node = elementChildren(root, 'Override').find((candidate) => normalizePartPath(getAttr(candidate, 'PartName') || '').toLowerCase() === key);
+    const node = elementChildren(root, 'Override').find((candidate) => overridePartName(candidate).toLowerCase() === key);
     if (node) {
       setAttr(node, 'ContentType', row.contentType);
       changed = true;
     } else {
-      append(createElement('Override', [['PartName', `/${part}`], ['ContentType', row.contentType]]));
+      append(createElement('Override', [['PartName', `/${encodePartName(part)}`], ['ContentType', row.contentType]]));
     }
     ct.overrides.set(key, row.contentType);
     if (effective === null || effective === CT_DEFAULTS.xml) addedOverrides++;

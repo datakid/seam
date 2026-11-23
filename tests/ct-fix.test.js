@@ -120,3 +120,26 @@ for (const [label, edit] of GARBLED) {
     });
   }
 }
+
+test('content types: an override that names a non-ASCII part with percent-encoding is left alone', async () => {
+  const entries = docxEntries().map(([name, content]) => (name === '[Content_Types].xml' ? [name, content.replace('</Types>', '<Override PartName="/word/Cort%C3%A1zar.xml" ContentType="application/xml"/></Types>')] : [name, content]));
+  entries.push(['word/Cortázar.xml', '<?xml version="1.0" encoding="UTF-8"?><note/>']);
+  const result = await run('sample.docx', pack(entries));
+  eq(result.outcome, 'noProblems');
+  eq(result.findings.map((f) => f.code), []);
+});
+
+test('content types: an override for a part with a space in its name, percent-encoded, is left alone', async () => {
+  const entries = xlsxEntries().map(([name, content]) => (name === '[Content_Types].xml' ? [name, content.replace('</Types>', '<Override PartName="/xl/my%20notes.xml" ContentType="application/xml"/></Types>')] : [name, content]));
+  entries.push(['xl/my notes.xml', '<?xml version="1.0" encoding="UTF-8"?><note/>']);
+  const result = await run('sample.xlsx', pack(entries));
+  eq(result.outcome, 'noProblems');
+});
+
+test('content types: an override added for a non-ASCII part is written percent-encoded', async () => {
+  const entries = addRel(docxEntries(), '_rels/.rels', 'rId9', `${R}custom-properties`, 'docProps/extra-%C3%BC.xml');
+  entries.push(['docProps/extra-ü.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties"/>']);
+  const result = await run('sample.docx', pack(entries));
+  const names = [...overrides(result).keys()];
+  assert(names.includes('/docProps/extra-%C3%BC.xml'), `got ${names.filter((n) => n.includes('extra')).join(',')}`);
+});

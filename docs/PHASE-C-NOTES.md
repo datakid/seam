@@ -252,3 +252,23 @@ What the experiment fixed in the engine: a top-level choice is satisfied by any 
 
 Consequences for C3. A table is only acceptable when this agreement is high. The suggested gate is 95% agreement with no more than 3% of the files flagged where the SDK finds nothing. The ECMA XSD source (Transitional zip in `apache/poi`) has not been measured. It is the standard itself, so it should do better on optional children. It needs an XSD reader.
 
+### C3 source test, second result: the generated table against the SDK
+
+`tools/schema-diff.mjs --engine fit --table <generated table> --scoreboard <scoreboard.json>` runs the Bytes agent's `checkTree` instead of `findViolations`, and counts child-order findings as soft. With the table that `tools/gen-schema-lite.mjs` generates from the same SDK model (266 KB, 2,398 elements, the 142 parent-dependent names resolved through their parents), on the 313 healthy files the SDK opens (`score-sample-7`):
+
+| | SDK errors | SDK clean |
+|---|---|---|
+| table flags (hard findings) | 20 | **0** |
+| table clean | 65 | 228 |
+
+Every file the table flags also has SDK errors, so it raises no false alarm against the judge. It catches 20 of the 85 files with SDK errors. Most SDK errors are value and attribute checks that structure alone cannot see. 24 more files have only soft order findings (Excel `font`, Word `style`), where the SDK model is stricter than real producers. This meets the suggested gate (no more than 3% of files flagged where the SDK finds nothing), so the source can be recommended on the numbers. Shipping it still needs the owner to confirm the MIT licence.
+
+## C4 fix: percent-encoded part names
+
+| Item | State |
+|---|---|
+| `js/core/package.js` | `PartName` is a percent-encoded URI and part names in the package are plain text. Overrides are now read decoded (`decodePartName`) and written encoded (`encodePartName`). Before, an override for `/ppt/media/Cort%C3%A1zar.wav` or `/xl/my%20notes.xml` was treated as naming a missing part, removed, and its part re-typed. |
+| `tests/ct-fix.test.js` | Three cases: a non-ASCII name, a name with a space, and an override added for a non-ASCII part. |
+
+Evidence. `libreoffice-tdf148478_transitionMusic` went from repaired to No problems found. It was the oldest of the five healthy false alarms. The other 317 healthy files are unchanged. Reported by the Bytes agent.
+

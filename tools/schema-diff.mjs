@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { unzipSync } from '../vendor/fflate.module.js';
 import { parseTree, documentElement } from '../js/core/xml-repair.js';
 import { findViolations } from '../js/core/schema-close.js';
+import { checkTree } from '../js/core/schema-fit.js';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -13,11 +14,13 @@ const flag = (name, fallback) => {
 
 const tablePath = flag('table', null);
 if (!tablePath) {
-  console.error('usage: node tools/schema-diff.mjs --table <schema-lite.json|.js> [--corpus dir] [--scoreboard scoreboard.json] [--top 15]');
+  console.error('usage: node tools/schema-diff.mjs --table <schema-lite.json|.js> [--engine lite|fit] [--corpus dir] [--scoreboard scoreboard.json] [--top 15]');
   process.exit(2);
 }
 const corpus = resolve(flag('corpus', 'corpus/cache/files'));
 const top = Number(flag('top', '15'));
+const engine = flag('engine', 'lite');
+const SOFT = new Set(['order']);
 const scoreboardPath = flag('scoreboard', null);
 
 async function loadTable(path) {
@@ -35,6 +38,7 @@ function decode(bytes) {
 const table = await loadTable(tablePath);
 const groups = new Map();
 const perFile = {};
+const softFile = {};
 let files = 0;
 let parts = 0;
 let partsWithViolations = 0;
@@ -50,21 +54,29 @@ for (const name of readdirSync(corpus)) {
   files++;
   const id = name.replace(/\.[^.]+$/, '');
   for (const [partName, data] of Object.entries(zip)) {
-    let root;
+    let tree;
     try {
-      root = documentElement(parseTree(decode(data)));
+      tree = parseTree(decode(data));
     } catch {
       continue;
     }
+    const root = documentElement(tree);
     if (!root) continue;
     parts++;
-    const found = findViolations(root, table, 50);
-    if (found.length > 0) {
-      partsWithViolations++;
-      perFile[id] = (perFile[id] || 0) + found.length;
+    let found;
+    if (engine === 'fit') {
+      found = checkTree(table, tree, 50).findings.map((f) => ({ problem: f.kind, element: f.element || f.path || '', child: f.child || f.name || '', soft: SOFT.has(f.kind), raw: f }));
+    } else {
+      found = findViolations(root, table, 50).map((v) => ({ ...v, soft: v.problem === 'order' }));
     }
+    const hard = found.filter((v) => !v.soft);
+    if (hard.length > 0) {
+      partsWithViolations++;
+      perFile[id] = (perFile[id] || 0) + hard.length;
+    }
+    if (found.length > hard.length) softFile[id] = (softFile[id] || 0) + (found.length - hard.length);
     for (const v of found) {
-      const key = `${v.problem} ${v.element}>${v.child}`.slice(0, 100);
+      const key = `${v.soft ? 'soft ' : ''}${v.problem} ${v.element}>${v.child}`.slice(0, 100);
       const entry = groups.get(key) || { n: 0, example: `${name}:${partName}` };
       entry.n++;
       groups.set(key, entry);
@@ -72,7 +84,7 @@ for (const name of readdirSync(corpus)) {
   }
 }
 
-console.log(`files ${files}, xml parts ${parts}, parts with a violation ${partsWithViolations}, files with a violation ${Object.keys(perFile).length}`);
+console.log(`files ${files}, xml parts ${parts}, parts with a hard violation ${partsWithViolations}, files with a hard violation ${Object.keys(perFile).length}, files with only soft (order) findings ${Object.keys(softFile).filter((k) => !perFile[k]).length}`);
 for (const [key, entry] of [...groups.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, top)) console.log(`${String(entry.n).padStart(6)}  ${key.padEnd(60)} ${entry.example.slice(0, 70)}`);
 
 if (scoreboardPath) {
