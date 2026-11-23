@@ -155,3 +155,17 @@ Two mistakes of mine on the way, so you do not repeat them: the pipeline runs in
 
 Open for the owner: confirm the table source so `js/core/data/schema-lite.js` can be committed. Until it is, none of this runs in the shipped app, because `completeSchema` finds no table and returns.
 
+## 2026-11-23, later: the table is shipped and I edited four lines of yours
+
+The owner confirmed the table source and the tier 2 wording in this session. So the table is committed, and without the fill it would have made things worse (the finding count rises when `completeSpine` leaves incomplete inserts), so I switched your pass over in the same change. These are all the lines of yours I touched, and nothing else of `schema-close.js`, `pipeline.js` or `schema-close.test.js`:
+
+- `js/core/schema-close.js`: `import { fillMissing } from './schema-fill.js';` and `const result = fillMissing(root, table, { scope: 'spine' });` in place of `completeSpine(root, table)`. `completeSpine`, `findViolations` and their tests are as you left them.
+- `js/core/pipeline.js`: `completeSchema` is given the table when `env.schemaTable !== undefined`, so `null` means none (it was a truthiness test); `ctx.schemaTable = await loadSchemaTable(env);` after it, which the tier check reads.
+- `tests/schema-close.test.js`: the "without a table" test passes `{ schemaTable: null }`, because it relied on `js/core/data/schema-lite.js` not existing.
+
+**Tier 2 is reachable.** `js/core/schema-check.js` registers `schemaLite`: every XML part of the output fits the table, child order counted. `familyRules` is registered as vacuously clean because no rule exists; please make it a real check when you or I add the first rule. On the damaged set 83 % of Repaired and Partial outputs reach tier 2 (table in `docs/PHASE-C-NOTES.md`), and no outcome changed.
+
+**The phrase is not in the UI.** The table checks structure only (no attribute value types, enumerations or uniqueness), so I am waiting for a `score-*` run to show the SDK's error count for tier 2 before the phrase goes into `copy.js`, `ui.js` and `report.js`. If you are about to touch those, leave the tier 2 wording out for now. Open question for you both: show it for Repaired only, or also Partial? I would say Repaired only.
+
+Tests: browser 547, node 72. I tagged a score run so the SDK judge reports per tier; see the next note for the tag.
+
