@@ -190,6 +190,29 @@ Detection check. Delete one required child from a healthy part (448 trials over 
 
 The 308 damaged cases that carry `XML_TRUNCATED_CLOSED`, with and without the table, current `v2` code. 94 cases are completed and 53 have something unresolved; no outcome changes. Files with a missing required child fall from 98 to 50 (`p:sp` without `spPr`, `a:themeElements` without `fmtScheme`, `worksheet` without `sheetData`, `p:sldMaster` without `clrMap`, `p:spTree` without `grpSpPr`). The pass inserts one required element and stops, so the inserted element is itself incomplete (empty style lists, colours without a child, `fontRef` without `idx`), and missing-child findings rise from 165 to 235 and missing-attribute findings from 33 to 153. `minimalElement` is the fix for that; `schema-close.js` does not use it yet.
 
+### The fill pass: `js/core/schema-fill.js`
+
+`fillMissing(root, table, { scope })` completes what `checkTree` reports as `missing`. It takes the document root or the document element, the way `completeSchema` holds it. For each node with a `missing` finding it walks the node's content model and:
+- repeats a required child up to its `min` (`fillStyleLst` needs three fills, `lnStyleLst` three lines);
+- adds the cheapest alternative of a required choice (`effectStyle` gets `effectLst`, an accent colour gets `srgbClr`), by the same weighing as `minimalElement`;
+- completes a group that was started, and leaves an optional group out when none of its members is there;
+- puts each new child after the last child that precedes it in the model, so a sequence stays in order;
+- uses the prefix the document already declares for the namespace, and declares a default namespace on the new element when none is in scope;
+- reports what it cannot invent (`@mode` of an enum with no healthy default, a wildcard) and still adds the element.
+
+`scope: 'spine'` fills only the nodes on the path to the last element, which is where a tail closed after truncation leaves its holes. `checkTree` findings now carry `node` and `entry` as non-enumerable properties so the fill can find the node; reports and JSON output are unchanged.
+
+Measured in the pipeline, replacing `completeSpine` in `completeSchema` (not committed: `schema-close.js` is the main agent's file). The whole damaged set, 1,139 files, 828 outputs judged against the healthy original by `checkTree`, table in place:
+
+| | no table | table, `completeSpine` | table, `fillMissing` (spine) |
+|---|---|---|---|
+| Outputs with a schema finding the original lacks | 123 | 83 | 42 |
+| of those, with a missing required child | 123 | 83 | 1 |
+
+Outcome counts do not move (309 repaired, 519 partial, 156 failed, same as before). `scope: 'tree'` gives the same numbers, so the spine is enough and touches less. On the healthy files it changes 6 of 2,803 parts, all LibreOffice or POI output that is off-schema in the input (an empty `w:tabs`, `w:pPrChange` without `w:pPr`, a `w:tbl` without `w:tblPr`); that is the reason to run it on parts that carry `XML_TRUNCATED_CLOSED` only. A second pass changes nothing. The one remaining missing child is a theme whose `a:themeElements` lost both required children to a bit flip in the tag name.
+
+What is left after the fill is thin: the other 41 outputs, one to two cases per group, nearly all `unexpected` children after a flipped or inserted byte (`w:namr` for `w:name`, `w:latrntStyles`). A near-miss rename would reach 72 of the 355 unexpected children, and 44 of those are one file, so no rule in `<family>-rules` is justified by this data yet.
+
 ### Not done yet
 
 `registerCheck('schemaLite', ...)` in `tiers.js`. What counts as clean for tier 2 is a decision for the main agent's `schema-close.js` and the owner: a file from LibreOffice or POI that was already off-schema in its input should not lose tier 2 for output that is no worse. `checkTree` returns the kind per finding for that.

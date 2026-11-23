@@ -412,6 +412,12 @@ export function requiredChildren(table, entry) {
   return names.sort();
 }
 
+function bind(finding, node, entry) {
+  Object.defineProperty(finding, 'node', { value: node });
+  Object.defineProperty(finding, 'entry', { value: entry });
+  return finding;
+}
+
 export function checkTree(table, root, limit = 200, visit = null) {
   const findings = [];
   let checked = 0;
@@ -440,7 +446,7 @@ export function checkTree(table, root, limit = 200, visit = null) {
           const owner = resolveName(name, scope, true);
           return owner !== null && table.normalise(owner) === table.normalise(attr.ns);
         });
-        if (!present) findings.push({ kind: 'attr', path: pathOf(frame), name: node.name, expected: [attr.local], at: -1, found: null });
+        if (!present) findings.push(bind({ kind: 'attr', path: pathOf(frame), name: node.name, expected: [attr.local], at: -1, found: null }, node, entry));
         else if (visit) visit(entry, attr, decodeEntities(present[1]));
       }
       let fit = fitChildren(table, entry, kids.map((k) => ({ ns: k.ns, local: k.local })));
@@ -450,7 +456,7 @@ export function checkTree(table, root, limit = 200, visit = null) {
       }
       if (!fit.ok) {
         const found = fit.at >= 0 && fit.at < kids.length ? kids[fit.at].node.name : null;
-        findings.push({ kind: fit.kind, path: pathOf(frame), name: node.name, ns, local, at: fit.at, found, expected: fit.expected, near: kids.slice(Math.max(0, fit.at - 3), fit.at + 3).map((k) => k.node.name) });
+        findings.push(bind({ kind: fit.kind, path: pathOf(frame), name: node.name, ns, local, at: fit.at, found, expected: fit.expected, near: kids.slice(Math.max(0, fit.at - 3), fit.at + 3).map((k) => k.node.name) }, node, entry));
       }
     }
     for (let i = kids.length - 1; i >= 0; i--) {
@@ -545,6 +551,13 @@ function planOnce(table, node, out, unresolved, stack) {
     return;
   }
   for (const item of node.items) planNode(table, item, out, unresolved, stack);
+}
+
+export function planItem(table, item) {
+  const picks = [];
+  const unresolved = [];
+  planNode(table, item, picks, unresolved, new Set());
+  return { picks, unresolved };
 }
 
 export function minimalElement(table, ns, local, entry, stack = new Set()) {
