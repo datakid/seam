@@ -12,6 +12,7 @@ import { familyOfNames, wantedFromDonor } from './donor.js';
 import { identifyContent } from './orphan-kinds.js';
 import { sweepReferences, auditReferences } from './ref-sweep.js';
 import { completeSchema } from './schema-close.js';
+import { loadSchemaTable } from './schema-check.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
   repairRootRels, repairRels, repairContentTypes, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
@@ -501,6 +502,7 @@ async function execute(input, env, transfer) {
   repairContentTypes(ctx, ctx.silentParts);
   sweepReferences(ctx);
   await completeSchema(ctx, env.schemaTable !== undefined ? async () => env.schemaTable : undefined);
+  ctx.schemaTable = await loadSchemaTable(env);
   flushTrees(ctx);
   if (ctx.changed) auditReferences(ctx);
   progress('package', 1);

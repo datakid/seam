@@ -3,7 +3,7 @@ import { checkTree, minimalElement, openTable, planItem } from './schema-fit.js'
 
 const OPENED = new WeakMap();
 
-function opened(table) {
+export function openedTable(table) {
   if (typeof table.normalise === 'function') return table;
   if (!OPENED.has(table)) OPENED.set(table, openTable(table));
   return OPENED.get(table);
@@ -154,7 +154,7 @@ function spineOf(top) {
 }
 
 export function fillMissing(root, source, options = {}) {
-  const table = opened(source);
+  const table = openedTable(source);
   const state = { added: [], unresolved: [] };
   const seen = new Set();
   const top = root.type === 'el' ? root : root.children.find((child) => child.type === 'el');

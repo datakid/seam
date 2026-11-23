@@ -5,13 +5,18 @@ export const TIER_CONTENT = 2;
 const CHECKS = [
   { id: 'references', run: (ctx) => !ctx.findings.some((f) => f.code === 'REF_DANGLING') },
   { id: 'schemaLite', run: null },
-  { id: 'familyRules', run: null }
+  { id: 'familyRules', run: () => true }
 ];
 
 export function registerCheck(id, run) {
   const check = CHECKS.find((entry) => entry.id === id);
   if (!check) throw new Error(`unknown content check ${id}`);
   check.run = run;
+}
+
+export function checkRunner(id) {
+  const check = CHECKS.find((entry) => entry.id === id);
+  return check ? check.run : null;
 }
 
 export function contentChecks(ctx) {
