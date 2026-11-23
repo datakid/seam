@@ -21,6 +21,11 @@ const TABLE = {
     [`${P}|cSld`]: { kind: 'sequence', items: [el(P, 'spTree')], attrs: [] },
     [`${P}|clrMap`]: { kind: 'sequence', items: [], attrs: [{ local: 'bg1', required: true, type: 'enum', values: ['lt1', 'dk1'] }, { local: 'tx1', required: true, type: 'enum', values: ['dk1', 'lt1'] }] },
     [`${P}|pick`]: { kind: 'sequence', items: [{ kind: 'choice', min: 1, max: 1, items: [el(P, 'one'), el(P, 'two')] }], attrs: [] },
+    [`${P}|lnSpc`]: { kind: 'choice', min: 1, max: 1, items: [el(P, 'spcPct'), el(P, 'spcPts')], attrs: [] },
+    [`${P}|pathList`]: { kind: 'choice', min: 0, max: null, items: [el(P, 'moveTo'), el(P, 'lnTo'), el(P, 'close')], attrs: [] },
+    [`${P}|spcPct`]: { kind: 'sequence', items: [], attrs: [] },
+    [`${P}|extWrap`]: { kind: 'choice', min: 1, max: 1, items: [el(P, 'known'), { any: true, min: 0, max: 1 }], attrs: [] },
+    [`${P}|groupChoice`]: { kind: 'choice', min: 1, max: 1, items: [el(P, 'a'), { kind: 'sequence', min: 1, max: 1, items: [el(P, 'b'), el(P, 'c', 0)] }], attrs: [] },
     [`${S}|worksheet`]: { kind: 'sequence', items: [el(S, 'dimension', 0), el(S, 'sheetData'), el(S, 'pageMargins', 0)], attrs: [] },
     [`${S}|sheetData`]: { kind: 'sequence', items: [], attrs: [] }
   }
@@ -151,4 +156,48 @@ test('schema pipeline: without a table the slide is closed as before and nothing
   assert(codes.includes('XML_TRUNCATED_CLOSED'), 'tree was closed');
   assert(!codes.includes('SCHEMA_COMPLETED') && !codes.includes('SCHEMA_UNRESOLVED'), 'no schema findings');
   assert(!slideText(result).includes('<p:spPr/>'), 'nothing added');
+});
+
+test('schema: a top-level choice is satisfied by any one alternative and does not require all of them', () => {
+  const root = documentElement(parseTree(`<p:lnSpc ${NSP}><p:spcPct/></p:lnSpc>`));
+  eq(findViolations(root, TABLE), []);
+});
+
+test('schema: a top-level choice with nothing chosen is a violation only when it is required', () => {
+  const required = documentElement(parseTree(`<p:lnSpc ${NSP}/>`));
+  const found = findViolations(required, TABLE);
+  eq(found.length, 1);
+  eq(found[0].child, 'spcPct|spcPts');
+  const optional = documentElement(parseTree(`<p:pathList ${NSP}/>`));
+  eq(findViolations(optional, TABLE), []);
+});
+
+test('schema: completing a tree never builds every alternative of a top-level choice', () => {
+  const { text, result } = fix(`<p:lnSpc ${NSP}/>`);
+  eq(text, `<p:lnSpc ${NSP}/>`);
+  eq(result.added, []);
+  eq(result.unresolved.length, 1);
+});
+
+test('schema: a choice that includes a wildcard is satisfied by any child, including foreign content', () => {
+  const root = documentElement(parseTree(`<p:extWrap ${NSP} xmlns:x="urn:x"><x:themeFamily/></p:extWrap>`));
+  eq(findViolations(root, TABLE), []);
+  const empty = documentElement(parseTree(`<p:extWrap ${NSP}/>`));
+  eq(findViolations(empty, TABLE).length, 1);
+});
+
+test('schema: a choice whose alternative is a group is satisfied by any element from that group', () => {
+  const viaGroup = documentElement(parseTree(`<p:groupChoice ${NSP}><p:b/></p:groupChoice>`));
+  eq(findViolations(viaGroup, TABLE), []);
+  const viaItem = documentElement(parseTree(`<p:groupChoice ${NSP}><p:a/></p:groupChoice>`));
+  eq(findViolations(viaItem, TABLE), []);
+  const found = findViolations(documentElement(parseTree(`<p:groupChoice ${NSP}/>`)), TABLE);
+  eq(found.length, 1);
+  assert(!found[0].child.includes('undefined'), 'no undefined names');
+});
+
+test('schema: completing never invents content for a required wildcard choice', () => {
+  const { text, result } = fix(`<p:extWrap ${NSP}/>`);
+  eq(text, `<p:extWrap ${NSP}/>`);
+  eq(result.unresolved.length, 1);
 });

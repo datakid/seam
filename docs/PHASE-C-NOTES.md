@@ -234,3 +234,21 @@ This says how many outputs fit the table, not how many the SDK accepts. The tabl
 ### Not done yet
 
 Tier 2 copy in `copy.js`, `ui.js` and `report.js`, and the help entry, after the scoreboard. Whether the phrase applies to Partial outputs or only to Repaired is open: a file that says content was lost and also says content checks passed reads badly. I would show it for Repaired only.
+
+`registerCheck('schemaLite', ...)` in `tiers.js`. What counts as clean for tier 2 is a decision for the main agent's `schema-close.js` and the owner: a file from LibreOffice or POI that was already off-schema in its input should not lose tier 2 for output that is no worse. `checkTree` returns the kind per finding for that.
+
+### C3 source test: the SDK model against real files
+
+`tools/schema-diff.mjs --table <table> --scoreboard <scoreboard.json>` runs `findViolations` over every XML part of the corpus and compares the files it flags with the files the Open XML SDK reports errors on in the CI baseline. It measures how faithfully a table replicates the judge. A throwaway converter from `data/schemas/*.json` in `dotnet/Open-XML-SDK` (not committed) gave this on 313 healthy files that the SDK opens:
+
+| | SDK errors | SDK clean |
+|---|---|---|
+| table flags | 55 | 54 |
+| table clean | 30 | 174 |
+
+Agreement is 73.2%, and of the files the table flags the SDK also errors on 50%. So that JSON is the SDK's code-generation model, not its validation constraints. It is stricter than the standard in places (`w:cols` requires a `col`, `w:sdtEndPr` requires an `rPr`) and the SDK validator does not enforce those. It also has 91 element names whose content model depends on the parent, and it models some unbounded choices as sequences, so order checks fail on real Excel and Word files.
+
+What the experiment fixed in the engine: a top-level choice is satisfied by any one alternative, a wildcard in a choice is satisfied by any child, and a choice alternative that is a group is satisfied by any element in it. Dropping the ambiguous element names took the flagged parts from 2,033 to 135 of 4,407.
+
+Consequences for C3. A table is only acceptable when this agreement is high. The suggested gate is 95% agreement with no more than 3% of the files flagged where the SDK finds nothing. The ECMA XSD source (Transitional zip in `apache/poi`) has not been measured. It is the standard itself, so it should do better on optional children. It needs an XSD reader.
+

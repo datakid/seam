@@ -41,12 +41,27 @@ function defaultFor(attr) {
   return null;
 }
 
+function rawKeys(items) {
+  const keys = [];
+  for (const item of items || []) {
+    if (item.items) keys.push(...rawKeys(item.items));
+    else if (item.local) keys.push(`${item.ns}|${item.local}`);
+  }
+  return keys;
+}
+
+function hasWildcard(items) {
+  return (items || []).some((item) => item.any || (item.items && hasWildcard(item.items)));
+}
+
 function flatten(items, optional = false) {
   const out = [];
   for (const item of items || []) {
     const min = optional ? 0 : item.min === undefined ? 1 : item.min;
-    if (item.items) {
-      if (item.kind === 'choice') out.push({ choice: item.items.map((member) => `${member.ns}|${member.local}`), min, items: item.items });
+    if (item.any) {
+      out.push({ any: true, min });
+    } else if (item.items) {
+      if (item.kind === 'choice') out.push({ choice: rawKeys(item.items), any: hasWildcard(item.items), min, items: item.items });
       else out.push(...flatten(item.items, min === 0));
     } else {
       out.push({ key: `${item.ns}|${item.local}`, ns: item.ns, local: item.local, min });
@@ -55,7 +70,13 @@ function flatten(items, optional = false) {
   return out;
 }
 
+function entriesOf(entry) {
+  if (entry.kind !== 'choice') return flatten(entry.items);
+  return [{ choice: rawKeys(entry.items), any: hasWildcard(entry.items), min: entry.min === undefined ? 1 : entry.min, items: entry.items }];
+}
+
 function matches(entry, child) {
+  if (entry.any) return true;
   const key = keyOf(child);
   return entry.choice ? entry.choice.includes(key) : entry.key === key;
 }
@@ -95,8 +116,8 @@ function build(parent, ns, local, table, state) {
 }
 
 function fill(node, entry, table, state) {
-  const entries = flatten(entry.items);
-  const ordered = entry.kind !== 'all';
+  const entries = entriesOf(entry);
+  const ordered = entry.kind === 'sequence';
   let last = -1;
   for (let index = 0; index < entries.length; index++) {
     const wanted = entries[index];
@@ -109,8 +130,12 @@ function fill(node, entry, table, state) {
       continue;
     }
     if (wanted.min < 1) continue;
-    if (wanted.choice || entry.kind === 'choice') {
+    if (wanted.choice) {
       state.unresolved.push({ parent: localName(node.name), child: (wanted.choice || entries.map((e) => e.local)).map((k) => String(k).split('|').pop()).join('|'), reason: 'choice' });
+      continue;
+    }
+    if (wanted.any) {
+      state.unresolved.push({ parent: localName(node.name), child: '*', reason: 'any' });
       continue;
     }
     const made = build(node, wanted.ns, wanted.local, table, state);
@@ -149,7 +174,7 @@ export function findViolations(root, table, limit = 200) {
     const entry = table.elements[keyOf(node)];
     const kids = elementChildren(node);
     if (entry) {
-      const entries = flatten(entry.items);
+      const entries = entriesOf(entry);
       for (const wanted of entries) {
         if (wanted.min >= 1 && !kids.some((kid) => matches(wanted, kid))) {
           found.push({ element: localName(node.name), problem: 'missing', child: wanted.choice ? wanted.choice.map((k) => k.split('|').pop()).join('|') : wanted.local });
@@ -158,7 +183,7 @@ export function findViolations(root, table, limit = 200) {
       if (entry.kind === 'sequence') {
         let highest = -1;
         for (const kid of kids) {
-          const at = entries.findIndex((wanted) => matches(wanted, kid));
+          const at = entries.findIndex((wanted) => !wanted.any && matches(wanted, kid));
           if (at === -1) continue;
           if (at < highest) {
             found.push({ element: localName(node.name), problem: 'order', child: localName(kid.name) });
