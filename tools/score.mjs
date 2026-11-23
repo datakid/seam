@@ -72,8 +72,21 @@ function pristineTokens(sourceId) {
   return pristineCache.get(sourceId);
 }
 
+function withoutTrailingData(bytes) {
+  for (let at = bytes.length - 22; at >= 0; at--) {
+    if (bytes[at] === 0x50 && bytes[at + 1] === 0x4b && bytes[at + 2] === 0x05 && bytes[at + 3] === 0x06) {
+      return bytes.subarray(0, Math.min(bytes.length, at + 22 + bytes[at + 20] + (bytes[at + 21] << 8)));
+    }
+  }
+  return bytes;
+}
+
 function tokensOfFile(path) {
-  return existsSync(path) ? extractText(new Uint8Array(readFileSync(path))).tokens : [];
+  if (!existsSync(path)) return [];
+  const bytes = new Uint8Array(readFileSync(path));
+  const direct = extractText(bytes);
+  if (direct.ok !== false) return direct.tokens;
+  return extractText(withoutTrailingData(bytes)).tokens;
 }
 
 const healthySeam = readJson(join(healthyDir, 'seam.json'), { cases: {} });
@@ -133,7 +146,7 @@ for (const damagedDir of damagedDirs) {
     let outTokens = [];
     if (out) outTokens = tokensOfFile(out);
     else if (s.outcome === 'noProblems') outTokens = tokensOfFile(join(damagedDir, 'files', `${id}.${c.ext}`));
-    const textRecall = recall(pristine, outTokens);
+    const textRecall = c.kind === 'concat' && c.otherId ? Math.max(recall(pristine, outTokens), recall(pristineTokens(c.otherId), outTokens)) : recall(pristine, outTokens);
     let baselineRecall = 0;
     const lo = loIn[id];
     if (lo && lo.rtFile) baselineRecall = recall(pristine, tokensOfFile(join(damagedDir, 'judge-lo-in', 'rt', lo.rtFile)));

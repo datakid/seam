@@ -181,9 +181,50 @@ The fix is in `processXml`: when a part that decoded only partly, or failed its 
 Full 10 % sample, 1,139 cases, with B7 and B8: Repaired 309, Partial 519, Salvaged 64, Failed 156, No problems 83, Not supported 8. Before B7: Repaired 289, Partial 528, Salvaged 72, Failed 168.
 
 
-## Not yet measured
+## Exit measurement
 
-The Phase B exit numbers (+15 points median text recall on zero512, zero4096, dropblock and bitflip, and the crlf row) need the damage lab and scoreboard run on the corpus. The B1 and B2 gains reach the output file only for zero runs inside deflate entries. Nothing else in Phase B has been measured on the corpus. B5 is exercised only by copies damaged in the test suite, not by corpus files.
+The full 10 % sample (1,139 damaged files), the pipeline at the end of Phase A against the pipeline now, scored with `tools/score.mjs`. No LibreOffice or SDK judge: those run in CI only, so these are text recall and labels.
+
+Two scoring errors in `tools/score.mjs` made `concat` and `suffix` read 0.000 in earlier scoreboards. A joined file keeps the later package and the score compared it with the first one; a file with data after its end record could not be opened by the text reader. Recall for `concat` is now the better of the two packages, and trailing data is cut before reading. Both kinds now read 1.000.
+
+| Kind | Cases | Mean recall | Outputs with recall at least 0.99 | Repaired |
+|---|---|---|---|---|
+| bitflip | 80 | 0.800 to 0.822 | 74 % to 76 % | 4 to 5 |
+| concat | 82 | 1.000 | 100 % | 77 to 80 |
+| crlf | 87 | 0.963 to 1.000 | 91 % to 100 % | 62 to 82 |
+| dropblock | 96 | 0.821 to 0.832 | 74 % to 75 % | 1 |
+| head | 87 | 0.781 to 0.793 | 76 % to 77 % | 0 to 31 |
+| insert | 82 | 0.962 to 0.963 | 91 % | 20 to 21 |
+| losttail | 100 | 0.776 | 72 % | 1 |
+| padzero | 78 | 0.880 | 83 % | 1 |
+| prefix | 87 | 1.000 | 100 % | 85 |
+| suffix | 80 | 1.000 | 100 % | 2 (78 No problems) |
+| truncate | 95 | 0.761 | 73 % | 0 |
+| zero4096 | 92 | 0.747 to 0.750 | 71 % | 1 to 0 |
+| zero512 | 93 | 0.890 to 0.894 | 83 % | 0 |
+| All | 1,139 | 0.871 to 0.878 | | 289 to 309 |
+
+**The gate as written cannot be met.** The plan asks for +15 points of median text recall on zero512, zero4096, dropblock and bitflip. The median was already 1.000 on all 13 kinds before Phase B, so there is nothing to gain at the median, whatever the repair does. The sample is mostly files where the damage leaves most text intact. What the work did change is visible in the other columns: `crlf` reaches Repaired with recall at least 0.99 on 82 of 87 cases (94 %, the gate asks for 90 %), `head` goes from 0 to 31 Repaired, and 16 cases gain more than 0.02 of recall against one that loses (`poi-52348__padzero__0`, explained under B8). One `zero4096` case moved from Repaired to Partial.
+
+Proposed gate, for the owner: the share of outputs with recall at least 0.99 and the Repaired count per kind, with no case losing more than 0.02 of recall without an explanation in these notes. By that reading Phase B passes. The tag `v2.0.0-b` is not placed until the owner decides.
+
+### Where the Failed cases are
+
+156 of the 1,139 cases end Failed, with recall 0. Whether a file could have been recovered can be tested against the original: the compressed bytes of the file's main part are either in the damaged file or not.
+
+| Main part in the damaged file | Cases |
+|---|---|
+| gone | 102 |
+| partly present (a prefix of its compressed data) | 28 |
+| present, complete | 25 |
+
+The 102 are the ceiling: no repair can bring them back. All 89 "main document part is missing" cases have their main part gone, so naming the main part by convention would rescue none of them.
+
+The 25 with the part complete are 25 different stories, but 20 of them have lost a relationship part and 12 the content types, and 11 have lost slides. Typical: `ppt/_rels/presentation.xml.rels` sits behind the cut, every slide master is intact, and with no relationship to resolve it by, `applyPptx` finds no master and gives up. Rebuilding the skeleton from what is left (the root relationships and the main part's relationships by naming convention, the content types from the part registry, and dropping the slides that are gone) is the largest group the data shows. It is candidate work for whoever takes Phase D, not built. The corpus is mostly LibreOffice and POI files, which write relationship parts late; Office writes them first, so the class is probably smaller for Office files than this sample suggests.
+
+The 28 with a prefix present are truncated deflate streams in the main part. B1 reads such a stream up to the damage, so these should produce a Partial; they end Failed because a part the main part depends on is also gone.
+
+B5 is exercised only by copies damaged in the test suite, not by corpus files.
 
 ## Speed
 
