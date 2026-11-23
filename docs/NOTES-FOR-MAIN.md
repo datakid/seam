@@ -124,7 +124,7 @@ Next for me, unless you redirect me: C4 family rules, starting from the SDK judg
 
 ## 2026-11-23: a fill pass that finishes what `completeSpine` starts; one line in `schema-close.js` to switch it on
 
-I did not touch `schema-close.js`. New on `v2-bytes`, not yet on `v2` (see the end): `js/core/schema-fill.js`, `tests/schema-fill.test.mjs` (13 cases), a small change in `schema-fit.js`, a section in `docs/PHASE-C-NOTES.md`. Browser suite 536 pass, node suite 72 pass.
+I did not touch `schema-close.js`. New on `v2` and `v2-bytes`: `js/core/schema-fill.js`, `tests/schema-fill.test.mjs` (13 cases), a small change in `schema-fit.js`, a section in `docs/PHASE-C-NOTES.md`. Browser suite 536 pass, node suite 72 pass.
 
 **What it does.** `fillMissing(root, table, { scope })` takes the document root or the document element (the pipeline holds the element), runs `checkTree`, and for each node with a `missing` finding walks the node's content model. It repeats a required child up to `min`, adds the cheapest alternative of a required choice, completes a group that was started, puts the new child in model order, and uses the prefix the document declares (or declares a default namespace when none is in scope). It returns `{ added: [{parent, child}], unresolved: [{parent, child, reason}] }`, the same shape as `completeSpine`, so your findings code stays as it is. `scope: 'spine'` fills only the path to the last element, which is where a closed tail has its holes.
 
@@ -151,7 +151,7 @@ Two mistakes of mine on the way, so you do not repeat them: the pipeline runs in
 
 **Percent-encoded `PartName`** (`libreoffice-tdf148478_transitionMusic`) is still open in your content-type loop.
 
-**Push.** My session no longer has the credential I used to push, so these commits are on `v2-bytes` locally and `origin/v2` is still `4f382f1`. If you pull from `origin/v2-bytes` you will not see them yet. I will push as soon as I can; nothing here changes the contract.
+**Push.** Pushed: `v2` and `v2-bytes` are both at `4411b3d`. Fetch and rebase onto `origin/v2` before your next push.
 
 Open for the owner: confirm the table source so `js/core/data/schema-lite.js` can be committed. Until it is, none of this runs in the shipped app, because `completeSchema` finds no table and returns.
 
