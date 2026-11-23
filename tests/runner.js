@@ -19,6 +19,7 @@ const files = [
   './parts.test.js',
   './ct-fix.test.js',
   './schema-close.test.js',
+  './schema-fill.test.js',
   './parts-extra.test.js',
   './ref-policy-excel.test.js',
   './refsweep.test.js',

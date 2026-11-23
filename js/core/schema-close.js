@@ -1,5 +1,6 @@
 import { decodeEntities, documentElement, elementChildren, localName, prefixOf, createElement } from './xml-repair.js';
 import { getTree, touch, addFinding } from './package.js';
+import { fillMissing } from './schema-fill.js';
 
 const NUMERIC = new Set(['integer', 'int', 'long', 'uint', 'ulong', 'short', 'ushort', 'byte', 'number', 'decimal', 'double', 'float']);
 
@@ -191,7 +192,7 @@ export async function completeSchema(ctx, loader = defaultLoader) {
     const tree = getTree(ctx, name);
     const root = tree ? documentElement(tree) : null;
     if (!root) continue;
-    const result = completeSpine(root, table);
+    const result = fillMissing(root, table, { scope: 'spine' });
     if (result.added.length > 0) {
       touch(ctx, name);
       touched++;

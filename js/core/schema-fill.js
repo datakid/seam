@@ -1,5 +1,13 @@
 import { createElement, decodeEntities, elementChildren, escapeAttr, localName, prefixOf } from './xml-repair.js';
-import { checkTree, minimalElement, planItem } from './schema-fit.js';
+import { checkTree, minimalElement, openTable, planItem } from './schema-fit.js';
+
+const OPENED = new WeakMap();
+
+function opened(table) {
+  if (typeof table.normalise === 'function') return table;
+  if (!OPENED.has(table)) OPENED.set(table, openTable(table));
+  return OPENED.get(table);
+}
 
 function declaration(node, wanted) {
   for (let current = node; current && current.type === 'el'; current = current.parent) {
@@ -145,7 +153,8 @@ function spineOf(top) {
   return spine;
 }
 
-export function fillMissing(root, table, options = {}) {
+export function fillMissing(root, source, options = {}) {
+  const table = opened(source);
   const state = { added: [], unresolved: [] };
   const seen = new Set();
   const top = root.type === 'el' ? root : root.children.find((child) => child.type === 'el');
