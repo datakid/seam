@@ -124,7 +124,7 @@ test('ui: expanding a row shows the report with grouped findings and actions', a
     assert(!report.hidden, 'expanded');
     const headings = Array.from(report.querySelectorAll('h3')).map((h) => h.textContent);
     assert(headings.includes('Lost') && headings.includes('Repaired'), headings.join(','));
-    assert(report.textContent.includes('Passed structural checks.'), 'verify line');
+    assert(report.textContent.includes('Passed structural and content checks.'), 'verify line');
     const buttons = Array.from(report.querySelectorAll('.btn')).map((b) => b.textContent);
     eq(buttons, ['Download repaired file', 'Copy report', 'Save report (.txt)', 'Add another copy', 'Use a healthy file from the same source']);
   } finally {
@@ -140,6 +140,7 @@ test('ui: the salvaged row offers the salvaged text download and shows a preview
     const report = rows(app)[0].querySelector('.report');
     assert(report.querySelector('.preview').textContent.includes('Item'), 'preview');
     assert(Array.from(report.querySelectorAll('.btn')).some((b) => b.textContent === 'Download salvaged text'), 'salvage button');
+    assert(report.textContent.includes('Passed structural checks.') && !report.textContent.includes('content checks.'), 'salvaged text keeps the structural phrase');
   } finally {
     app.close();
   }

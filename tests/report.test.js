@@ -17,6 +17,15 @@ const sample = {
   preview: null
 };
 
+test('report text: the output line says content checks when the output reached tier 2, and not for salvaged text', () => {
+  const now = new Date(2026, 10, 14, 14, 3);
+  const line = (extra) => textReport('Budget.xlsx', 380112, { ...sample, ...extra }, now).split('\n').find((l) => l.startsWith('Output:'));
+  eq(line({ tier: 2 }), 'Output: Budget (repaired).xlsx — Passed structural and content checks.');
+  eq(line({ tier: 1 }), 'Output: Budget (repaired).xlsx — Passed structural checks.');
+  eq(line({}), 'Output: Budget (repaired).xlsx — Passed structural checks.');
+  eq(line({ tier: 2, outcome: 'salvaged' }), 'Output: Budget (repaired).xlsx — Passed structural checks.');
+});
+
 test('report text: matches the specified layout line by line', () => {
   const now = new Date(2026, 10, 14, 14, 3);
   const expected = [

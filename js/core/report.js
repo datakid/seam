@@ -192,7 +192,7 @@ export function textReport(name, size, result, now = new Date()) {
     lines.push('');
   }
   if (result.output) {
-    lines.push(`${copy.report.output}: ${result.output.name} — ${copy.verify.ok}`);
+    lines.push(`${copy.report.output}: ${result.output.name} — ${copy.verify.line(result)}`);
     lines.push(copy.verify.advice);
   }
   if (result.preview) {

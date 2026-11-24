@@ -42,6 +42,9 @@ function donorUnusedText(d) {
   return `${d.name} had no style, theme or layout part that this file was missing, so nothing was taken from it.`;
 }
 
+const STRUCTURAL_OK = 'Passed structural checks.';
+const CONTENT_OK = 'Passed structural and content checks.';
+
 export const copy = {
   title: 'Seam',
   headline: 'Repair damaged Word, Excel and PowerPoint files.',
@@ -79,7 +82,11 @@ export const copy = {
   footer: 'Open source · MIT licence · Nothing leaves your device',
   theme: { label: 'Theme', system: 'System', light: 'Light', dark: 'Dark' },
   verify: {
-    ok: 'Passed structural checks.',
+    ok: STRUCTURAL_OK,
+    okContent: CONTENT_OK,
+    line(result) {
+      return result && result.tier >= 2 && result.outcome !== 'salvaged' ? CONTENT_OK : STRUCTURAL_OK;
+    },
     advice: 'Open the file and check its contents before relying on it.'
   },
   notice: {
@@ -300,7 +307,7 @@ export const copy = {
       },
       {
         heading: 'How to read the result',
-        text: '"Passed structural checks" means the repaired file is internally consistent. It does not guarantee every element looks the way it did. Open the file and check it.'
+        text: '"Passed structural checks" means the repaired file is internally consistent. "Passed structural and content checks" means every part of it also follows the rules for its elements. Neither guarantees that every element looks the way it did. Open the file and check it.'
       },
       {
         heading: 'Privacy',

@@ -171,7 +171,7 @@ export function createRenderer(list, actions) {
       panel.appendChild(el('pre', 'preview', result.preview));
     }
     if (result.output) {
-      panel.appendChild(el('p', 'report-note', `${copy.verify.ok} ${copy.verify.advice}`));
+      panel.appendChild(el('p', 'report-note', `${copy.verify.line(result)} ${copy.verify.advice}`));
     }
     if (actions.canAddCopy(item)) panel.appendChild(el('p', 'report-note', copy.report.addCopyHint));
     if (actions.canAddDonor(item)) panel.appendChild(el('p', 'report-note', copy.report.addDonorHint));
