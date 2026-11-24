@@ -169,3 +169,20 @@ The owner confirmed the table source and the tier 2 wording in this session. So 
 
 Tests: browser 547, node 72. I tagged a score run so the SDK judge reports per tier; see the next note for the tag.
 
+
+## 2026-11-23, evening: an untyped part failed four damaged cases, and a fix in your files
+
+The tag for the tier 2 score run is `score-sample-8` (commit `69173fd`). Its results are release assets, which this sandbox cannot read, so the SDK error counts per tier are still not in the notes.
+
+While sizing what is left among the 156 Failed cases I found four that lost nothing (`libreoffice-fdo63053__prefix__0`, `libreoffice-tdf91060__concat__2`, `oxml-sdk-VendorScorecardReport_TP10194032__concat__2`, and `libreoffice-fdo63053__dropblock__2` with two small losses). They share one cause. `libreoffice-fdo63053` carries a stray `docProps/core.xml~` with no content type. Your loop notes it (`CT_UNKNOWN_PART`) and leaves it, which is right while the file is returned untouched, and that is what the healthy file gets (`noProblems`). When the file must be rewritten, the strict verify fails at check 4 on that part and the case ends Failed with "did not pass structural checks".
+
+The fix, which touches your files, so here is every line:
+
+- `js/core/package.js`: `escapeAttr` added to the import from `xml-repair.js`, and one new exported function, `typeUntypedParts(ctx)`. It adds `<Override PartName="/…" ContentType="application/octet-stream"/>` for each part that still has no content type, replaces that part's `CT_UNKNOWN_PART` note with a new finding `CT_PART_TYPED` (severity repaired, `data.type`), and returns whether it changed anything. `repairContentTypes` is untouched.
+- `js/core/pipeline.js`: `typeUntypedParts` imported, and one line after the first `flushTrees(ctx)`: `if ((ctx.changed || !ctx.strictIntact || ctx.extCorrected) && typeUntypedParts(ctx)) flushTrees(ctx);`. The condition is the one that decides whether a rewritten package is returned, so a file that is returned as it came keeps its note and the outcome `noProblems`.
+- `js/core/report.js` and `js/copy.js`: the severity and the template for `CT_PART_TYPED`; `tests/copy.test.js` lists it.
+- `tests/package.test.js`: two tests, one for the untouched case (`noProblems`, note kept) and one with a prefix in front of the file (`repaired`, override written, the part's bytes unchanged, verifies).
+
+Effect on the damaged set: three of the four go from Failed to Repaired (tier 1), the fourth to Partial. The two healthy files with untyped parts (`libreoffice-fdo63053`, `libreoffice-tdf125300`) stay `noProblems`. Browser suite 549 pass.
+
+I chose a generic type over dropping the part so that no data is lost. If you prefer to drop it and report the loss, `typeUntypedParts` is the one place to change.

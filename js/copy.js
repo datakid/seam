@@ -228,6 +228,7 @@ export const copy = {
     SCHEMA_COMPLETED: (d) => `Added ${d.n} required ${plural(d.n, 'element', 'elements')} that ${plural(d.parts, 'a damaged part was', 'damaged parts were')} missing.`,
     SCHEMA_UNRESOLVED: (d) => `${d.n} required ${plural(d.n, 'element', 'elements')} in damaged parts could not be rebuilt.`,
     CT_ENTRIES_CLEANED: (d) => `Cleaned ${d.n} damaged content type ${plural(d.n, 'entry', 'entries')}.`,
+    CT_PART_TYPED: (d) => `Gave this part the generic content type ${d.type}, so the package stays valid. Its data was not changed.`,
     CT_UNKNOWN_PART: () => 'This part has no known content type. It was left as it is.',
     ROOT_RELS_REBUILT: () => 'Rebuilt the package relationships.',
     ROOT_RELS_FIXED: () => 'Pointed the main document relationship at the real main part.',

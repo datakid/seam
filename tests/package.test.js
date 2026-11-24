@@ -85,6 +85,31 @@ test('content types: an unknown part type is noted and left alone', async () => 
   eq(note.severity, 'noted');
 });
 
+test('content types: an unknown part is left alone while the package is not rewritten', async () => {
+  const entries = [...docxEntries(), ['docProps/core.xml~', strToU8('backup')]];
+  const result = await run('a.docx', pack(entries));
+  eq(result.outcome, 'noProblems');
+  assert(codes(result).includes('CT_UNKNOWN_PART') && !codes(result).includes('CT_PART_TYPED'), JSON.stringify(codes(result)));
+});
+
+test('content types: an unknown part gets a generic type when the package is rewritten, so the repair still verifies', async () => {
+  const entries = [...docxEntries(), ['docProps/core.xml~', strToU8('backup')]];
+  const whole = pack(entries);
+  const bytes = new Uint8Array(whole.length + 120);
+  bytes.fill(0x37, 0, 120);
+  bytes.set(whole, 120);
+  const result = await run('a.docx', bytes);
+  eq(result.outcome, 'repaired', JSON.stringify(codes(result)));
+  const typed = result.findings.find((f) => f.code === 'CT_PART_TYPED');
+  assert(typed, JSON.stringify(codes(result)));
+  eq(typed.part, 'docProps/core.xml~');
+  eq(typed.severity, 'repaired');
+  assert(!codes(result).includes('CT_UNKNOWN_PART'), 'the note about it is replaced');
+  assert((await textOf(result, '[Content_Types].xml')).includes('<Override PartName="/docProps/core.xml~" ContentType="application/octet-stream"/>'), 'override written');
+  eq(new TextDecoder().decode(unzipSync(new Uint8Array(result.output.bytes))['docProps/core.xml~']), 'backup');
+  await verified(result, 'docx');
+});
+
 test('root rels: a relationship pointing at the wrong main part is repointed', async () => {
   const entries = change(docxEntries(), '_rels/.rels', (t) => t.replace('Target="word/document.xml"', 'Target="word/documnet.xml"'));
   const result = await run('a.docx', pack(entries));

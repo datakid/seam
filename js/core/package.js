@@ -1,4 +1,4 @@
-import { decodeEntities, getAttr, elementChildren, documentElement, localName, prefixOf, parseTree, serializeTree, createElement, removeNode, setAttr, removeAttr } from './xml-repair.js';
+import { decodeEntities, getAttr, elementChildren, documentElement, localName, prefixOf, parseTree, serializeTree, createElement, removeNode, setAttr, removeAttr, escapeAttr } from './xml-repair.js';
 import { encodeUtf8 } from './xml-clean.js';
 import { finding } from './report.js';
 import { REL_NS, REL_NS_STRICT, isMainRelType, CT_MAIN, CT_DEFAULTS, CT_NS, PKG_REL_NS, REL_OFFICE_DOC, REL_CORE, REL_EXT } from './constants.js';
@@ -570,6 +570,30 @@ export function repairContentTypes(ctx, silentParts) {
   for (const partName of unknown) addFinding(ctx, 'CT_UNKNOWN_PART', partName);
 
   if (changed) touch(ctx, canonical);
+}
+
+const GENERIC_TYPE = 'application/octet-stream';
+
+export function typeUntypedParts(ctx) {
+  const name = '[Content_Types].xml';
+  const canonical = ctx.index.canonical(name);
+  const tree = canonical ? getTree(ctx, canonical) : null;
+  const ct = tree ? readContentTypes(tree) : null;
+  if (!ct || !ct.root) return false;
+  let typed = 0;
+  for (const partName of ctx.index.names()) {
+    if (partName === name || contentTypeOf(partName, ct)) continue;
+    const node = createElement('Override', [['PartName', escapeAttr(`/${partName}`)], ['ContentType', GENERIC_TYPE]]);
+    node.parent = ct.root;
+    ct.root.children.push(node);
+    ct.overrides.set(partName.toLowerCase(), GENERIC_TYPE);
+    const noted = ctx.findings.findIndex((f) => f.code === 'CT_UNKNOWN_PART' && f.part === partName);
+    if (noted !== -1) ctx.findings.splice(noted, 1);
+    addFinding(ctx, 'CT_PART_TYPED', partName, { type: GENERIC_TYPE });
+    typed++;
+  }
+  if (typed > 0) touch(ctx, canonical);
+  return typed > 0;
 }
 
 export function mainFolderOf(main) {

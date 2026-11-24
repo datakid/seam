@@ -15,7 +15,7 @@ import { completeSchema } from './schema-close.js';
 import { loadSchemaTable } from './schema-check.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
-  repairRootRels, repairRels, repairContentTypes, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
+  repairRootRels, repairRels, repairContentTypes, typeUntypedParts, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
 } from './package.js';
 import { applyDocx } from './formats/docx.js';
 import { applyXlsx, normalizeXlsx } from './formats/xlsx.js';
@@ -504,6 +504,7 @@ async function execute(input, env, transfer) {
   await completeSchema(ctx, env.schemaTable !== undefined ? async () => env.schemaTable : undefined);
   ctx.schemaTable = await loadSchemaTable(env);
   flushTrees(ctx);
+  if ((ctx.changed || !ctx.strictIntact || ctx.extCorrected) && typeUntypedParts(ctx)) flushTrees(ctx);
   if (ctx.changed) auditReferences(ctx);
   progress('package', 1);
 
