@@ -106,7 +106,8 @@ const healthyRows = Object.entries(healthySeam.cases).map(([id, s]) => ({
 }));
 for (const r of healthyRows) r.triage = triage[r.id] ? triage[r.id].status : null;
 const quarantine = healthyRows.filter((r) => r.loLoads === false).map((r) => r.id);
-const falseAlarms = healthyRows.filter((r) => r.label !== 'noProblems');
+const knownBroken = healthyRows.filter((r) => r.label === 'repaired' && r.triage === 'confirmed-broken');
+const falseAlarms = healthyRows.filter((r) => r.label !== 'noProblems' && !knownBroken.includes(r));
 const falseAlarmsLoadable = falseAlarms.filter((r) => r.loLoads !== false);
 
 const rows = [];
@@ -277,7 +278,8 @@ const board = {
   libreOffice: loVersion || null,
   healthy: {
     files: healthyRows.length,
-    noProblems: healthyRows.length - falseAlarms.length,
+    noProblems: healthyRows.filter((r) => r.label === 'noProblems').length,
+    knownBroken: knownBroken.map((r) => r.id),
     falseAlarms: falseAlarms.length,
     falseAlarmsOnLoadable: falseAlarmsLoadable.length,
     quarantined: quarantine,
@@ -324,6 +326,14 @@ if (falseAlarms.length > 0) {
   md.push('| File | Label | Findings | Open XML SDK on the original | Triage |');
   md.push('|---|---|---|---|---|');
   for (const r of falseAlarms) md.push(`| ${r.id} | ${r.label} | ${[...new Set(r.findings)].join(', ')} | ${r.oxml ? (r.oxml.opens ? `opens, ${r.oxml.errors} errors` : 'does not open') : 'not run'} | ${r.triage ? `${r.triage}: ${triage[r.id].note}` : 'untriaged'} |`);
+  md.push('');
+}
+if (knownBroken.length > 0) {
+  md.push(`Healthy by manifest but confirmed broken, repaired correctly, and not counted above: ${knownBroken.length}. Each has evidence in \`corpus/manifest/triage.json\`.`);
+  md.push('');
+  md.push('| File | Findings | Open XML SDK on the original |');
+  md.push('|---|---|---|');
+  for (const r of knownBroken) md.push(`| ${r.id} | ${[...new Set(r.findings)].join(', ')} | ${r.oxml ? (r.oxml.opens ? `opens, ${r.oxml.errors} errors` : 'does not open') : 'not run'} |`);
   md.push('');
 }
 md.push(`Quarantine candidates (healthy by manifest, not loaded by LibreOffice): ${quarantine.length === 0 ? 'none' : quarantine.join(', ')}.`);

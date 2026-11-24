@@ -27,9 +27,18 @@ Each change was made because a real healthy file from the corpus was damaged or 
 - Memory is the JS heap growth sampled at stage boundaries through `performance.memory` with `--enable-precise-memory-info`. It is a lower bound, not a peak.
 - The catalog of 4,424 candidate files is not committed. `corpus/manifest/healthy.json` holds the 300 selected files and `wild-public.json` holds 100 files tagged broken.
 
-## Open false alarms on healthy files
+## False alarms on healthy files
 
-Five files still do not report No problems found. Each waits on a judge. See `corpus/manifest/triage.json`. The scoreboard shows the Open XML SDK verdict on each original beside it.
+Zero as of 2026-11-24, owner-approved. 296 of the 300 report No problems found. Four are healthy by manifest and confirmed broken, with evidence in `corpus/manifest/triage.json`, and Seam repairs each of them correctly:
+
+| File | What is wrong with the original |
+|---|---|
+| `libreoffice-bad` | A `.docm` whose main part has the plain document type |
+| `libreoffice-bnc591147` | Parts `.avi` and `.mp3` with no content type |
+| `poi-64450` | A relationship with no Id and no Target |
+| `poi-picture` | A relationship and three overrides naming parts that are not in the package |
+
+The scoreboard lists them in their own table and does not count them as false alarms, and only while the label is Repaired: a known-broken file that Seam fails to repair is counted. No file moved and `healthy.json` is unchanged. `libreoffice-tdf148478_transitionMusic` was a Seam fault (`PartName` not decoded), fixed on `v2`.
 
 Three files that LibreOffice cannot load in its pristine form are listed in `corpus/manifest/judge-blind.json`. LibreOffice verdicts on cases derived from them are ignored.
 
