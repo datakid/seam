@@ -110,6 +110,18 @@ test('content types: an unknown part gets a generic type when the package is rew
   await verified(result, 'docx');
 });
 
+test('content types: the generic override for an untyped part with a space in its name is written percent-encoded', async () => {
+  const entries = [...docxEntries(), ['docProps/my notes.xyz', strToU8('backup')]];
+  const whole = pack(entries);
+  const bytes = new Uint8Array(whole.length + 40);
+  bytes.fill(0x37, 0, 40);
+  bytes.set(whole, 40);
+  const result = await run('a.docx', bytes);
+  assert(codes(result).includes('CT_PART_TYPED'), JSON.stringify(codes(result)));
+  assert((await textOf(result, '[Content_Types].xml')).includes('PartName="/docProps/my%20notes.xyz"'), 'encoded');
+  await verified(result, 'docx');
+});
+
 test('root rels: a relationship pointing at the wrong main part is repointed', async () => {
   const entries = change(docxEntries(), '_rels/.rels', (t) => t.replace('Target="word/document.xml"', 'Target="word/documnet.xml"'));
   const result = await run('a.docx', pack(entries));

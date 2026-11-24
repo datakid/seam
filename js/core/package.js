@@ -1,4 +1,4 @@
-import { decodeEntities, getAttr, elementChildren, documentElement, localName, prefixOf, parseTree, serializeTree, createElement, removeNode, setAttr, removeAttr, escapeAttr } from './xml-repair.js';
+import { decodeEntities, getAttr, elementChildren, documentElement, localName, prefixOf, parseTree, serializeTree, createElement, removeNode, setAttr, removeAttr } from './xml-repair.js';
 import { encodeUtf8 } from './xml-clean.js';
 import { finding } from './report.js';
 import { REL_NS, REL_NS_STRICT, isMainRelType, CT_MAIN, CT_DEFAULTS, CT_NS, PKG_REL_NS, REL_OFFICE_DOC, REL_CORE, REL_EXT } from './constants.js';
@@ -601,7 +601,7 @@ export function typeUntypedParts(ctx) {
   let typed = 0;
   for (const partName of ctx.index.names()) {
     if (partName === name || contentTypeOf(partName, ct)) continue;
-    const node = createElement('Override', [['PartName', escapeAttr(`/${partName}`)], ['ContentType', GENERIC_TYPE]]);
+    const node = createElement('Override', [['PartName', `/${encodePartName(partName)}`], ['ContentType', GENERIC_TYPE]]);
     node.parent = ct.root;
     ct.root.children.push(node);
     ct.overrides.set(partName.toLowerCase(), GENERIC_TYPE);
