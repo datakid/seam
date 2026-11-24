@@ -220,9 +220,11 @@ Proposed gate, for the owner: the share of outputs with recall at least 0.99 and
 
 The 102 are the ceiling: no repair can bring them back. All 89 "main document part is missing" cases have their main part gone, so naming the main part by convention would rescue none of them.
 
-The 25 with the part complete are 25 different stories, but 20 of them have lost a relationship part and 12 the content types, and 11 have lost slides. Typical: `ppt/_rels/presentation.xml.rels` sits behind the cut, every slide master is intact, and with no relationship to resolve it by, `applyPptx` finds no master and gives up. Rebuilding the skeleton from what is left (the root relationships and the main part's relationships by naming convention, the content types from the part registry, and dropping the slides that are gone) is the largest group the data shows. It is candidate work for whoever takes Phase D, not built. The corpus is mostly LibreOffice and POI files, which write relationship parts late; Office writes them first, so the class is probably smaller for Office files than this sample suggests.
+The 25 with the part complete are 25 different stories, but 20 of them have lost a relationship part and 12 the content types, and 11 have lost slides. Typical: `ppt/_rels/presentation.xml.rels` sits behind the cut, every slide master is intact, and with no relationship to resolve it by, `applyPptx` finds no master and gives up. Rebuilding the skeleton from what is left is the largest group the data shows, and it is built: see "Skeleton rebuild" in `docs/PHASE-C-NOTES.md`. The corpus is mostly LibreOffice and POI files, which write relationship parts late; Office writes them first, so the class is probably smaller for Office files than this sample suggests.
 
-The 28 with a prefix present are truncated deflate streams in the main part. B1 reads such a stream up to the damage, so these should produce a Partial; they end Failed because a part the main part depends on is also gone.
+Text is a smaller prize than the counts suggest. Of the 156 Failed cases only 5 have any text left in a content part (the document part, a worksheet, a slide): 4 with a part intact and 1 with a prefix of one. In 23 of the 25 pptx cases with the slide parts intact the slides hold no text at all (shapes, SmartArt, pictures), so a rebuilt deck gains structure, not recall.
+
+The 28 with a prefix present are truncated deflate streams. For all but one of them the part is a slide master, a sheet or a document that holds no text in the part of the stream that survives.
 
 B5 is exercised only by copies damaged in the test suite, not by corpus files.
 

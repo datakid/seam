@@ -13,6 +13,8 @@ import { identifyContent } from './orphan-kinds.js';
 import { sweepReferences, auditReferences } from './ref-sweep.js';
 import { completeSchema } from './schema-close.js';
 import { loadSchemaTable } from './schema-check.js';
+import { rebuildRels } from './rels-rebuild.js';
+import { synthesizeMain } from './main-synth.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
   repairRootRels, repairRels, repairContentTypes, typeUntypedParts, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
@@ -483,6 +485,7 @@ async function execute(input, env, transfer) {
   progress('package', 0);
   if (ctx.orphans.length > 0) await placeOrphans(ctx, env);
   classify(ctx);
+  synthesizeMain(ctx);
   if (!ctx.main) {
     addFinding(ctx, 'NO_MAIN_PART', null, {});
     if (input.donor) addFinding(ctx, 'DONOR_UNUSED', null, { name: input.donor.name, why: 'nothing' });
@@ -492,6 +495,7 @@ async function execute(input, env, transfer) {
   if (input.donor) await borrowFromDonor(ctx, input.donor, env);
 
   repairRootRels(ctx);
+  rebuildRels(ctx);
   repairRels(ctx);
   progress('package', 0.4);
   const rules = { docx: applyDocx, xlsx: applyXlsx, pptx: applyPptx }[ctx.family];

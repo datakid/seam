@@ -21,6 +21,7 @@ const files = [
   './schema-close.test.js',
   './schema-fill.test.js',
   './schema-check.test.js',
+  './rels-rebuild.test.js',
   './parts-extra.test.js',
   './ref-policy-excel.test.js',
   './refsweep.test.js',

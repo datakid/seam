@@ -106,6 +106,11 @@ export function zeroMain(bytes, fmt) {
   return edit(bytes, (entries) => replaceEntry(entries, part, new Uint8Array(entries.find(([n]) => n === part)[1].length)));
 }
 
+export function hollowMain(bytes, fmt) {
+  const part = FORMATS[fmt].main;
+  return edit(bytes, (entries) => replaceEntry(entries, part, new TextEncoder().encode('<?xml version="1.0"?><notes/>')));
+}
+
 export function zeroFill(bytes) {
   return new Uint8Array(bytes.length);
 }

@@ -1,6 +1,6 @@
 import { test, assert, eq } from './harness.js';
 import { docx, xlsx, pptx } from './fixtures.js';
-import { deleteDirectory, truncate, zeroMain } from './corrupt.js';
+import { deleteDirectory, truncate, zeroMain, hollowMain } from './corrupt.js';
 import { unzipSync } from '../vendor/fflate.module.js';
 
 const encode = (text) => new TextEncoder().encode(text);
@@ -70,7 +70,7 @@ function mixed() {
   return [
     { name: 'Letter.docx', bytes: deleteDirectory(docx()) },
     { name: 'Budget.xlsx', bytes: truncate(xlsx(), 0.5) },
-    { name: 'Ledger.xlsx', bytes: zeroMain(xlsx(), 'xlsx') },
+    { name: 'Ledger.xlsx', bytes: hollowMain(xlsx(), 'xlsx') },
     { name: 'Scan.docx', bytes: PDF },
     { name: 'Clean.pptx', bytes: pptx() },
     { name: 'Broken.docx', bytes: zeroMain(docx(), 'docx') }

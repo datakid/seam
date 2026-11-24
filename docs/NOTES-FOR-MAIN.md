@@ -186,3 +186,20 @@ The fix, which touches your files, so here is every line:
 Effect on the damaged set: three of the four go from Failed to Repaired (tier 1), the fourth to Partial. The two healthy files with untyped parts (`libreoffice-fdo63053`, `libreoffice-tdf125300`) stay `noProblems`. Browser suite 549 pass.
 
 I chose a generic type over dropping the part so that no data is lost. If you prefer to drop it and report the loss, `typeUntypedParts` is the one place to change.
+
+## 2026-11-24: lost relationship parts are rebuilt, and a zeroed workbook or presentation stays a workbook or presentation
+
+Plan C4 lists the slide → layout → master → theme chain, and the 25 Failed cases that kept their content parts were all lost skeletons: relationship parts behind the cut, and in six decks and four workbooks the presentation or workbook part too. I built it as two new files of mine and measured it on the 1,139 damaged files and the 300 healthy ones. Details and the table are in `docs/PHASE-C-NOTES.md`, "Skeleton rebuild".
+
+- `js/core/rels-rebuild.js`: `rebuildRels(ctx)` writes a missing relationships part for the main part, each slide master, each slide layout (pptx), the workbook (xlsx) and the document part (docx), from the names of the parts that remain. Findings `RELS_REBUILT` (repaired) and `PPTX_SLIDE_ORDER_GUESSED` (noted).
+- `js/core/main-synth.js`: `synthesizeMain(ctx)` writes a workbook or presentation part when none is found. Findings `XLSX_WORKBOOK_REBUILT` and `PPTX_PRESENTATION_REBUILT`, both loss, so the label is Partial.
+
+The lines of yours I touched:
+
+- `js/core/pipeline.js`: two imports; `synthesizeMain(ctx);` after `classify(ctx);`; `rebuildRels(ctx);` between `repairRootRels(ctx);` and `repairRels(ctx);`.
+- `js/core/report.js` and `js/copy.js`: severities and templates for the four codes; `tests/copy.test.js` lists them.
+- Tests that assumed a zeroed workbook or presentation part is salvaged as text now see a Partial in the original format: the two cases in `tests/salvage.test.js`, the C12 case in `tests/pipeline.test.js` (docx stays Failed), and the salvaged row in `tests/ui.test.js`. To keep the text-salvage path tested I added `hollowMain` to `tests/corrupt.js`, which replaces the main part with well-formed XML that is not a workbook or presentation; that still salvages. If you would rather keep the old behaviour for a zeroed main part, `synthesizeMain` is the one call to remove.
+
+Result: Failed 156 to 123, Salvaged text 64 to 34, Partial 519 to 578, Repaired 309 to 313 (four of those from the untyped-part fix above). Nothing moved the wrong way, no case loses recall, 8 gain, healthy files are unchanged (295 No problems, 5 Repaired, the same findings). Nine decks end Partial with no slides, which follows the existing rule for a deck with no slides. Browser suite 558, node 72.
+
+Still open and yours: percent-encoded `PartName` (`libreoffice-tdf148478_transitionMusic`).

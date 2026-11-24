@@ -272,3 +272,37 @@ Every file the table flags also has SDK errors, so it raises no false alarm agai
 
 Evidence. `libreoffice-tdf148478_transitionMusic` went from repaired to No problems found. It was the oldest of the five healthy false alarms. The other 317 healthy files are unchanged. Reported by the Bytes agent.
 
+
+## Skeleton rebuild (Bytes agent)
+
+Plan C4 lists "slide → layout → master → theme chain complete" for PowerPoint. The Failed cases are where it matters: 25 of them kept the content parts and lost the parts that tie them together. Two new modules, both called from `execute` in `js/core/pipeline.js`.
+
+`js/core/rels-rebuild.js`, after `repairRootRels` and before `repairRels`: a part whose relationships part is gone gets one written from the names of the parts that remain.
+
+| Source part | Rebuilt from |
+|---|---|
+| presentation | `sldMasterId`, `sldId`, `notesMasterId`, `handoutMasterId` ids, matched in order to the masters, slides, notes masters and handout masters in file-number order; theme, presProps, viewProps, tableStyles by their usual paths |
+| slide master | `sldLayoutId` ids matched in order to the layouts that no other master claims, and the theme of the same number |
+| slide layout | the master that owns it (the layout split above), else the first |
+| workbook | `sheet` ids matched in order to the worksheets (by `sheetId` when the counts differ); styles, shared strings, theme |
+| document | `headerReference` and `footerReference` ids matched in order; styles, settings, fontTable, webSettings, numbering, theme, footnotes, endnotes, comments by their usual paths |
+
+Findings: `RELS_REBUILT` (repaired) per part, and `PPTX_SLIDE_ORDER_GUESSED` (noted) when a deck's slide order is taken from file names. Slide relationships are left to the existing layout relink, and picture links lost with them go through the reference sweep as before.
+
+`js/core/main-synth.js`, after `classify`, when no main part is found: a workbook part listing the worksheets (named `Sheet<n>`, using the ids of a surviving workbook relationships part when there is one), or a presentation part listing the masters and slides, with the slide size estimated from the extents of the master and layout shapes (16:9, 16:9 older, or 4:3). Findings `XLSX_WORKBOOK_REBUILT` and `PPTX_PRESENTATION_REBUILT`, both severity loss, so the label is Partial. A Word document has no equivalent: the document part is the content.
+
+Side effect, on purpose: a workbook or presentation whose main part is zeroed or removed used to be salvaged as text in a new file. It is now repaired in its own format, as Partial, with its sheets or slides. A main part that is present but is not a workbook or presentation still goes to text salvage. `tests/salvage.test.js`, `tests/ui.test.js` and the C12 case in `tests/pipeline.test.js` changed accordingly, with a `hollowMain` helper in `tests/corrupt.js`.
+
+Measured on the 1,139 damaged files, the pipeline before and after:
+
+| Outcome | Before | After |
+|---|---|---|
+| Repaired | 309 | 313 |
+| Partial | 519 | 578 |
+| Salvaged text | 64 | 34 |
+| Failed | 156 | 123 |
+| No problems | 83 | 83 |
+
+Movements: 30 Failed to Partial, 3 Failed to Repaired and 1 Salvaged to Repaired (those four are the untyped-part fix in `NOTES-FOR-MAIN.md`), 29 Salvaged to Partial. Nothing moved the other way. Text recall: no case loses, 8 gain (0.68 to 1.00 and similar, workbooks that were text-only before), mean 0.878 to 0.879. Tier 2 outputs 688 to 734. Healthy files: 295 No problems and 5 Repaired, as before, with identical findings.
+
+What it does not do: nine of the 30 Failed-to-Partial decks end with no slides, because the slide parts were lost too. They are labelled Partial, as the existing rule for a deck with no slides says. Slide order and sheet names are guesses from file names, so the report says so. `libreoffice-forum-mso-de-138303__truncate__1` still fails because every slide layout is gone; a layout would have to be written from nothing.

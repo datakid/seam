@@ -122,8 +122,12 @@ for (const fmt of ['docx', 'xlsx', 'pptx']) {
         return;
       }
       if (c.id === 'C12') {
-        assert(['salvaged', 'failed'].includes(result.outcome), `outcome ${dump()}`);
-        if (result.outcome === 'salvaged') await checkOutput(result);
+        if (fmt === 'docx') eq(result.outcome, 'failed', dump());
+        else {
+          eq(result.outcome, 'partial', dump());
+          assert(found.includes(fmt === 'xlsx' ? 'XLSX_WORKBOOK_REBUILT' : 'PPTX_PRESENTATION_REBUILT'), dump());
+          await checkOutput(result, fmt);
+        }
         return;
       }
       if (c.id === 'C18') {

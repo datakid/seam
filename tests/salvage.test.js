@@ -4,7 +4,7 @@ import { verifyPackage } from '../js/core/verify.js';
 import { strictRead } from '../js/core/zip-read.js';
 import { docx, xlsx, pptx, unpack } from './fixtures.js';
 import { runPipeline } from '../js/core/pipeline.js';
-import { zeroMain, truncate } from './corrupt.js';
+import { zeroMain, hollowMain, truncate } from './corrupt.js';
 
 const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
 
@@ -104,8 +104,18 @@ test('pipeline: a zeroed docx main part is Could not repair with no output', asy
   assert(result.sentence.startsWith('This file could not be repaired.'), result.sentence);
 });
 
-test('pipeline: a zeroed workbook part is salvaged from the worksheets and the output verifies', async () => {
+test('pipeline: a zeroed workbook part is rebuilt from the worksheets, so the sheets stay sheets, and the loss is reported', async () => {
   const broken = zeroMain(xlsx(), 'xlsx').slice();
+  const result = await runPipeline({ name: 'Ledger.xlsx', size: broken.length, buffer: broken.buffer }, env);
+  eq(result.outcome, 'partial');
+  eq(result.output.name, 'Ledger (repaired).xlsx');
+  assert(result.findings.some((f) => f.code === 'XLSX_WORKBOOK_REBUILT' && f.severity === 'loss'), 'rebuild finding');
+  const verdict = await verifyPackage(new Uint8Array(result.output.bytes), env, { key: 'xlsx', ext: 'xlsx' });
+  assert(verdict.ok, 'verifies');
+});
+
+test('pipeline: a workbook part that is not a workbook is salvaged from the worksheets and the output verifies', async () => {
+  const broken = hollowMain(xlsx(), 'xlsx').slice();
   const result = await runPipeline({ name: 'Ledger.xlsx', size: broken.length, buffer: broken.buffer }, env);
   eq(result.outcome, 'salvaged');
   eq(result.output.name, 'Ledger (salvaged text).xlsx');
@@ -115,8 +125,18 @@ test('pipeline: a zeroed workbook part is salvaged from the worksheets and the o
   assert(verdict.ok, 'verifies');
 });
 
-test('pipeline: a zeroed presentation part is salvaged into a docx', async () => {
+test('pipeline: a zeroed presentation part is rebuilt from the masters and slides, so the deck stays a deck', async () => {
   const broken = zeroMain(pptx(), 'pptx').slice();
+  const result = await runPipeline({ name: 'Deck.pptx', size: broken.length, buffer: broken.buffer }, env);
+  eq(result.outcome, 'partial');
+  eq(result.output.name, 'Deck (repaired).pptx');
+  assert(result.findings.some((f) => f.code === 'PPTX_PRESENTATION_REBUILT' && f.severity === 'loss'), 'rebuild finding');
+  const verdict = await verifyPackage(new Uint8Array(result.output.bytes), env, { key: 'pptx', ext: 'pptx' });
+  assert(verdict.ok, 'verifies');
+});
+
+test('pipeline: a presentation part that is not a presentation is salvaged into a docx', async () => {
+  const broken = hollowMain(pptx(), 'pptx').slice();
   const result = await runPipeline({ name: 'Deck.pptx', size: broken.length, buffer: broken.buffer }, env);
   eq(result.outcome, 'salvaged');
   eq(result.output.name, 'Deck (salvaged text).docx');
