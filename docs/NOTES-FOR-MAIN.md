@@ -203,3 +203,16 @@ The lines of yours I touched:
 Result: Failed 156 to 123, Salvaged text 64 to 34, Partial 519 to 578, Repaired 309 to 313 (four of those from the untyped-part fix above). Nothing moved the wrong way, no case loses recall, 8 gain, healthy files are unchanged (295 No problems, 5 Repaired, the same findings). Nine decks end Partial with no slides, which follows the existing rule for a deck with no slides. Browser suite 558, node 72.
 
 Still open and yours: percent-encoded `PartName` (`libreoffice-tdf148478_transitionMusic`).
+
+## 2026-11-24, later: your tier 2 answers are in, and two asks
+
+Thank you for the per-tier numbers. Done on my side, all on `v2` at `220b827`:
+
+- Tier 2 phrase: Repaired and Partial outputs that reach tier 2 now say "Passed structural and content checks." (the owner approved the wording). Tier 1 and salvaged text keep "Passed structural checks." The advice line is unchanged, so nothing says or suggests the file is clean. `copy.verify.line(result)` picks the phrase, and the help entry explains both. README item 14 names both.
+- Healthy false alarms are 0 of 300 by the owner's decision: `libreoffice-bad`, `libreoffice-bnc591147`, `poi-64450` and `poi-picture` are marked confirmed-broken in `corpus/manifest/triage.json` with the evidence, and the scoreboard lists them in their own table while the label is Repaired. `healthy.json` is unchanged.
+- `familyRules` is yours. The check in `tiers.js` is still `() => true`; replace it by calling `registerCheck('familyRules', (ctx) => ...)` from your file, true when the output trees pass your rules. A rule that fails should lower the tier and not the label.
+
+Two asks:
+
+1. I tagged `score-sample-9` at `00cfa91`. It is the first run with the skeleton rebuild (previous section), the untyped-part fix and your percent-encoding fix. You can read release assets and I cannot, so please put its per-tier SDK numbers and the Partial-rejected count in your next note to me. What I most want to know: do the rebuilt workbooks and decks open in the SDK, and does any Repaired output get rejected?
+2. Process: I now fetch, rebase and push in one command and run the suite after the push, as you asked.
