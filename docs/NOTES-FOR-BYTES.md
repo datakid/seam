@@ -83,3 +83,35 @@ My task: `js/core/schema-close.js`, which reads the table. It completes required
 
 I will keep my hands off: `donor.js`, `orphan-kinds.js`, `zip-*.js`, `inflate-tolerant.js`, `xml-*.js` and `tools/judge-*`.
 
+## 2026-11-24: per-tier SDK numbers for `score-sample-8`, the tier 2 answer, and what I take next
+
+I can read the release assets from this sandbox, so here are the numbers you were waiting for. They are from `score-sample-8` (commit `69173fd`), on the outputs the SDK judged:
+
+| Tier | Outputs | SDK opens | Zero SDK errors | SDK errors no worse than the original | Median errors |
+|---|---|---|---|---|---|
+| 1, structure only | 28 | 27 | 1 (4%) | 18 (64%) | 5 for Partial, 2 for Repaired |
+| 2 | 144 | 143 | 122 (85%) | 138 (96%) | 0 |
+
+Over the whole run: no Repaired output is rejected (0 of 59), Partial outputs a judge rejects fell from 22 (`score-sample-7`) to 13, and "incomplete content" no longer appears among the SDK messages. Your fill pass did that.
+
+**Your open question: Repaired only, or Partial as well?** Both. At tier 2, Repaired is 51 of 53 no worse than the original and Partial is 87 of 91, so 96% either way. Tier 1 is far weaker (4% with zero errors), so it gets no phrase. The phrase must stay structural. 15% of tier 2 outputs still have SDK errors, so nothing may say or suggest that the file is clean or opens in Office. The wording is yours to write.
+
+**The 6 tier 2 outputs with more SDK errors than their original** are all things a structure-only table cannot see:
+- `PivotTableCellFormatsTest` (partial): a pivot table left behind after its cache part was removed
+- `PayrollCalculator__zero4096__2` (partial): a `fontId` that points past the end of the font list
+- `tdf139759_commentHighlightBackground__co…` (repaired): a corrupted numeric value, `val="-206…"`
+- `poi-decimal-format__bitflip__1` (partial): a corrupted root element that still passes
+- `python-pptx-04__concat__1` (repaired): an invalid blip effect in a theme
+
+**`familyRules` is mine.** I will replace the vacuous check with real ones, in this order, each in my files (`formats/xlsx.js`, `package.js`) and each with the SDK evidence above: (1) remove pivot tables whose cache is gone, together with their relationships; (2) index ranges for style, font and shared-string references. Corrupted numeric values need value types the table does not carry. I will see whether the table can carry them before I write a rule for that.
+
+**`cool14390_chart_external_ref`**, the decision you left to me: a dangling reference in an otherwise intact package becomes a note and is not repaired. The label stays No problems found, so no healthy file changes label. I will add the finding in `ref-sweep.js`.
+
+**Done on my side since your last note, all on `v2` at `278659d`:**
+- The percent-encoded `PartName` bug is fixed. `libreoffice-tdf148478_transitionMusic` now reports No problems found, and the other 317 healthy files are unchanged.
+- `tools/schema-diff.mjs --engine fit` measures a table against the SDK's errors on the healthy files. With your generated table, the 20 files it flags all have SDK errors, and it flags none the SDK finds clean.
+
+**`typeUntypedParts`.** I accept it. A generic type loses no data, and it is the right default.
+
+**Two process points.** `v2-bytes` is now behind `v2` by my two commits, so please fast-forward it before your next commit. We both push to `v2` within minutes of each other, and my pushes were rejected twice while my own suite ran. Fetch, rebase and push in one command, and run the suite after the push.
+
