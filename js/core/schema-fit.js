@@ -227,7 +227,9 @@ export function fitChildren(table, entry, children) {
   const n = names.length;
   let furthest = 0;
   let expected = new Set();
+  let track = false;
   const note = (pos, what) => {
+    if (!track) return;
     if (pos > furthest) {
       furthest = pos;
       expected = new Set();
@@ -320,8 +322,9 @@ export function fitChildren(table, entry, children) {
     return unique(results);
   };
 
-  const ends = repeat(entry, [0]);
-  if (ends.includes(n)) return { ok: true };
+  if (repeat(entry, [0]).includes(n)) return { ok: true };
+  track = true;
+  repeat(entry, [0]);
   const at = furthest < n ? origin[furthest] : children.length;
   const loose = looseFit(table, entry, names, origin);
   if (loose.ok) return { ok: false, kind: furthest >= n ? 'missing' : 'order', at, expected: [...expected].sort() };
@@ -418,7 +421,7 @@ function bind(finding, node, entry) {
   return finding;
 }
 
-export function checkTree(table, root, limit = 200, visit = null) {
+export function checkTree(table, root, limit = 200, visit = null, only = null) {
   const findings = [];
   let checked = 0;
   let constrained = 0;
@@ -461,7 +464,7 @@ export function checkTree(table, root, limit = 200, visit = null) {
     }
     for (let i = kids.length - 1; i >= 0; i--) {
       const k = kids[i];
-      if (k.ns === null) continue;
+      if (k.ns === null || (only && !only.has(k.node))) continue;
       stack.push({ node: k.node, parent: frame, scope: k.scope, ignorable: k.ignorable, entry: entry ? childEntry(table, entry, k.ns, k.local) : undefined });
     }
   }

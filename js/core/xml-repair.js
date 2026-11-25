@@ -124,6 +124,16 @@ export function scan(text, collect = true) {
   let i = 0;
   let rootSeen = false;
   let cut = n;
+  const events = [];
+  let seen = 0;
+  let mark = 0;
+  const watch = () => {
+    const total = stats.autoClosed + stats.strayClosed + stats.dupAttrs + stats.droppedAttrs + stats.escaped + stats.dropped;
+    if (total !== seen) {
+      seen = total;
+      if (events.length < 256) events.push(mark);
+    }
+  };
   let ended = false;
 
   function openText(raw) {
@@ -134,6 +144,8 @@ export function scan(text, collect = true) {
   }
 
   while (i < n) {
+    watch();
+    mark = i;
     if (text[i] !== '<') {
       let j = text.indexOf('<', i);
       if (j === -1) j = n;
@@ -292,12 +304,14 @@ export function scan(text, collect = true) {
     i++;
   }
 
+  watch();
   const unclosed = stack.length;
   while (stack.length > 0) push({ t: 'close', name: stack.pop() });
 
   return {
     tokens,
     stats,
+    events,
     hasRoot: rootSeen,
     unclosed,
     truncated: ended || unclosed > 0,
@@ -355,6 +369,7 @@ export function repairXml(text) {
   return {
     text: serializeTokens(result.tokens),
     stats: result.stats,
+    events: result.events,
     hasRoot: result.hasRoot,
     unclosed: result.unclosed,
     truncated: result.truncated,

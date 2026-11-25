@@ -160,7 +160,7 @@ export function fillMissing(root, source, options = {}) {
   const top = root.type === 'el' ? root : root.children.find((child) => child.type === 'el');
   if (!top) return state;
   const spine = options.scope === 'spine' ? spineOf(top) : null;
-  const { findings } = checkTree(table, root.type === 'el' ? { type: 'doc', children: [root], parent: null } : root, Infinity);
+  const { findings } = checkTree(table, root.type === 'el' ? { type: 'doc', children: [root], parent: null } : root, Infinity, null, spine);
   for (const finding of findings) {
     if (finding.kind !== 'missing' || !finding.node || !finding.entry || seen.has(finding.node)) continue;
     if (spine && !spine.has(finding.node)) continue;

@@ -6,13 +6,15 @@ import { recoverEntries, mergeEntries, mergeCopies } from './zip-recover.js';
 import { writeZip } from './zip-write.js';
 import { crc32 } from './crc32.js';
 import { decodeXml, cleanChars, encodeUtf8 } from './xml-clean.js';
-import { repairXml } from './xml-repair.js';
+import { repairXml, parseTree } from './xml-repair.js';
 import { spliceHoles, resolveHoles } from './xml-holes.js';
 import { familyOfNames, wantedFromDonor } from './donor.js';
 import { identifyContent } from './orphan-kinds.js';
 import { sweepReferences, auditReferences } from './ref-sweep.js';
 import { completeSchema } from './schema-close.js';
-import { loadSchemaTable } from './schema-check.js';
+import { loadSchemaTable, PART_LIMIT } from './schema-check.js';
+import { checkTree } from './schema-fit.js';
+import { openedTable } from './schema-fill.js';
 import { rebuildRels } from './rels-rebuild.js';
 import { synthesizeMain } from './main-synth.js';
 import {
@@ -161,19 +163,52 @@ function loadEntries(ctx, bytes, identity, copies) {
 
 const CUT_STEPS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256];
 
-async function cutBack(env, text, fallback) {
-  let at = text.length;
-  let tags = 0;
-  for (const step of CUT_STEPS) {
+async function cutFrom(env, text, from, steps, fallback, accept = null) {
+  let at = from;
+  let tags = -1;
+  for (const step of steps) {
     while (tags < step && at > 0) {
-      at = text.lastIndexOf('<', at - 1);
+      at = text.lastIndexOf('<', at - 1 + (tags < 0 ? 1 : 0));
       tags++;
       if (at <= 0) return fallback;
     }
     const candidate = repairXml(text.slice(0, at));
-    if (candidate.hasRoot && (await checkWellFormed(env, candidate.text))) return candidate;
+    if (candidate.hasRoot && (await checkWellFormed(env, candidate.text)) && (!accept || accept(candidate))) return candidate;
   }
   return fallback;
+}
+
+const SHAPE_BREAKS = new Set(['unexpected', 'repeat', 'order']);
+
+async function shapeAccept(env, text) {
+  if (text.length > PART_LIMIT) return null;
+  const source = await loadSchemaTable(env);
+  if (!source || !source.elements) return null;
+  const table = openedTable(source);
+  return (candidate) => {
+    let tree;
+    try {
+      tree = parseTree(candidate.text);
+    } catch {
+      return false;
+    }
+    return !checkTree(table, tree, 64).findings.some((found) => SHAPE_BREAKS.has(found.kind));
+  };
+}
+
+const NEAR_STEPS = [0, 1, 2, 3, 4, 6, 8, 12, 16, 32, 64, 128, 256];
+const SLACK = 4096;
+
+export async function cutBack(env, text, fallback) {
+  const bad = text.indexOf('\uFFFD');
+  if (bad >= 0 && fallback.events) {
+    const first = fallback.events.find((at) => at >= bad - SLACK);
+    if (first !== undefined) {
+      const near = await cutFrom(env, text, first, NEAR_STEPS, null, await shapeAccept(env, text));
+      if (near) return near;
+    }
+  }
+  return cutFrom(env, text, text.length, CUT_STEPS, fallback);
 }
 
 async function processXml(ctx, part, env) {

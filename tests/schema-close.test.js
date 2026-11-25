@@ -124,7 +124,8 @@ test('schema: after completion the tree has no violations', () => {
 });
 
 import { pptxEntries, pack } from './fixtures.js';
-import { runPipeline } from '../js/core/pipeline.js';
+import { runPipeline, cutBack } from '../js/core/pipeline.js';
+import { repairXml } from '../js/core/xml-repair.js';
 import { env } from './harness.js';
 import { unzipSync, strFromU8 } from '../vendor/fflate.module.js';
 
@@ -200,4 +201,21 @@ test('schema: completing never invents content for a required wildcard choice', 
   const { text, result } = fix(`<p:extWrap ${NSP}/>`);
   eq(text, `<p:extWrap ${NSP}/>`);
   eq(result.unresolved.length, 1);
+});
+
+const SHAPE = '<p:sp><p:nvSpPr><p:cNvPr id="2" name="A"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/></p:sp>';
+const CUT_TEXT = `<p:spTree ${NSP}><p:nvGrpSpPr/><p:grpSpPr/>${SHAPE}${SHAPE}<p:zzz/><p:sp><p:spPr/></p:xx>\uFFFD\uFFFD<p:sp><p:nv`;
+
+test('cut back: a garbled tail is cut at the last element the schema table accepts', async () => {
+  const cut = await cutBack({ ...env, schemaTable: TABLE }, CUT_TEXT, repairXml(CUT_TEXT));
+  assert(!cut.text.includes('zzz'), cut.text);
+  assert(!cut.text.includes('\uFFFD'), 'no replacement characters');
+  eq(cut.text.split('<p:sp>').length - 1, 2, cut.text);
+  assert(cut.text.endsWith('</p:spTree>'), cut.text);
+});
+
+test('cut back: without a table the first well-formed cut near the damage is kept', async () => {
+  const cut = await cutBack({ ...env, schemaTable: null }, CUT_TEXT, repairXml(CUT_TEXT));
+  assert(cut.text.includes('zzz'), cut.text);
+  assert(!cut.text.includes('\uFFFD'), 'no replacement characters');
 });
