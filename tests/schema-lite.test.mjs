@@ -132,6 +132,23 @@ test('a patch that names an unknown element is reported', () => {
   assert.deepEqual(stats.patches.unknown.sort(), [`${W}|nothing`, 'w:CT_Nope'].sort());
 });
 
+test('matching: a very long run of repeated children fits in linear time and still reports a misplaced one', () => {
+  const opened = openTable(build().table);
+  const doc = opened.entryFor(W, 'doc');
+  const body = [el(W, 'head')];
+  for (let i = 0; i < 40000; i++) body.push(el(W, i % 5000 === 4999 ? 'tbl' : 'p'));
+  const began = Date.now();
+  assert.deepEqual(fitChildren(opened, doc, [...body, el(W, 'sect')]), { ok: true });
+  const late = fitChildren(opened, doc, [...body, el(W, 'sect'), el(W, 'p')]);
+  assert.equal(late.ok, false);
+  assert.equal(late.kind, 'order');
+  assert.equal(late.at, body.length);
+  const early = fitChildren(opened, doc, [el(W, 'head'), el(W, 'sect'), ...body.slice(1)]);
+  assert.equal(early.ok, false);
+  assert.equal(early.at, 1);
+  assert.ok(Date.now() - began < 3000, `took ${Date.now() - began} ms`);
+});
+
 test('matching: sequence, optional items, repeated choice, wildcard content and strict aliases', () => {
   const opened = openTable(build().table);
   const doc = opened.entryFor(W, 'doc');

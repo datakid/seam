@@ -237,6 +237,14 @@ export function fitChildren(table, entry, children) {
     if (pos === furthest) expected.add(what);
   };
   const leafKey = (item) => `${table.normalise(item.ns)}|${item.local}`;
+  let ends = null;
+  const runEnd = (p) => {
+    if (ends === null) {
+      ends = new Int32Array(n + 1);
+      for (let i = n - 1; i >= 0; i--) ends[i] = i + 1 < n && names[i + 1] === names[i] ? ends[i + 1] : i + 1;
+    }
+    return ends[p];
+  };
 
   const body = (node, starts) => {
     const out = [];
@@ -292,16 +300,27 @@ export function fitChildren(table, entry, children) {
     if (node.local !== undefined && node.max === null) {
       const key = leafKey(node);
       const out = [];
+      const lows = new Map();
       for (const p of starts) {
-        let q = p;
-        while (q < n && names[q] === key) q++;
-        const run = q - p;
-        if (run >= node.min) for (let r = node.min; r <= run; r++) out.push(p + r);
-        else note(p + run, key);
+        const end = p < n && names[p] === key ? runEnd(p) : p;
+        const run = end - p;
+        if (run < node.min) {
+          note(p + run, key);
+          continue;
+        }
+        if (run === 0) {
+          out.push(p);
+          continue;
+        }
+        const low = p + node.min;
+        const known = lows.get(end);
+        if (known === undefined || low < known) lows.set(end, low);
       }
+      for (const [end, low] of lows) for (let q = low; q <= end; q++) out.push(q);
       return unique(out);
     }
     const limit = node.max === null ? Infinity : node.max;
+    const monotone = node.max === null && node.min <= 1;
     let results = node.min === 0 ? starts.slice() : [];
     let current = starts;
     const seen = new Set(starts);
@@ -309,15 +328,15 @@ export function fitChildren(table, entry, children) {
       const next = body(node, current);
       if (next.length === 0) break;
       if (count >= node.min) for (const p of next) results.push(p);
-      let fresh = false;
+      const fresh = [];
       for (const p of next) {
         if (!seen.has(p)) {
           seen.add(p);
-          fresh = true;
+          fresh.push(p);
         }
       }
-      if (!fresh && count >= node.min) break;
-      current = unique(next);
+      if (fresh.length === 0 && count >= node.min) break;
+      current = monotone ? fresh : unique(next);
     }
     return unique(results);
   };
