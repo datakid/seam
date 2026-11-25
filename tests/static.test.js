@@ -4,7 +4,7 @@ const JS = [
   'main', 'ui', 'queue', 'worker', 'copy', 'theme', 'theme-init',
   'core/identify', 'core/crc32', 'core/crc-math', 'core/tiers', 'core/schema-fit', 'core/schema-fill', 'core/schema-check', 'core/rels-rebuild', 'core/main-synth', 'core/crlf-restore', 'core/zip-read', 'core/zip-recover', 'core/zip-write', 'core/inflate-tolerant', 'core/xml-holes', 'core/donor', 'core/registry', 'core/data/parts', 'core/ref-sweep', 'core/data/ref-policy', 'core/zip-orphans', 'core/orphan-kinds', 'core/xml-clean', 'core/xml-repair', 'core/package',
   'core/verify', 'core/salvage', 'core/report', 'core/constants', 'core/pipeline', 'core/schema-close',
-  'core/formats/docx', 'core/formats/xlsx', 'core/formats/pptx'
+  'core/formats/docx', 'core/formats/xlsx', 'core/formats/pptx', 'core/formats/docx-rules/notes'
 ].map((name) => `../js/${name}.js`);
 
 async function text(url) {

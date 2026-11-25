@@ -19,7 +19,10 @@ export function validNameBytes(bytes) {
   return true;
 }
 
+const CONTROL_IN_NAME = /[\u0000-\u001f\u007f]/;
+
 export function normalizeName(raw) {
+  if (CONTROL_IN_NAME.test(raw)) return null;
   let name = raw.split('\\').join('/');
   while (name.startsWith('/')) name = name.slice(1);
   const parts = [];
@@ -164,7 +167,10 @@ export function strictRead(bytes, prefix = 0) {
     parsed++;
     const rawName = decodeName(nameBytes, (flags & 0x800) !== 0);
     const name = normalizeName(rawName);
-    if (name === null) result.dropped.push(rawName);
+    if (name === null) {
+      result.dropped.push(rawName);
+      if (CONTROL_IN_NAME.test(rawName)) result.errors.push('BAD_NAME');
+    }
     if (name === null || name === '' || name.endsWith('/')) continue;
     const entry = { name, method, mtime: dosToDate(time, date), crc, expectedSize: usize, state: 'unreadable', data: new Uint8Array(0) };
     result.entries.push(entry);

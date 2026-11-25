@@ -1,6 +1,7 @@
 import { getTree, touch, addFinding, addRelationship, relsTreeFor, resolveTarget, readRelationships, mainFolderOf } from '../package.js';
 import { documentElement, localName, prefixOf, descendants, elementChildren, createElement, getAttrLocal } from '../xml-repair.js';
 import { REL_BASE } from '../constants.js';
+import { removeDanglingNotes } from './docx-rules/notes.js';
 
 const LINKED = [
   ['styles.xml', 'styles'],
@@ -43,6 +44,8 @@ export function applyDocx(ctx) {
     }
   }
   if (added > 0) addFinding(ctx, 'DOCX_REL_ADDED', relsPath, { n: added });
+
+  removeDanglingNotes(ctx);
 
   const numberingPath = folder ? `${folder}/numbering.xml` : 'numbering.xml';
   if (!ctx.index.has(numberingPath)) {

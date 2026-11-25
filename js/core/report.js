@@ -65,6 +65,7 @@ export const SEVERITY = {
   PPTX_SLIDE_IDS: 'repaired',
   CT_UNKNOWN_PART: 'noted',
   DOCX_NUMBERING_MISSING: 'noted',
+  DOCX_NOTE_REFS_REMOVED: 'repaired',
   XLSX_SHEET_RENAMED: 'noted',
   XLSX_CALCCHAIN_REMOVED: 'noted',
   XLSX_DIMENSION_REMOVED: 'noted',

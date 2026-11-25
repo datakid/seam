@@ -254,6 +254,7 @@ export const copy = {
     DOCX_BODY_ADDED: () => 'Added the missing document body element around the existing content.',
     DOCX_REL_ADDED: (d) => `Added ${d.n} missing ${plural(d.n, 'relationship', 'relationships')} to existing parts.`,
     DOCX_NUMBERING_MISSING: () => 'The numbering part is missing. List formatting may look different.',
+    DOCX_NOTE_REFS_REMOVED: (d) => `Removed ${d.n} ${d.kind} ${plural(d.n, 'reference', 'references')} that pointed to ${d.kind}s no longer in the file.`,
     XLSX_SHEET_REMOVED: (d) => `Sheet "${d.name}" was removed because its data part was unreadable.`,
     XLSX_NAMES_ADJUSTED: (d) => `Adjusted defined names and sheet indexes after removing ${d.n} ${plural(d.n, 'sheet', 'sheets')}.`,
     XLSX_SHEET_RENAMED: (d) => `Renamed sheet "${d.from}" to "${d.to}" to keep sheet names unique and within 31 characters.`,

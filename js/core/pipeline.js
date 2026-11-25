@@ -30,7 +30,7 @@ import { notSupportedResult, failedResult, sentenceFor, countLoss, detectedLabel
 import { isMainRelType, MAIN_PARTS, OUTPUT_MIME, STAGE_WEIGHTS, stageStart, CT_MAIN, FAMILY_KEYS, STANDARD_KEYS } from './constants.js';
 import { copy } from '../copy.js';
 
-const STRUCTURAL = new Set(['NO_EOCD', 'BAD_CD', 'BAD_CD_ENTRY', 'BAD_LOCAL', 'NAME_MISMATCH', 'SHORT_DATA']);
+const STRUCTURAL = new Set(['NO_EOCD', 'BAD_CD', 'BAD_CD_ENTRY', 'BAD_LOCAL', 'NAME_MISMATCH', 'BAD_NAME', 'SHORT_DATA']);
 
 function inputExtension(name) {
   const dot = name.lastIndexOf('.');
@@ -120,7 +120,7 @@ function loadEntries(ctx, bytes, identity, copies) {
   }
   if ((!strict.intact && directoryBroken) || autoShift < 0) addFinding(ctx, 'ZIP_DIRECTORY_REBUILT', null, { n: entries.length });
   if (endsEarly) addFinding(ctx, 'ZIP_ENDS_EARLY', null, {});
-  for (const raw of dropped) addFinding(ctx, 'ZIP_PATH_DROPPED', raw, {});
+  for (const raw of new Set(dropped)) addFinding(ctx, 'ZIP_PATH_DROPPED', raw, {});
   if (dropped.length > 0) ctx.changed = true;
 
   for (const entry of entries) {

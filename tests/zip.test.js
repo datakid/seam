@@ -159,6 +159,29 @@ test('names: backslashes, leading slash and dot segments are normalised; dot-dot
   eq(normalizeName('../evil.xml'), null);
   eq(normalizeName('word/../../evil.xml'), null);
   eq(normalizeName('word/'), 'word/');
+  eq(normalizeName('docProps/c\u0000ppt/pr'), null);
+  eq(normalizeName('word/doc\u001fument.xml'), null);
+  eq(normalizeName('word/my notes.xml'), 'word/my notes.xml');
+});
+
+test('a control character in a directory name is damage: the entry is dropped and recovery still finds the local copy', () => {
+  const bytes = docx();
+  const needle = new TextEncoder().encode('word/document.xml');
+  let at = -1;
+  for (let i = bytes.length - 46; i >= 0 && at < 0; i--) {
+    if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 1 && bytes[i + 3] === 2 && needle.every((b, k) => bytes[i + 46 + k] === b)) at = i + 46;
+  }
+  assert(at > 0, 'central name found');
+  const broken = bytes.slice();
+  broken[at + 4] = 0x01;
+  const read = strictRead(broken, 0);
+  assert(!read.intact, 'strict should fail');
+  assert(read.errors.includes('BAD_NAME'), `errors: ${read.errors}`);
+  eq(read.dropped.length, 1);
+  const recovered = recoverEntries(broken, read.entries);
+  const merged = mergeEntries(read.entries, recovered.entries);
+  const document = merged.find((e) => e.name === 'word/document.xml');
+  assert(document && document.state === 'ok', 'document.xml recovered from its local header');
 });
 
 test('merge: ok beats crcMismatch beats partial, an ok central copy keeps a tie', () => {
