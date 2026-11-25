@@ -151,7 +151,7 @@ Departures from PLAN.md, with the reason for each.
 - A slide with more than one layout relationship is left as it is.
 - A file that is valid and has a Content_Types entry that is not first in the ZIP is reported as No problems found; the order is only enforced on output.
 - Very large XML parts are checked by DOMParser on the main thread, which can pause the page briefly.
-- Tested in Chromium only. A 100 MB damaged document with a 4 MB main part repaired in about 5 seconds.
+- Tested in Chromium only. On the 1,139-case damaged set the median repair takes 62 ms, the 95th percentile 412 ms and the slowest 15.7 s (a 12 MB part), with peak JS heap up to 495 MB. Six 100 MB documents (a 4 MB main part plus a 96 MB image) damaged in the main part or the ZIP directory repaired in 3 to 7 seconds at 170 to 680 MB peak heap; the same file undamaged is checked in under 1 second.
 
 ## Remaining work
 

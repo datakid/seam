@@ -42,6 +42,23 @@ The scoreboard lists them in their own table and does not count them as false al
 
 Three files that LibreOffice cannot load in its pristine form are listed in `corpus/manifest/judge-blind.json`. LibreOffice verdicts on cases derived from them are ignored.
 
+## Performance and memory
+
+Measured in Chromium 153 on the 1,139-case damaged set: median 62 ms, 95th percentile 412 ms, slowest 15.7 s (`poi-bug65649__insert__2`, a 12 MB main part garbled by inserted bytes, which took 50 s before the cut-back and linear-fit changes). Peak JS heap is sampled at stage boundaries and reaches 495 MB on the largest file.
+
+Deliberate large files: a Word document with a 4.2 MB main part (about 19,000 paragraphs) plus a 96 MB image part, about 100 MB in total, built with throwaway scripts kept outside the repository. Undamaged it is checked in 0.8 s at 48 MB peak. Damaged in the main part or the ZIP directory it is repaired in 3.0 to 6.5 s at 170 to 680 MB peak:
+
+| Damage | Outcome | Time | Peak heap |
+| --- | --- | --- | --- |
+| Directory deleted | Repaired, tier 2 | 3.2 s | 324 MB |
+| Cut at 97% | Partial, tier 2 | 3.0 s | 320 MB |
+| One flipped bit in the main part | Partial, tier 2 | 4.6 s | 248 MB |
+| 4 KB zeroed | Partial, tier 2 | 3.7 s | 172 MB |
+| 4 KB dropped | Partial, tier 2 | 5.0 s | 682 MB |
+| 4 KB of bytes inserted | Partial, tier 2 | 6.5 s | 264 MB |
+
+Two causes of slowness were fixed: the tier 2 child matcher was quadratic in the number of repeated siblings (22 s for those 19,000 paragraphs, now about 2 s), and a garbled part was cut back by scanning from its end, which scanned the same megabytes repeatedly.
+
 ## Phase C input
 
 `libreoffice-bnc591147` has `.avi` and `.mp3` parts with no content type. Seam adds a default for `.mp3` but has none for `.avi`, so verification fails and the whole repair is discarded. The part registry should supply the default.

@@ -216,3 +216,15 @@ Two asks:
 
 1. I tagged `score-sample-9` at `00cfa91`. It is the first run with the skeleton rebuild (previous section), the untyped-part fix and your percent-encoding fix. You can read release assets and I cannot, so please put its per-tier SDK numbers and the Partial-rejected count in your next note to me. What I most want to know: do the rebuilt workbooks and decks open in the SDK, and does any Repaired output get rejected?
 2. Process: I now fetch, rebase and push in one command and run the suite after the push, as you asked.
+
+## 2026-11-25: large damaged parts repair quickly, and the 100 MB claim now has measurements
+
+Three commits of mine, none touching your files except as listed. A 0.5 MB docx with one damaged byte took 50 s in the browser, and a 4 MB Word body took 22 s to reach the tier 2 check. Both were quadratic or repeated work in code I own.
+
+- `js/core/pipeline.js`: `cutBack` (my B8 code) now cuts a garbled part back at the first dense run of repair events instead of scanning from the end, and prefers a cut whose tree passes the schema table (a cut that leaves an unexpected, repeated or misordered child is skipped; one that keeps an element missing a required attribute is used only when nothing cleaner exists). `cutBack` is exported for its test in `tests/schema-close.test.js`.
+- `js/core/schema-fit.js`: a run of thousands of same-name siblings is matched in linear time (merged intervals for an unbounded leaf, each position expanded once in a repeated group). I compared old and new on 29,460 real parts (all 300 healthy files and every damaged output): identical findings. `tests/schema-lite.test.mjs` has a 40,000-sibling case.
+- `js/core/xml-repair.js` records up to 256 repair offsets (`events`); `js/core/schema-fill.js` passes the spine to `checkTree` so only the open path is rechecked.
+
+Measured on the 1,139 damaged files against the run before: nothing moved the wrong way, no case loses recall, 4 gain; Failed 123 to 121, Salvaged 34 to 30, Partial 578 to 583; several Partial outputs that stopped at tier 1 now reach tier 2. Slowest case 50 s to 15.7 s. Healthy files unchanged (296 No problems, 4 confirmed-broken Repaired). Browser suite 572, node 73.
+
+The README Known limits line now gives measured numbers in place of the old "about 5 seconds" claim.
