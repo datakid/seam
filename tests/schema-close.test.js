@@ -219,3 +219,10 @@ test('cut back: without a table the first well-formed cut near the damage is kep
   assert(cut.text.includes('zzz'), cut.text);
   assert(!cut.text.includes('\uFFFD'), 'no replacement characters');
 });
+
+test('cut back: a cut that keeps an element with a required attribute missing is pushed back past it', async () => {
+  const text = `<p:spTree ${NSP}><p:nvGrpSpPr/><p:grpSpPr/>${SHAPE}${SHAPE}<p:sp><p:nvSpPr><p:cNvPr/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/></p:xx>\uFFFD\uFFFD<p:sp><p:nv`;
+  const cut = await cutBack({ ...env, schemaTable: TABLE }, text, repairXml(text));
+  assert(!cut.text.includes('<p:cNvPr/>'), cut.text);
+  eq(cut.text.split('<p:cNvPr id=').length - 1, 2, cut.text);
+});

@@ -163,9 +163,13 @@ function loadEntries(ctx, bytes, identity, copies) {
 
 const CUT_STEPS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256];
 
+const SHAPE_BUDGET_MS = 2500;
+
 async function cutFrom(env, text, from, steps, fallback, accept = null) {
   let at = from;
   let tags = -1;
+  let spare = null;
+  const began = Date.now();
   for (const step of steps) {
     while (tags < step && at > 0) {
       at = text.lastIndexOf('<', at - 1 + (tags < 0 ? 1 : 0));
@@ -173,12 +177,19 @@ async function cutFrom(env, text, from, steps, fallback, accept = null) {
       if (at <= 0) return fallback;
     }
     const candidate = repairXml(text.slice(0, at));
-    if (candidate.hasRoot && (await checkWellFormed(env, candidate.text)) && (!accept || accept(candidate))) return candidate;
+    if (!candidate.hasRoot || !(await checkWellFormed(env, candidate.text))) continue;
+    const grade = accept ? accept(candidate) : FITS;
+    if (grade === FITS) return candidate;
+    if (grade === LOOSE && !spare) spare = candidate;
+    if (accept && Date.now() - began > SHAPE_BUDGET_MS) return spare;
   }
-  return fallback;
+  return spare || fallback;
 }
 
 const SHAPE_BREAKS = new Set(['unexpected', 'repeat', 'order']);
+const REJECTED = 0;
+const LOOSE = 1;
+const FITS = 2;
 
 async function shapeAccept(env, text) {
   if (text.length > PART_LIMIT) return null;
@@ -190,23 +201,36 @@ async function shapeAccept(env, text) {
     try {
       tree = parseTree(candidate.text);
     } catch {
-      return false;
+      return REJECTED;
     }
-    return !checkTree(table, tree, 64).findings.some((found) => SHAPE_BREAKS.has(found.kind));
+    const found = checkTree(table, tree, 64).findings;
+    if (found.some((one) => SHAPE_BREAKS.has(one.kind))) return REJECTED;
+    return found.some((one) => one.kind === 'attr') ? LOOSE : FITS;
   };
 }
 
 const NEAR_STEPS = [0, 1, 2, 3, 4, 6, 8, 12, 16, 32, 64, 128, 256];
 const SLACK = 4096;
 
-export async function cutBack(env, text, fallback) {
+const DENSE_RUN = 6;
+const DENSE_SPAN = 4096;
+
+function denseStart(events) {
+  for (let at = 0; at + DENSE_RUN < events.length; at++) if (events[at + DENSE_RUN] - events[at] <= DENSE_SPAN) return events[at];
+  return events.length > 0 ? events[0] : undefined;
+}
+
+function damageStart(text, events) {
+  if (!events) return undefined;
   const bad = text.indexOf('\uFFFD');
-  if (bad >= 0 && fallback.events) {
-    const first = fallback.events.find((at) => at >= bad - SLACK);
-    if (first !== undefined) {
-      const near = await cutFrom(env, text, first, NEAR_STEPS, null, await shapeAccept(env, text));
-      if (near) return near;
-    }
+  return bad >= 0 ? events.find((at) => at >= bad - SLACK) : denseStart(events);
+}
+
+export async function cutBack(env, text, fallback) {
+  const first = damageStart(text, fallback.events);
+  if (first !== undefined) {
+    const near = await cutFrom(env, text, first, NEAR_STEPS, null, await shapeAccept(env, text));
+    if (near) return near;
   }
   return cutFrom(env, text, text.length, CUT_STEPS, fallback);
 }
