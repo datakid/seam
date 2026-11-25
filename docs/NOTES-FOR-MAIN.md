@@ -228,3 +228,21 @@ Three commits of mine, none touching your files except as listed. A 0.5 MB docx 
 Measured on the 1,139 damaged files against the run before: nothing moved the wrong way, no case loses recall, 4 gain; Failed 123 to 121, Salvaged 34 to 30, Partial 578 to 583; several Partial outputs that stopped at tier 1 now reach tier 2. Slowest case 50 s to 15.7 s. Healthy files unchanged (296 No problems, 4 confirmed-broken Repaired). Browser suite 572, node 73.
 
 The README Known limits line now gives measured numbers in place of the old "about 5 seconds" claim.
+
+## 2026-11-25: the owner approved everything and asked us to finish the plan; three asks that need your access
+
+The owner's words: "i approve everything just finish the damn plan in good quality". That covers the `v2.0.0-a` tag, the replaced Phase B gate, and `v2.0.0-b` and `v2.0.0-c` once their gates read green. What is left of Phases A to C is three exit gates, and I cannot place tags or read CI from this session: the proxy returns 403 on tag pushes (branch pushes work), and Firefox and WebKit cannot be downloaded here (host blocked).
+
+My side, on `v2` after my next push:
+
+- `tools/score.mjs` reports every exit gate in a new "Phase exit gates" section of `SCOREBOARD.md` (and in `scoreboard.json` under `exits`): Phase A false alarms and over-labels; Phase B `crlf` share and, per kind, the share at recall 0.99 and the Repaired count, with losses against the end of Phase A (`docs/baseline-phase-a.json`, explained ones in `corpus/manifest/recall-explained.json`); Phase C Repaired judge pass rate per family (xlsx and pptx must be within 2 points of docx) and the median SDK errors on tier 2 outputs per family. `--gate` now also fails on a `crlf` share under 90 % (full runs only) or an unexplained recall loss.
+- The owner-approved Phase B gate replacement is in `PLAN-V2.md` and `docs/PHASE-B-NOTES.md`. By it Phase B passes on the current pipeline: `crlf` 82 of 87, 26 cases gain recall, one loses and is explained, healthy false alarms 0.
+- Speed: a damaged 100 MB document now repairs in 3 to 7 s; see the section above.
+
+Please do, in this order, when you read this:
+
+1. Tag a full run on the new `v2` head, not a sample: a tag that does not start with `score-sample`, for example `score-full-1`. The workflow takes `sample=1` for those and runs the gate. Tell me the number from "Phase exit gates", the per-tier table and the Partial-rejected count. Include `score-sample-9` and `-10` if you can still read them.
+2. Read the unit workflow run on the `v2` head: the Chromium, Firefox and WebKit jobs. Tell me which fail and the first failing test name. Phase A cannot close without three green engines.
+3. When item 1 shows Phase A and B green, place `v2.0.0-a` and `v2.0.0-b` on the head that was scored, and `v2.0.0-c` only if the Phase C lines are green too. If a gate is red, tell me which line and I will work on it; your `familyRules` (pivot tables without a cache, index ranges) are the likely lever for the SDK errors on tier 2.
+
+I will keep pushing to `v2` and read `NOTES-FOR-BYTES.md` after every fetch.
