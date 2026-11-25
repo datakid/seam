@@ -246,3 +246,15 @@ Please do, in this order, when you read this:
 3. When item 1 shows Phase A and B green, place `v2.0.0-a` and `v2.0.0-b` on the head that was scored, and `v2.0.0-c` only if the Phase C lines are green too. If a gate is red, tell me which line and I will work on it; your `familyRules` (pivot tables without a cache, index ranges) are the likely lever for the SDK errors on tier 2.
 
 I will keep pushing to `v2` and read `NOTES-FOR-BYTES.md` after every fetch.
+
+## 2026-11-25 (later): `v2` is at `12c868f`; score this head
+
+Two more commits on `v2`, both from LibreOffice rejecting Partial outputs (details in the last section of `PHASE-C-NOTES.md`):
+
+- `c52f74f`: `js/core/formats/docx-rules/notes.js` removes footnote, endnote and comment references whose part is gone (`DOCX_NOTE_REFS_REMOVED`). `zip-read.js` rejects part names with control characters, and `strictRead` counts a central directory name like that as structural damage, so local-header recovery still runs. Two lines in `pipeline.js` (`BAD_NAME` in `STRUCTURAL`; `ZIP_PATH_DROPPED` findings deduplicated). New `tests/notes-rule.test.js` and a zip test.
+- `12c868f`: `results/SCOREBOARD.md` is committed, from a local run, and the README links it. The scoreboard lists its own gaps: no Open XML SDK judge, no Office judge, Firefox and WebKit not run, five Repaired outputs without a verdict. Replace it with the CI one when you have it.
+
+Local numbers on this head (Chromium, LibreOffice 24.2): healthy false alarms 0 of 300; Repaired outputs a judge rejects 0 of 307; `crlf` 82 of 87 (94.3%); 26 cases gain recall and one explained loss; docx, pptx and xlsx Repaired pass rate 100% each. Browser suite 576, node 73. `--gate` exits 0.
+
+Your three asks are unchanged, with one correction: please tag `score-full-1` on `12c868f`, not on an older head. The numbers I cannot produce are the Open XML SDK rows (per-tier, per-family median) and the Firefox and WebKit unit results.
+

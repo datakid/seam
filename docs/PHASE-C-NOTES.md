@@ -306,3 +306,17 @@ Measured on the 1,139 damaged files, the pipeline before and after:
 Movements: 30 Failed to Partial, 3 Failed to Repaired and 1 Salvaged to Repaired (those four are the untyped-part fix in `NOTES-FOR-MAIN.md`), 29 Salvaged to Partial. Nothing moved the other way. Text recall: no case loses, 8 gain (0.68 to 1.00 and similar, workbooks that were text-only before), mean 0.878 to 0.879. Tier 2 outputs 688 to 734. Healthy files: 295 No problems and 5 Repaired, as before, with identical findings.
 
 What it does not do: nine of the 30 Failed-to-Partial decks end with no slides, because the slide parts were lost too. They are labelled Partial, as the existing rule for a deck with no slides says. Slide order and sheet names are guesses from file names, so the report says so. `libreoffice-forum-mso-de-138303__truncate__1` still fails because every slide layout is gone; a layout would have to be written from nothing.
+
+
+## Judge-driven fixes: dangling notes and damaged part names (Bytes agent)
+
+Found by running LibreOffice over every output of the damaged set (`tools/judge-lo.sh`). Seven outputs labelled Partial were rejected by LibreOffice, and each had a cause the structural checks could not see.
+
+| Cause | Fix |
+|---|---|
+| A Word document whose footnotes, endnotes or comments part was lost still had `w:footnoteReference`, `w:endnoteReference` or `w:commentReference` runs, and `w:footnotePr` in the settings. | `js/core/formats/docx-rules/notes.js`, called from `formats/docx.js`: references with no matching note are removed from the main part, headers and footers, along with a run that held nothing else; the settings entry goes when its part is gone. Finding `DOCX_NOTE_REFS_REMOVED`, repaired. |
+| A part name with a control character, such as `docProps/c\0ppt/pr` after a dropped block, was kept and given a content type of its own. | `normalizeName` in `zip-read.js` rejects it, and the entry is reported as `ZIP_PATH_DROPPED` (loss). A central directory name that fails this way counts as a structural error (`BAD_NAME`), so the scan of local headers still runs and recovers the part under the name in its local header. |
+
+Measured on the 1,139 damaged files against the run before: 21 cases differ. 17 gain only the `DOCX_NOTE_REFS_REMOVED` finding and keep outcome and tier; four lose a junk-named part and gain `ZIP_PATH_DROPPED`; in one of those (`libreoffice-group-connector-descr__dropblock__0`) the label moves from Repaired to Partial, which is the honest label because a real part was lost to the damaged name. No other outcome or tier moved. Healthy files: 296 No problems, 4 confirmed-broken Repaired. LibreOffice: 7 outputs that it rejected now load, 0 of 307 judged Repaired outputs are rejected, 1 Partial output is still rejected.
+
+Known gap: `libreoffice-testModernVBA__bitflip__0`. A flipped bit turned `word/theme/theme1.xml` into `word/theme/|heme1.xml`, and a footnotes part and a header were lost as well. The part keeps its flipped name, so the relationship to the theme dangles and is removed. A repair that renames a lone unreferenced part to a missing referenced name one character away would fix it. It would change 2 to 3 of 927 outputs, so it is not done.
