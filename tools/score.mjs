@@ -239,6 +239,56 @@ const overLabels = rows.filter((r) => r.seamLabel === 'repaired' && r.rejectedBy
 const partialRejected = rows.filter((r) => r.seamLabel === 'partial' && r.rejectedBy.length > 0);
 const judgedRepaired = rows.filter((r) => r.seamLabel === 'repaired' && r.judged);
 
+const RECALL_OK = 0.99;
+const RECALL_LOSS = 0.02;
+const CRLF_GATE = 0.9;
+const PARITY_POINTS = 2;
+const phaseABaseline = readJson(resolve(root, flag('baseline', 'docs/baseline-phase-a.json')), null);
+const explainedLosses = readJson(join(root, 'corpus', 'manifest', 'recall-explained.json'), {});
+const crlfRows = rows.filter((r) => r.kind === 'crlf');
+const crlfGood = crlfRows.filter((r) => r.seamLabel === 'repaired' && r.textRecall >= RECALL_OK).length;
+const recallLosses = phaseABaseline
+  ? rows
+    .filter((r) => typeof phaseABaseline.recall[r.file] === 'number' && phaseABaseline.recall[r.file] - r.textRecall > RECALL_LOSS)
+    .map((r) => ({ file: r.file, kind: r.kind, from: phaseABaseline.recall[r.file], to: r.textRecall, explained: explainedLosses[r.file] || null }))
+  : [];
+const recallGains = phaseABaseline ? rows.filter((r) => typeof phaseABaseline.recall[r.file] === 'number' && r.textRecall - phaseABaseline.recall[r.file] > RECALL_LOSS).length : 0;
+const exitKinds = perKind.map((k) => {
+  const list = rows.filter((r) => r.kind === k.kind);
+  return { kind: k.kind, cases: list.length, atRecall: list.filter((r) => r.textRecall >= RECALL_OK).length, repaired: list.filter((r) => r.seamLabel === 'repaired').length };
+});
+const exitFamilies = [...new Set(rows.map((r) => r.family))].filter(Boolean).sort().map((family) => {
+  const list = rows.filter((r) => r.family === family);
+  const repaired = list.filter((r) => r.seamLabel === 'repaired' && r.judged);
+  const tier2 = list.filter((r) => r.tier === 2 && r.seamLabel !== 'noProblems' && r.judges.oxml && r.judges.oxml.opens === true);
+  return {
+    family,
+    repairedJudged: repaired.length,
+    repairedPass: repaired.filter((r) => r.rejectedBy.length === 0).length,
+    tier2Judged: tier2.length,
+    tier2MedianErrors: median(tier2.map((r) => r.judges.oxml.errors))
+  };
+});
+const rateOf = (f) => (f && f.repairedJudged > 0 ? f.repairedPass / f.repairedJudged : null);
+const docxRate = rateOf(exitFamilies.find((f) => f.family === 'docx'));
+const parity = exitFamilies
+  .filter((f) => f.family !== 'docx')
+  .map((f) => ({ family: f.family, rate: rateOf(f), ok: docxRate === null || rateOf(f) === null ? null : rateOf(f) >= docxRate - PARITY_POINTS / 100 }));
+const exits = {
+  a: { falseAlarms: falseAlarms.length, overLabels: overLabels.length },
+  b: {
+    crlfCases: crlfRows.length,
+    crlfAtRecall: crlfGood,
+    crlfOk: crlfRows.length === 0 ? null : crlfGood / crlfRows.length >= CRLF_GATE,
+    kinds: exitKinds,
+    baseline: phaseABaseline ? phaseABaseline.cases : null,
+    losses: recallLosses,
+    gains: recallGains,
+    unexplainedLosses: recallLosses.filter((l) => !l.explained).length
+  },
+  c: { families: exitFamilies, parity, tier2Zero: exitFamilies.map((f) => ({ family: f.family, ok: f.tier2Judged === 0 ? null : f.tier2MedianErrors === 0 })) }
+};
+
 const coverage = readJson(join(root, 'corpus', 'cache', 'coverage-healthy.json'), { gaps: [] });
 const gaps = [...coverage.gaps];
 const anyOxml = anyJudge.oxml;
@@ -289,6 +339,7 @@ const board = {
       return m;
     }, {})).sort((a, b) => b[1] - a[1])
   },
+  exits,
   damaged: { cases: rows.length, perKind, perTier, sdkElements: sdkElements.slice(0, 40), overLabels: overLabels.map((r) => r.file), partialRejected: partialRejected.map((r) => r.file) },
   performance: { medianMs: median(allMs), p95Ms: percentile(allMs, 95), maxMs: Math.max(0, ...allMs), maxPeakMB: Math.max(0, ...allMb), memoryMethod: 'js-heap-sampled (Chromium performance.memory, sampled at stage boundaries)' },
   gaps,
@@ -368,6 +419,28 @@ if (sdkElements.length === 0) {
   for (const e of sdkElements.slice(0, 25)) md.push(`| ${e.element} | ${e.messages} | ${e.files} | ${e.topId} | ${Object.entries(e.families).map(([f, n]) => `${f} ${n}`).join(', ')} |`);
 }
 md.push('');
+md.push('## 2d. Phase exit gates');
+md.push('');
+md.push(`Phase A: healthy false alarms ${falseAlarms.length} (gate 0); outputs labelled Repaired that a judge rejects ${overLabels.length} (gate 0).`);
+md.push('');
+md.push(`Phase B: \`crlf\` cases that reach Repaired with recall of at least ${RECALL_OK}: ${crlfGood} of ${crlfRows.length} (${pct(crlfGood, crlfRows.length)}; gate ${CRLF_GATE * 100}%). The plan's +15 point median gate cannot be met because the median was already 1.000 before Phase B; the owner replaced it on 2026-11-25 with the share of outputs at recall ${RECALL_OK} and the Repaired count per kind below, and no case losing more than ${RECALL_LOSS} of recall without an explanation.`);
+md.push('');
+md.push('| Kind | Cases | Recall at least 0.99 | Repaired |');
+md.push('|---|---|---|---|');
+for (const k of exitKinds) md.push(`| ${k.kind} | ${k.cases} | ${pct(k.atRecall, k.cases)} | ${k.repaired} |`);
+md.push('');
+if (phaseABaseline) {
+  md.push(`Against the end of Phase A (${phaseABaseline.cases} cases): ${recallGains} gain more than ${RECALL_LOSS} of recall, ${recallLosses.length} lose more than ${RECALL_LOSS}, ${recallLosses.filter((l) => !l.explained).length} of those without an explanation.`);
+  md.push('');
+  for (const l of recallLosses) md.push(`- ${l.file} (${l.kind}): ${num(l.from, 3)} to ${num(l.to, 3)}. ${l.explained || 'No explanation recorded.'}`);
+  if (recallLosses.length > 0) md.push('');
+}
+md.push(`Phase C: Repaired outputs that every judge accepts, by family, and the median Open XML SDK errors on tier 2 outputs the SDK opens. Gate: xlsx and pptx within ${PARITY_POINTS} points of docx, and median 0 for each family.`);
+md.push('');
+md.push('| Family | Repaired judged | Accepted | Rate | Tier 2 outputs judged | SDK median errors |');
+md.push('|---|---|---|---|---|---|');
+for (const f of exitFamilies) md.push(`| ${f.family} | ${f.repairedJudged} | ${f.repairedPass} | ${pct(f.repairedPass, f.repairedJudged)} | ${f.tier2Judged} | ${f.tier2Judged === 0 ? 'n/a' : num(f.tier2MedianErrors, 0)} |`);
+md.push('');
 md.push('## 3. Over-labels');
 md.push('');
 md.push(`Outputs labelled Repaired that a judge rejects: ${overLabels.length} of ${judgedRepaired.length} judged.`);
@@ -405,6 +478,8 @@ if (gate) {
   const problems = [];
   if (falseAlarms.length > 0) problems.push(`${falseAlarms.length} false alarms on healthy files`);
   if (overLabels.length > 0) problems.push(`${overLabels.length} outputs labelled Repaired that a judge rejects`);
+  if (crlfRows.length >= 30 && exits.b.crlfOk === false) problems.push(`crlf cases at Repaired with recall ${RECALL_OK}: ${crlfGood} of ${crlfRows.length}, gate ${CRLF_GATE * 100}%`);
+  if (exits.b.unexplainedLosses > 0) problems.push(`${exits.b.unexplainedLosses} cases lose more than ${RECALL_LOSS} of recall against the end of Phase A without an explanation`);
   if (problems.length > 0) {
     console.error(`gate failed: ${problems.join('; ')}`);
     process.exit(1);

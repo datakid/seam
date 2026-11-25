@@ -1,0 +1,3 @@
+{
+  "poi-52348__padzero__0": "Not a loss. After the first zero run the old decoder replayed earlier text out of the zero bits, 533 cells of which 56 differed; the new output holds the 56 real cells. See docs/PHASE-B-NOTES.md, B8."
+}

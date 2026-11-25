@@ -292,6 +292,8 @@ Data with no usable local header (head overwritten, header in a zero block):
 - No regression: healthy false alarms 0, over-labels 0, no damage kind loses recall.
 - Tag `v2.0.0-b`.
 
+Owner decision, 2026-11-25: the +15 point median gate cannot be met, because median text recall was already 1.000 on every kind before Phase B. It is replaced by the share of outputs with recall of at least 0.99 and the Repaired count per kind, reported on the scoreboard, with no case losing more than 0.02 of recall against the end of Phase A unless the notes explain it. The `crlf` gate stays at 90 %.
+
 ---
 
 ## 6. Phase C: Rules
