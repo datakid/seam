@@ -401,7 +401,7 @@ for (const k of perKind) {
 md.push('');
 md.push('## 2b. Verification tiers');
 md.push('');
-md.push('Per tier of the output Seam produced: how many outputs, how many each judge accepted, and the median number of Open XML SDK errors on files it opens. Tier 2 stays empty until the schema check and family rules exist.');
+md.push('Per tier of the output Seam produced: how many outputs, how many each judge accepted, and the median number of Open XML SDK errors on files it opens.');
 md.push('');
 md.push('| Tier | Meaning | Outputs | LibreOffice loads | Open XML SDK opens | SDK median errors |');
 md.push('|---|---|---|---|---|---|');

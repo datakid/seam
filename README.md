@@ -8,7 +8,7 @@ Open-source, in-browser repair for damaged Microsoft Office files (.docx, .xlsx,
 
 ## Status
 
-All phases P0 to P7 are built. The full test suite passes (see "Tests"). Nothing is deployed. Deployment needs explicit approval from the owner.
+All phases P0 to P7 are built. Seam v2 (`PLAN-V2.md`) Phases A to C are built too: a healthy corpus, a damage lab, independent judges and a scoreboard (A), byte-level recovery (B), and a part registry, a reference sweep, a schema table and verification tiers (C). What the app achieves is measured, not asserted: the latest committed run is [results/SCOREBOARD.md](results/SCOREBOARD.md), with the notes for each phase in `docs/`. The full test suite passes (see "Tests"). Nothing is deployed. Deployment needs explicit approval from the owner.
 
 Manual verification in Office: pending owner (checklist at the end of this file).
 
