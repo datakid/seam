@@ -44,6 +44,7 @@ export const SEVERITY = {
   CT_OVERRIDE_REMOVED: 'repaired',
   CT_OVERRIDE_ADDED: 'repaired',
   CT_OVERRIDE_FIXED: 'repaired',
+  PART_NAME_CASE_FIXED: 'repaired',
   CT_ENTRIES_CLEANED: 'repaired',
   CT_PART_TYPED: 'repaired',
   SCHEMA_COMPLETED: 'repaired',

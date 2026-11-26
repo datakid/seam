@@ -240,6 +240,67 @@ export function referencedParts(ctx) {
   return out;
 }
 
+export function renamePart(ctx, from, to) {
+  const part = ctx.parts.get(from);
+  ctx.parts.delete(from);
+  part.name = to;
+  part.changed = true;
+  ctx.parts.set(to, part);
+  ctx.index.remove(from);
+  ctx.index.add(to);
+  if (ctx.trees.has(from)) {
+    ctx.trees.set(to, ctx.trees.get(from));
+    ctx.trees.delete(from);
+  }
+  if (ctx.dirty.has(from)) {
+    ctx.dirty.delete(from);
+    ctx.dirty.add(to);
+  }
+  if (ctx.main === from) ctx.main = to;
+  ctx.changed = true;
+}
+
+function spellingVotes(ctx) {
+  const votes = new Map();
+  const vote = (path) => {
+    if (!path) return;
+    const key = path.toLowerCase();
+    const row = votes.get(key) || new Map();
+    row.set(path, (row.get(path) || 0) + 1);
+    votes.set(key, row);
+  };
+  for (const name of ctx.index.names()) {
+    if (!isRelsPath(name)) continue;
+    const source = sourceOfRels(name);
+    if (source === null) continue;
+    const tree = getTree(ctx, name);
+    if (!tree) continue;
+    for (const rel of readRelationships(tree)) {
+      if (rel.external || !rel.target) continue;
+      vote(resolveTarget(source, rel.target));
+    }
+  }
+  const types = ctx.index.canonical('[Content_Types].xml');
+  const tree = types ? getTree(ctx, types) : null;
+  const ct = tree ? readContentTypes(tree) : null;
+  if (ct && ct.root) for (const node of elementChildren(ct.root, 'Override')) vote(overridePartName(node));
+  return votes;
+}
+
+export function reconcilePartNames(ctx) {
+  const votes = spellingVotes(ctx);
+  const renamed = [];
+  for (const name of ctx.index.names()) {
+    if (name === '[Content_Types].xml' || isRelsPath(name)) continue;
+    const row = votes.get(name.toLowerCase());
+    if (!row || row.has(name)) continue;
+    const wanted = Array.from(row.entries()).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0][0];
+    renamePart(ctx, name, wanted);
+    renamed.push(wanted);
+  }
+  if (renamed.length > 0) addFinding(ctx, 'PART_NAME_CASE_FIXED', renamed[0], { n: renamed.length });
+}
+
 export function relativeTarget(source, target) {
   const from = source === '' ? [] : dirName(source).split('/').filter(Boolean);
   const to = target.split('/');

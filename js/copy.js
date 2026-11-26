@@ -232,6 +232,7 @@ export const copy = {
     CT_OVERRIDE_REMOVED: (d) => `Removed ${d.n} content type ${plural(d.n, 'entry', 'entries')} for missing parts.`,
     CT_OVERRIDE_ADDED: (d) => `Added ${d.n} content type ${plural(d.n, 'entry', 'entries')} for existing parts.`,
     CT_OVERRIDE_FIXED: (d) => `Corrected ${d.n} content type ${plural(d.n, 'entry', 'entries')} to match the parts they describe.`,
+    PART_NAME_CASE_FIXED: (d) => `Corrected the spelling of ${d.n} part ${plural(d.n, 'name', 'names')} to match the references to ${d.n === 1 ? 'it' : 'them'}.`,
     SCHEMA_COMPLETED: (d) => `Added ${d.n} required ${plural(d.n, 'element', 'elements')} that ${plural(d.parts, 'a damaged part was', 'damaged parts were')} missing.`,
     SCHEMA_UNRESOLVED: (d) => `${d.n} required ${plural(d.n, 'element', 'elements')} in damaged parts could not be rebuilt.`,
     CT_ENTRIES_CLEANED: (d) => `Cleaned ${d.n} damaged content type ${plural(d.n, 'entry', 'entries')}.`,

@@ -143,3 +143,45 @@ test('content types: an override added for a non-ASCII part is written percent-e
   const names = [...overrides(result).keys()];
   assert(names.includes('/docProps/extra-%C3%BC.xml'), `got ${names.filter((n) => n.includes('extra')).join(',')}`);
 });
+
+function renameEntry(entries, from, to) {
+  return entries.map(([name, content]) => (name === from ? [to, content] : [name, content]));
+}
+
+function outputNames(result) {
+  const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+  return Object.keys(unzipSync(out));
+}
+
+test('part names: a part spelled differently from its references takes their spelling', async () => {
+  const entries = renameEntry(docxEntries(), 'docProps/core.xml', 'docProps/Core.xml');
+  const result = await run('sample.docx', pack(entries));
+  eq(result.outcome, 'repaired');
+  const names = outputNames(result);
+  assert(names.includes('docProps/core.xml'), 'uses the referenced spelling');
+  assert(!names.includes('docProps/Core.xml'), 'drops the damaged spelling');
+  const fixed = result.findings.find((f) => f.code === 'PART_NAME_CASE_FIXED');
+  assert(fixed && fixed.data.n === 1, 'one part reported');
+  eq(overrides(result).get('/docProps/core.xml'), 'application/vnd.openxmlformats-package.core-properties+xml');
+});
+
+test('part names: the repaired output is stable', async () => {
+  const entries = renameEntry(docxEntries(), 'docProps/core.xml', 'docProps/Core.xml');
+  const first = await run('sample.docx', pack(entries));
+  const out = first.output.bytes instanceof Uint8Array ? first.output.bytes : new Uint8Array(first.output.bytes);
+  const second = await run('sample.docx', out);
+  eq(second.outcome, 'noProblems');
+});
+
+test('part names: matching spellings produce no finding', async () => {
+  const result = await run('sample.docx', pack(docxEntries()));
+  eq(result.outcome, 'noProblems');
+  assert(!result.findings.some((f) => f.code === 'PART_NAME_CASE_FIXED'), 'no case finding');
+});
+
+test('part names: a part that nothing references keeps its name', async () => {
+  const entries = docxEntries();
+  entries.push(['word/Notes.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><x/>']);
+  const result = await run('sample.docx', pack(entries));
+  assert(!result.findings.some((f) => f.code === 'PART_NAME_CASE_FIXED'), 'no case finding');
+});

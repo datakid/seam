@@ -9,7 +9,7 @@
   },
   "libreoffice-tdf148478_transitionMusic": {
     "status": "seam-bug-fixed",
-    "note": "The Override names /ppt/media/Cort%C3%A1zar.wav, the normal encoding of the part ppt/media/Cortázar.wav, so the file is healthy. Seam did not decode PartName. Fixed on v2; the label is now No problems found."
+    "note": "The Override names /ppt/media/Cort%C3%A1zar.wav, the normal encoding of the part ppt/media/Cortázar.wav, so the file is healthy. Seam did not decode PartName. Fixed on v2; the label is now No problems found. The Open XML SDK still cannot open the original (\"Specified part does not exist in the package\"), so the SDK is blind on this file and on outputs that fail with that same message."
   },
   "poi-64450": {
     "status": "confirmed-broken",
@@ -18,5 +18,9 @@
   "poi-picture": {
     "status": "confirmed-broken",
     "note": "The workbook has a relationship to xl/connections.xml and Overrides for xl/theme/theme1.xml, docProps/custom.xml and xl/connections.xml, and none of the three parts exists. The Open XML SDK cannot open it. Seam removes them, which is the right repair."
+  },
+  "poi-58760": {
+    "status": "judge-limitation",
+    "note": "The file is healthy. Its [Content_Types].xml has the prefixed root ns0:Types, which is valid XML and valid OPC. The Open XML SDK package reader accepts only the unprefixed form and stops with \"Required Types tag not found\", so the SDK is blind on this file and on outputs that fail with that same message. Seam labels it No problems found, which is correct."
   }
 }

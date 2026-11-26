@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { extractText, recall } from './text-extract.mjs';
 import { loadManifest, cachePath } from './corpus-fetch.mjs';
+import { keptSources, sdkJudgement, sdkBlind, judgeVerdict, hasVerdict } from './lib/judge-verdict.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -114,17 +115,6 @@ const rows = [];
 const damagedSeam = { cases: {}, browser: null, browserVersion: null };
 const anyJudge = { oxml: false, office: false };
 
-function judgeVerdict(judges) {
-  const reasons = [];
-  if (judges.lo && judges.lo.load === false) reasons.push('lo');
-  if (judges.oxml) {
-    const worse = typeof judges.oxml.baselineErrors === 'number' && judges.oxml.errors > judges.oxml.baselineErrors;
-    if (judges.oxml.opens === false || worse) reasons.push('oxml');
-  }
-  if (judges.office && judges.office.verdict && judges.office.verdict !== 'open') reasons.push('office');
-  return reasons;
-}
-
 const sdkByElement = new Map();
 
 for (const damagedDir of damagedDirs) {
@@ -147,13 +137,15 @@ for (const damagedDir of damagedDirs) {
     let outTokens = [];
     if (out) outTokens = tokensOfFile(out);
     else if (s.outcome === 'noProblems') outTokens = tokensOfFile(join(damagedDir, 'files', `${id}.${c.ext}`));
-    const textRecall = c.kind === 'concat' && c.otherId ? Math.max(recall(pristine, outTokens), recall(pristineTokens(c.otherId), outTokens)) : recall(pristine, outTokens);
+    const recallSource = recall(pristine, outTokens);
+    const recallOther = c.kind === 'concat' && c.otherId ? recall(pristineTokens(c.otherId), outTokens) : 0;
+    const textRecall = Math.max(recallSource, recallOther);
     let baselineRecall = 0;
     const lo = loIn[id];
     if (lo && lo.rtFile) baselineRecall = recall(pristine, tokensOfFile(join(damagedDir, 'judge-lo-in', 'rt', lo.rtFile)));
     const isBlind = Boolean(blind[c.source] || (c.otherId && blind[c.otherId]));
     if (isBlind && out) blindCases++;
-    const bases = [healthyOxml[c.source], c.otherId ? healthyOxml[c.otherId] : null].filter(Boolean).map((r) => r.errors).filter((v) => typeof v === 'number');
+    const originals = keptSources(c, recallSource, recallOther).filter((sid) => healthyOxml[sid]).map((sid) => ({ id: sid, opens: healthyOxml[sid].opens, errors: healthyOxml[sid].errors, sample: healthyOxml[sid].sample }));
     if (out && oxml[id] && Array.isArray(oxml[id].list)) {
       for (const message of oxml[id].list) {
         const key = message.node || 'unknown';
@@ -166,7 +158,7 @@ for (const damagedDir of damagedDirs) {
       }
     }
     const { list: dropped, ...oxmlSlim } = oxml[id] || {};
-    const oxmlRow = out && oxml[id] ? { ...oxmlSlim, baselineErrors: bases.length > 0 ? Math.max(...bases) : undefined } : null;
+    const oxmlRow = out && oxml[id] ? sdkJudgement(oxmlSlim, originals) : null;
     const judges = {
       lo: out && loOut[id] && !isBlind ? { load: loOut[id].load, roundtrip: loOut[id].roundtrip } : null,
       oxml: oxmlRow,
@@ -184,7 +176,7 @@ for (const damagedDir of damagedDirs) {
       findings: s.findings.map((f) => f.code),
       judges,
       rejectedBy: out ? judgeVerdict(judges) : [],
-      judged: out ? Boolean(judges.lo || judges.oxml || judges.office) : false,
+      judged: out ? hasVerdict(judges) : false,
       textRecall: Math.round(textRecall * 1000) / 1000,
       baselineRecall: lo ? Math.round(baselineRecall * 1000) / 1000 : null,
       ms: s.ms,
@@ -238,6 +230,7 @@ const sdkElements = [...sdkByElement.entries()]
 const overLabels = rows.filter((r) => r.seamLabel === 'repaired' && r.rejectedBy.length > 0);
 const partialRejected = rows.filter((r) => r.seamLabel === 'partial' && r.rejectedBy.length > 0);
 const judgedRepaired = rows.filter((r) => r.seamLabel === 'repaired' && r.judged);
+const inheritedRejects = rows.filter((r) => r.seamLabel === 'repaired' && sdkBlind(r.judges.oxml));
 
 const RECALL_OK = 0.99;
 const RECALL_LOSS = 0.02;
@@ -275,7 +268,7 @@ const parity = exitFamilies
   .filter((f) => f.family !== 'docx')
   .map((f) => ({ family: f.family, rate: rateOf(f), ok: docxRate === null || rateOf(f) === null ? null : rateOf(f) >= docxRate - PARITY_POINTS / 100 }));
 const exits = {
-  a: { falseAlarms: falseAlarms.length, overLabels: overLabels.length },
+  a: { falseAlarms: falseAlarms.length, overLabels: overLabels.length, inherited: inheritedRejects.length },
   b: {
     crlfCases: crlfRows.length,
     crlfAtRecall: crlfGood,
@@ -340,7 +333,7 @@ const board = {
     }, {})).sort((a, b) => b[1] - a[1])
   },
   exits,
-  damaged: { cases: rows.length, perKind, perTier, sdkElements: sdkElements.slice(0, 40), overLabels: overLabels.map((r) => r.file), partialRejected: partialRejected.map((r) => r.file) },
+  damaged: { cases: rows.length, perKind, perTier, sdkElements: sdkElements.slice(0, 40), overLabels: overLabels.map((r) => r.file), inheritedRejects: inheritedRejects.map((r) => r.file), partialRejected: partialRejected.map((r) => r.file) },
   performance: { medianMs: median(allMs), p95Ms: percentile(allMs, 95), maxMs: Math.max(0, ...allMs), maxPeakMB: Math.max(0, ...allMb), memoryMethod: 'js-heap-sampled (Chromium performance.memory, sampled at stage boundaries)' },
   gaps,
   cases: rows,
@@ -421,7 +414,7 @@ if (sdkElements.length === 0) {
 md.push('');
 md.push('## 2d. Phase exit gates');
 md.push('');
-md.push(`Phase A: healthy false alarms ${falseAlarms.length} (gate 0); outputs labelled Repaired that a judge rejects ${overLabels.length} (gate 0).`);
+md.push(`Phase A: healthy false alarms ${falseAlarms.length} (gate 0); outputs labelled Repaired that a judge rejects ${overLabels.length} (gate 0), not counting ${inheritedRejects.length} that fail like their original.`);
 md.push('');
 md.push(`Phase B: \`crlf\` cases that reach Repaired with recall of at least ${RECALL_OK}: ${crlfGood} of ${crlfRows.length} (${pct(crlfGood, crlfRows.length)}; gate ${CRLF_GATE * 100}%). The plan's +15 point median gate cannot be met because the median was already 1.000 before Phase B; the owner replaced it on 2026-11-25 with the share of outputs at recall ${RECALL_OK} and the Repaired count per kind below, and no case losing more than ${RECALL_LOSS} of recall without an explanation.`);
 md.push('');
@@ -449,6 +442,14 @@ if (overLabels.length > 0) {
   md.push('| File | Kind | Rejected by | Findings |');
   md.push('|---|---|---|---|');
   for (const r of overLabels) md.push(`| ${r.file} | ${r.kind} | ${r.rejectedBy.join(', ')} | ${[...new Set(r.findings)].join(', ')} |`);
+  md.push('');
+}
+md.push(`Outputs labelled Repaired that the Open XML SDK cannot open, with the same message as the original they were repaired from (the SDK cannot read that original, so it is blind on them; listed, not gated): ${inheritedRejects.length}.`);
+md.push('');
+if (inheritedRejects.length > 0) {
+  md.push('| File | Kind | Same message as | Findings |');
+  md.push('|---|---|---|---|');
+  for (const r of inheritedRejects) md.push(`| ${r.file} | ${r.kind} | ${r.judges.oxml.inheritedFrom} | ${[...new Set(r.findings)].join(', ')} |`);
   md.push('');
 }
 md.push(`Outputs labelled Partially repaired that a judge rejects (tracked, not gated): ${partialRejected.length}.`);

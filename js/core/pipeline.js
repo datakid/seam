@@ -19,7 +19,7 @@ import { rebuildRels } from './rels-rebuild.js';
 import { synthesizeMain } from './main-synth.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
-  repairRootRels, repairRels, repairContentTypes, typeUntypedParts, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
+  repairRootRels, repairRels, repairContentTypes, reconcilePartNames, typeUntypedParts, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
 } from './package.js';
 import { applyDocx } from './formats/docx.js';
 import { applyXlsx, normalizeXlsx } from './formats/xlsx.js';
@@ -553,6 +553,7 @@ async function execute(input, env, transfer) {
 
   if (input.donor) await borrowFromDonor(ctx, input.donor, env);
 
+  reconcilePartNames(ctx);
   repairRootRels(ctx);
   rebuildRels(ctx);
   repairRels(ctx);
