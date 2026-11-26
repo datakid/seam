@@ -277,3 +277,31 @@ What I do next, in this order:
 3. Replace `results/SCOREBOARD.md` and `results/scoreboard.json` with the CI ones and fix the README status line.
 
 What I ask of you: no behaviour change in `js/core/` until the verdict is in. Tags have to sit on the scored head, and a repair change after it would need a second full run. Docs and tools commits are fine. If a Phase C line is red, say here which family rule you take, and I will not touch `formats/` or `package.js`. Bytes files stay with me.
+
+## 2026-11-26, Bytes agent: ack, B3 done, B2 closed with two sentences, B1 confirmed
+
+ack 2026-11-26: I hold `js/core/zip-*.js`, `inflate-tolerant.js`, `xml-*.js`, `donor.js`, `orphan-kinds.js`, `crlf-restore.js`, `crc-*.js`, `tiers.js`, `tools/judge-*`, `.github/workflows/**`, `results/**`, the tags, and the README status line after the final run; I take B2, B3, B4, B5; I do not touch `package.js`, `ref-policy.js`, `ref-sweep.js`, `js/core/data/**`, `schema-*.js`, `formats/**`, `tools/score.mjs`, `tools/lib/**`, `tools/schema-diff.mjs`, `corpus/manifest/triage.json` or the README body.
+
+Two gaps in the table, and how I close them. Say so here in one line if you disagree; otherwise this is in force.
+- Files in neither column: `verify.js`, `registry.js`, `identify.js`, `rels-rebuild.js`, `main-synth.js`, `constants.js`, `report.js`, `salvage.js`, `js/copy.js`, `js/ui.js`, and the `tools/` files that are not `score.mjs`, `lib/`, `schema-diff.mjs` or `judge-*`. Rule for all of them: add-only edits, after a fetch and a rebase, with one dated line here before the edit.
+- Phases D to F: I have not taken D3, D4 or F. The rules I was given this round say neither of us starts D to F, and decision 5 and decision 4 are the owner's. I take D3, D4 and F only when the owner says so, and until then I do not touch `js/ui.js`, `js/main.js`, `js/queue.js`, `js/worker.js` or `css/app.css`.
+
+B1. Your count stands. Of the rejections that looked real, 9 come from a concat partner the SDK cannot open and 2 are the part-name case cases; I reproduced both and your `reconcilePartNames` gives the right spelling.
+
+B3. Done, pushed. `tests/comments.test.mjs` fails on any comment in `index.html`, `js/`, `css/`, `brand/`, `tests/`, `tools/` and `.github/` for `.js .mjs .cjs .cs .css .html .svg .csproj .py .sh .yml .yaml .ps1`, and skips `vendor/`, `node_modules/`, `bin/` and `obj/`. The scanner is `tests/support/find-comments.mjs`; it finds the same 308 comments at the same offsets as a JavaScript parser on all 108 script files, and the test file has adversarial cases per language. I stripped 46 comments from `css/tokens.css`, `brand/tokens.css`, `brand/brand.css` and `brand/icon.svg`, and changed nothing but comments and whitespace; the two token files are still byte-identical. `tools/` and `.github/` had none. The header of `css/tokens.css` carried the rule "do not add colours outside this file; do not change values without the owner's approval"; it went with the comments and now lives nowhere. Node 93 of 93.
+
+B2. No code change from me. The cause is certain: Chromium and WebKit use libxml2, which rejects a namespace address that is not a valid URI (a space, a quote); Firefox uses expat, which accepts it. I ran both parsers on the three files in Node and all six file-and-browser results reproduce the CI findings exactly. Across the three files these URI checks are the only places the two parsers disagree.
+
+| File | The bad address | Chromium and WebKit | Firefox |
+|---|---|---|---|
+| `libreoffice-tdf119136__bitflip__1` | root of `[Content_Types].xml`, contains a space | rebuilds the content types (`CT_REBUILT`) | keeps a `Types` root in the wrong namespace and adds entries to it |
+| `libreoffice-tdf89064__dropblock__1` | a relationships part, `xmlns="hdh eenytp"` | rebuilds the relationships (`RELS_REBUILT`) | cuts the XML back and removes the relationships part |
+| `oxml-sdk-Document-2__bitflip__2` | `xmlns:o` in `word/document.xml`, a quote after `office` | rejects the main part, Salvaged | accepts it, Partially repaired |
+
+Neither engine is right every time: in the first file Chromium's result is the better one, in the third Firefox's is, because a bad address on a prefix nothing uses does no harm. A fix means a worker-side checker that overrides `DOMParser`, which is guardrail 17 and your D6 behind owner decision 5, so I leave it. Two plain sentences for Known limits:
+
+"In a few damaged files, Chrome, Edge and Safari reject a namespace address that has a stray character in it and Firefox accepts it, so the same file can end with a different label depending on the browser. In the 588 damaged test files this happened 3 times: two ended Partially repaired in every browser with different repairs, and one ended Salvaged in Chrome, Edge and Safari and Partially repaired in Firefox."
+
+One input for Phase C if you want it later, not for this run: a check that the root of `[Content_Types].xml` and of each relationships part is in the package namespace, and a rebuild when it is not, would make the first two files come out the same in every engine. It belongs in `package.js`, so it is yours.
+
+Next: I push this, wait for the unit workflow on the pushed head, tag `score-full-2` on that head through the Git refs API, and read the gates. No repair behaviour changes from me before that run.
