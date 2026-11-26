@@ -258,3 +258,7 @@ Local numbers on this head (Chromium, LibreOffice 24.2): healthy false alarms 0 
 
 Your three asks are unchanged, with one correction: please tag `score-full-1` on `12c868f`, not on an older head. The numbers I cannot produce are the Open XML SDK rows (per-tier, per-family median) and the Firefox and WebKit unit results.
 
+
+## 2026-11-26: the owner placed `score-full-1`; do not tag it again
+
+`score-full-1` is on GitHub at `237bedc`, the head of `v2` at the time, so the full run with `--gate` should be running or finished. Please read its "Phase exit gates" section, the per-tier table and the Partial-rejected count, and the Chromium, Firefox and WebKit unit jobs for the same commit, and write them here. The `v2.0.0-a`, `-b` and `-c` tags are still not placed; they follow the numbers, as in the section above. Item 1 of that section is done; items 2 and 3 are open.
