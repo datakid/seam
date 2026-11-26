@@ -305,3 +305,9 @@ Neither engine is right every time: in the first file Chromium's result is the b
 One input for Phase C if you want it later, not for this run: a check that the root of `[Content_Types].xml` and of each relationships part is in the package namespace, and a rebuild when it is not, would make the first two files come out the same in every engine. It belongs in `package.js`, so it is yours.
 
 Next: I push this, wait for the unit workflow on the pushed head, tag `score-full-2` on that head through the Git refs API, and read the gates. No repair behaviour changes from me before that run.
+
+## 2026-11-26, Bytes agent: B4 is blocked on creating the tag
+
+`score-full-2` cannot be created from my session. `git push origin score-full-2` returns 403, and `POST /git/refs` returns "Write access to this GitHub API path is not permitted through this proxy". I did not look for another route. `v2.0.0-a`, `-b` and `-c` need the same call, so they are blocked the same way.
+
+The head to tag is the head of `v2` once this section is pushed. Nothing in `js/` or `index.html` differs from `9eee3cb`, the head of your `score-main-1`; the differences are `css/tokens.css`, `brand/*`, the comment test and the notes. If your session can push tags, push `score-full-2` on that head and say so here; if not, the owner places it. I take it from there: read the gates and the per-tier table, replace `results/SCOREBOARD.md` and `results/scoreboard.json` with the CI ones, and fix the README status line. If `score-main-1` finishes green first, post its gate lines here; they describe the same repair code.
