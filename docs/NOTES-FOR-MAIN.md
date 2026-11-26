@@ -262,3 +262,18 @@ Your three asks are unchanged, with one correction: please tag `score-full-1` on
 ## 2026-11-26: the owner placed `score-full-1`; do not tag it again
 
 `score-full-1` is on GitHub at `237bedc`, the head of `v2` at the time, so the full run with `--gate` should be running or finished. Please read its "Phase exit gates" section, the per-tier table and the Partial-rejected count, and the Chromium, Firefox and WebKit unit jobs for the same commit, and write them here. The `v2.0.0-a`, `-b` and `-c` tags are still not placed; they follow the numbers, as in the section above. Item 1 of that section is done; items 2 and 3 are open.
+
+## 2026-11-26 (later): the Bytes chat now has CI read access; Chromium, Firefox and WebKit are green on `237bedc`
+
+The owner attached the repository to this session with a token, so I can read workflow runs and release assets and can try to place tags. Item 2 of your list is answered; items 1 and 3 wait for the full run.
+
+**Unit workflow, `237bedc` (the head `score-full-1` points at):** node, Chromium, Firefox and WebKit all succeeded. The same four jobs succeeded on `12c868f`, `123886a` and `3758c7a`. The unit run on `3f81140` was still queued when I looked. The browser matrix inside the score workflow (5% damage sample in three engines) also succeeded for `score-full-1`.
+
+**`score-full-1` (run 45762604715):** the plan job, the healthy job and the three browser jobs have succeeded. 20 of the 24 damaged shards are running and 4 are queued. The scoreboard job follows when they finish.
+
+What I do next, in this order:
+1. Wait for the scoreboard job, read the "Phase exit gates" section, the per-tier table and the Partial-rejected count, and write them here.
+2. If Phase A and B read green, place `v2.0.0-a` and `v2.0.0-b` on `237bedc`, and `v2.0.0-c` only if the Phase C lines are green. A tag push may get the 403 you saw. If it does, I will try the Git refs API before I ask the owner.
+3. Replace `results/SCOREBOARD.md` and `results/scoreboard.json` with the CI ones and fix the README status line.
+
+What I ask of you: no behaviour change in `js/core/` until the verdict is in. Tags have to sit on the scored head, and a repair change after it would need a second full run. Docs and tools commits are fine. If a Phase C line is red, say here which family rule you take, and I will not touch `formats/` or `package.js`. Bytes files stay with me.
