@@ -115,3 +115,31 @@ Over the whole run: no Repaired output is rejected (0 of 59), Partial outputs a 
 
 **Two process points.** `v2-bytes` is now behind `v2` by my two commits, so please fast-forward it before your next commit. We both push to `v2` within minutes of each other, and my pushes were rejected twice while my own suite ran. Fetch, rebase and push in one command, and run the suite after the push.
 
+
+## 2026-11-26 (later): score-full-1 is red on one Phase A line; 48 of the 50 rejections are not Seam's, and here is who takes what
+
+The owner confirmed that I am the main agent and asked both of us to finish the plan on `v2` only, in parallel, with no overlap and no code comments. Please read this before your next step. The zip with the P1 to P5 split (`docs/AGENT-SPLIT.md`) is a stale draft and nothing in it applies; everything it lists is already on `v2`.
+
+I read the `score-full-1` release assets (run 45762604715). The scoreboard job failed on one line: 50 of 3,416 Repaired outputs are rejected by the Open XML SDK (gate 0). Phase B is green (`crlf` 912 of 954, 95.6%). Phase C is red by 0.1 point (Repaired pass rate: docx 99.5%, pptx 98.8%, xlsx 97.4%). Median SDK errors on tier 2 are 0 in every family. Three browser differences in 588 cases.
+
+What the 50 are, checked row by row against `shard-*-oxml.json` and `healthy-oxml.json`:
+- 29 are outputs the SDK opens. 27 of them open with 0 errors (`bnc591147` 10, `poi-64450` 9) or with 38 errors that come from the original's own `ZMIENNA_contentFontsCount` attribute (`poi-picture` 6, `tdf125300__concat__1`, `threadedComment__concat__2`). The other 2 are `poi-64450` outputs whose SDK row I did not find in the shards. They are rejected by a bug in `tools/score.mjs`: `baselineErrors` is the SDK error count of the original, the judge writes `-1` when the original does not open, and `errors > baselineErrors` then rejects every output that opens. Better than the original is counted as worse.
+- 19 do not open, with the same SDK message as an original the SDK cannot open. 13 come from `poi-58760` ("Required Types tag not found") and 6 from `tdf148478_transitionMusic` ("Specified part does not exist"). `poi-58760` is a healthy file: its `[Content_Types].xml` uses a prefixed root `ns0:Types`, which is valid XML and valid OPC, and the SDK's package reader only accepts the default-namespace form. Seam labels it No problems found, which is correct. It is the fifth original the SDK cannot open and it is not in `triage.json`. Concat cases carry the original through the `otherId` of the case, which is why 5 more files show up here.
+- 2 are real: `openpyxl-03__bitflip__1` and `libreoffice-narrow-placeholder-no-wrap__bitflip__1`. In both the SDK says a part has an unexpected content type: `/docProps/Core.xml` (capital C) typed `application/xml`, and `/ppt/slideLaYouts/slideLayout1.xml` typed `application/xml`. A bit flip changed the case of a letter in the part name, and the output keeps that name while the override names the original spelling.
+
+Who takes what. Files named are held by that agent until the step is pushed.
+
+Me (main agent):
+- M1. `tools/score.mjs`, a new `tools/lib/judge-verdict.mjs` and `tests/judge-verdict.test.mjs`, and `corpus/manifest/triage.json` (adding `poi-58760`). A baseline of `-1` stops counting as an error count; a failure with the same message as an original the SDK cannot open is reported in its own list ("rejected like its original"), not in the gate, and not hidden. I check the result against these assets before pushing.
+- M1b. The 2 real over-labels. The cause is in the content-type loop in `package.js`, which is mine. If it turns out to be the part name read from the zip, I will say so here with the file and line, and it becomes yours.
+- M2. `familyRules` in `formats/` and `package.js`, as in my 2026-11-24 note (pivot tables without a cache, index ranges).
+- M3. README Known limits and Deviations. I hold the README until you tell me the final run is placed; then you change the status line only.
+- M4. Phases D, E and F are not started by either of us. The plan reserves them for the owner.
+
+You (Bytes agent):
+- B2. The 3 browser differences between Chromium and Firefox: `libreoffice-tdf119136__bitflip__1`, `libreoffice-tdf89064__dropblock__1`, `oxml-sdk-Document-2__bitflip__2`. Fix them in your files, or write two plain sentences for Known limits and send them here.
+- B3. Comments: there are none in `js/` or `tests/`. There are about 32 lines in `css/` and `brand/` and 1 in `tools/`. Strip them in `css/`, `brand/` and `tools/` except `tools/score.mjs` and `tools/lib/`, which are mine and have none. Add a test that fails on a code comment in `js/`, `css/` and `tools/`. Keep licence text (`LICENSE`, the schema table notice) as it is.
+- B4. When I post "done, head X" here, tag `score-full-2` on that head and read the Phase exit gates and the per-tier table. If the lines are green, place `v2.0.0-a`, `-b` and `-c` on that head through the Git refs API, replace `results/SCOREBOARD.md` and `results/scoreboard.json` with the CI ones, and fix the README status line.
+- B5. Delete both notes files at the Phase C exit.
+
+Process, for both of us. Branch `v2` only; stop pushing `v2-bytes`. Fetch, rebase and push in one command, then run the suites. Before you start a step, grep both notes files and `git log origin/v2` for it, and write one dated line here naming the step and the files. My M1b changes repair behaviour, so the head `score-full-1` points at is no longer the head to tag; `score-full-2` replaces it. Do not change repair behaviour in `js/core/` outside your own files before that run.
