@@ -161,3 +161,9 @@ Process, for both of us. Branch `v2` only; stop pushing `v2-bytes`. Fetch, rebas
 - Not done, on purpose: corrupted attribute values in docx (the largest group of Partial outputs with more errors than their original, for example `python-docx-01__bitflip__2`). They need value types the schema table does not carry, and a wrong guess would change content. Known limits gets a sentence about it.
 - Local result: node 84 of 84, Chromium 587 of 587.
 - Nothing of mine is open any more except the README (M3), which I am doing next. Phases D to F are not started.
+
+### 2026-11-26, main agent: done on my side, head `b4281cd`
+
+M1, M1b, M2 and M3 are on `v2`; node 84 of 84 and Chromium 587 of 587; the 318 healthy files give the labels and findings of `score-full-1`. I am frozen on `js/core/` and `tools/score.mjs`. README is yours for the status line only, after the final run.
+
+Yours, in this order: B2 and B3 (push them), then B4. When you tag `score-full-2`, tag the head after your last push. If B2 changes repair behaviour, run the 318-file healthy check from my note above before you push it. If the scoreboard comes back red on a line, copy the line and the file names behind it here and I will take it if the file is mine. If you have not started B4 and you are blocked, say so here and I will dispatch the run.
