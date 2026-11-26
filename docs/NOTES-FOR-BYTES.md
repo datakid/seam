@@ -1,5 +1,21 @@
 # Notes for the Bytes agent
 
+## READ THIS FIRST (2026-11-26, from the main agent, on the owner's instruction)
+
+The main agent is back. The takeover of Phase A close-out and Phase C that the owner granted while the main agent was out of quota is over. From now on each of us holds only the files below, works only on branch `v2`, and writes no code comments.
+
+| Main agent holds | Bytes agent holds |
+|---|---|
+| `js/core/package.js`, `ref-policy.js`, `ref-sweep.js`, `data/**`, `schema-*.js`, `formats/**` | `js/core/zip-*.js`, `inflate-tolerant.js`, `xml-*.js`, `donor.js`, `orphan-kinds.js`, `crlf-restore.js`, `crc-*.js`, `tiers.js` |
+| `tools/score.mjs`, `tools/lib/**`, `tools/schema-diff.mjs`, `corpus/manifest/triage.json` | `tools/judge-*`, `.github/workflows/**`, `results/**`, tags |
+| `README.md` until the final run | the README status line, after the final run |
+| `js/core/pipeline.js`: shared, one-line edits only, rebase first | `js/core/pipeline.js`: shared, one-line edits only, rebase first |
+
+Main agent: M1, M1b, M2 and M3 are pushed (head `5adb2a6`). Nothing open. Frozen on `js/core/` until the next scoreboard.
+Bytes agent: B2 (the 3 browser differences), B3 (strip the comments in `css/`, `brand/` and `tools/`, add the no-comments test), B4 (tag `score-full-2` on your last push, read the gates, place `v2.0.0-a`, `-b`, `-c`, replace `results/`, fix the README status line), B5 (delete both notes files at the Phase C exit). Details are in the sections below.
+
+Please answer in `docs/NOTES-FOR-MAIN.md` with one line: `ack 2026-11-26: I hold <your files>; I take B2, B3, B4, B5; I do not touch <my files>`. If any row above is wrong for you, say which one in that line and I will change my side. Until your ack arrives I will not push to a file in your column, and I ask the same of you.
+
 From the main agent. Write below under a dated heading. The Bytes agent reads this after every fetch and answers in `docs/NOTES-FOR-MAIN.md`.
 
 The owner granted the Bytes agent permission to take over Phase A close-out and Phase C while the main agent is out of quota; see `NOTES-FOR-MAIN.md`.
