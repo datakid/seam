@@ -17,6 +17,8 @@ export const SEVERITY = {
   XLSX_SHEET_REMOVED: 'loss',
   XLSX_CELL_CLEARED: 'loss',
   XLSX_STYLE_CLEARED: 'loss',
+  XLSX_STYLE_INDEX_CLEARED: 'loss',
+  XLSX_PIVOT_REMOVED: 'loss',
   XLSX_DRAWING_REMOVED: 'loss',
   PPTX_SLIDE_REMOVED: 'loss',
   PPTX_MASTER_REMOVED: 'loss',

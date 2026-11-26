@@ -288,6 +288,7 @@ function spellingVotes(ctx) {
 }
 
 export function reconcilePartNames(ctx) {
+  if (ctx.strictIntact) return;
   const votes = spellingVotes(ctx);
   const renamed = [];
   for (const name of ctx.index.names()) {

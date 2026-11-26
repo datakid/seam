@@ -1,4 +1,5 @@
-import { getTree, touch, addFinding, definedRelIds, relsTreeFor, relPrefixSet, relAttr, resolveTarget, readRelationships, removePart, setText, mainFolderOf } from '../package.js';
+import { getTree, touch, addFinding, definedRelIds, relsTreeFor, relPrefixSet, relAttr, resolveTarget, readRelationships, removePart, setText, mainFolderOf, isRelsPath, sourceOfRels } from '../package.js';
+import { registerCheck } from '../tiers.js';
 import { documentElement, localName, descendants, elementChildren, removeNode, setAttr, removeAttr, getAttr, scan, serializeTokens, decodeEntities } from '../xml-repair.js';
 
 function sheetEntries(ctx, root, prefixes) {
@@ -230,6 +231,7 @@ export function normalizeXlsx(ctx) {
     ctx.silentParts.add(calcPath.toLowerCase());
     addFinding(ctx, 'XLSX_CALCCHAIN_REMOVED', calcPath);
   }
+  removePivotTables(ctx);
   clearStyleReferences(ctx, rels);
   const sstPath = sstPathOf(ctx, rels);
   if (sstPath) {
@@ -247,41 +249,175 @@ export function normalizeXlsx(ctx) {
   }
 }
 
-const STYLE_TAGS = [
+const SHEET_STYLE_RULES = [
   ['c', 's'],
   ['row', 's'],
   ['col', 'style']
 ];
 
-function clearStyleReferences(ctx, rels) {
+const SHEET_FORMAT_RULES = [['cfRule', 'dxfId']];
+
+const TABLE_FORMAT_RULES = [
+  ['tableColumn', 'dataDxfId'],
+  ['tableColumn', 'headerRowDxfId'],
+  ['tableColumn', 'totalsRowDxfId'],
+  ['table', 'dataDxfId'],
+  ['table', 'headerRowDxfId'],
+  ['table', 'totalsRowDxfId'],
+  ['table', 'headerRowBorderDxfId'],
+  ['table', 'tableBorderDxfId'],
+  ['table', 'totalsRowBorderDxfId']
+];
+
+const XF_RULES = [
+  ['fontId', 'fonts'],
+  ['fillId', 'fills'],
+  ['borderId', 'borders']
+];
+
+function styleLimits(ctx, rels) {
   const stylesRel = rels.find((r) => r.type.endsWith('/styles') && !r.external);
-  const stylesPath = stylesRel ? ctx.index.canonical(resolveTarget(ctx.main, stylesRel.target)) : null;
-  let count = 0;
-  if (stylesPath) {
-    const tree = getTree(ctx, stylesPath);
-    const root = tree ? documentElement(tree) : null;
-    const cellXfs = root ? elementChildren(root, 'cellXfs')[0] : null;
-    count = cellXfs ? elementChildren(cellXfs, 'xf').length : 0;
-  }
-  for (const name of ctx.parts.keys()) {
-    if (!/(^|\/)worksheets\/[^/]+\.xml$/i.test(name)) continue;
-    const part = ctx.parts.get(name);
-    const text = part.text;
-    if (typeof text !== 'string') continue;
-    let cleared = 0;
-    let edited = text;
-    for (const [tag, attr] of STYLE_TAGS) {
-      const startTag = new RegExp(`<(?:[A-Za-z0-9]+:)?${tag}(?=[\\s/>])[^>]*>`, 'g');
-      const attribute = new RegExp(`(\\s)${attr}="(\\d+)"`);
-      edited = edited.replace(startTag, (match) => {
-        const found = attribute.exec(match);
-        if (!found || Number(found[2]) < count) return match;
-        cleared++;
-        return match.replace(attribute, '');
-      });
-    }
-    if (cleared === 0) continue;
-    setText(ctx, name, edited);
-    addFinding(ctx, 'XLSX_STYLE_CLEARED', name, { n: cleared });
-  }
+  const path = stylesRel ? ctx.index.canonical(resolveTarget(ctx.main, stylesRel.target)) : null;
+  const tree = path ? getTree(ctx, path) : null;
+  const root = tree ? documentElement(tree) : null;
+  const size = (list, child) => {
+    const node = root ? elementChildren(root, list)[0] : null;
+    return node ? elementChildren(node, child).length : null;
+  };
+  return {
+    path,
+    root,
+    cellXfs: size('cellXfs', 'xf') || 0,
+    dxfs: size('dxfs', 'dxf') || 0,
+    fonts: size('fonts', 'font'),
+    fills: size('fills', 'fill'),
+    borders: size('borders', 'border'),
+    cellStyleXfs: size('cellStyleXfs', 'xf')
+  };
 }
+
+function clearAttributes(text, rules, limit) {
+  let cleared = 0;
+  let edited = text;
+  for (const [tag, attr] of rules) {
+    const startTag = new RegExp(`<(?:[A-Za-z0-9]+:)?${tag}(?=[\\s/>])[^>]*>`, 'g');
+    const attribute = new RegExp(`(\\s)${attr}="(\\d+)"`);
+    edited = edited.replace(startTag, (match) => {
+      const found = attribute.exec(match);
+      if (!found || Number(found[2]) < limit) return match;
+      cleared++;
+      return match.replace(attribute, '');
+    });
+  }
+  return { edited, cleared };
+}
+
+function scanFormatLists(ctx, limits, apply) {
+  if (!limits.root) return 0;
+  let found = 0;
+  for (const listName of ['cellXfs', 'cellStyleXfs']) {
+    const list = elementChildren(limits.root, listName)[0];
+    if (!list) continue;
+    for (const xf of elementChildren(list, 'xf')) {
+      const rules = listName === 'cellXfs' ? [...XF_RULES, ['xfId', 'cellStyleXfs']] : XF_RULES;
+      for (const [attr, key] of rules) {
+        const limit = limits[key];
+        const raw = getAttr(xf, attr);
+        if (limit === null || raw === null || !/^\d+$/.test(raw) || Number(raw) < limit) continue;
+        found++;
+        if (apply) removeAttr(xf, attr);
+      }
+    }
+  }
+  if (apply && found > 0) {
+    touch(ctx, limits.path);
+    addFinding(ctx, 'XLSX_STYLE_INDEX_CLEARED', limits.path, { n: found });
+  }
+  return found;
+}
+
+function scanStyleIndexes(ctx, rels, apply) {
+  const limits = styleLimits(ctx, rels);
+  let total = scanFormatLists(ctx, limits, apply);
+  for (const name of ctx.parts.keys()) {
+    const sheet = /(^|\/)worksheets\/[^/]+\.xml$/i.test(name);
+    const table = /(^|\/)tables\/[^/]+\.xml$/i.test(name);
+    if (!sheet && !table) continue;
+    const part = ctx.parts.get(name);
+    if (typeof part.text !== 'string') continue;
+    let text = part.text;
+    let styles = 0;
+    let formats = 0;
+    if (sheet) {
+      const cells = clearAttributes(text, SHEET_STYLE_RULES, limits.cellXfs);
+      const conditional = clearAttributes(cells.edited, SHEET_FORMAT_RULES, limits.dxfs);
+      styles = cells.cleared;
+      formats = conditional.cleared;
+      text = conditional.edited;
+    } else {
+      const columns = clearAttributes(text, TABLE_FORMAT_RULES, limits.dxfs);
+      formats = columns.cleared;
+      text = columns.edited;
+    }
+    total += styles + formats;
+    if (!apply || styles + formats === 0) continue;
+    setText(ctx, name, text);
+    if (styles > 0) addFinding(ctx, 'XLSX_STYLE_CLEARED', name, { n: styles });
+    if (formats > 0) addFinding(ctx, 'XLSX_STYLE_INDEX_CLEARED', name, { n: formats });
+  }
+  return total;
+}
+
+function clearStyleReferences(ctx, rels) {
+  scanStyleIndexes(ctx, rels, true);
+}
+
+function orphanPivotTables(ctx) {
+  const found = [];
+  for (const name of ctx.index.names()) {
+    if (!/(^|\/)pivotTables\/[^/]+\.xml$/i.test(name)) continue;
+    const { tree } = relsTreeFor(ctx, name);
+    const rels = tree ? readRelationships(tree) : [];
+    const cache = rels.find((r) => r.type.endsWith('/pivotCacheDefinition') && !r.external && ctx.index.has(resolveTarget(name, r.target)));
+    if (!cache) found.push(name);
+  }
+  return found;
+}
+
+function removePivotTables(ctx) {
+  const orphans = orphanPivotTables(ctx);
+  if (orphans.length === 0) return;
+  const gone = new Set(orphans.map((name) => name.toLowerCase()));
+  for (const relsPath of ctx.index.names()) {
+    if (!isRelsPath(relsPath)) continue;
+    const source = sourceOfRels(relsPath);
+    const tree = source === null ? null : getTree(ctx, relsPath);
+    if (!tree) continue;
+    let touched = false;
+    for (const rel of readRelationships(tree)) {
+      if (!rel.external && rel.target && gone.has(resolveTarget(source, rel.target).toLowerCase())) {
+        removeNode(rel.node);
+        touched = true;
+      }
+    }
+    if (touched) touch(ctx, relsPath);
+  }
+  for (const name of orphans) {
+    const { path: relsPath } = relsTreeFor(ctx, name);
+    const ownRels = relsPath ? ctx.index.canonical(relsPath) : null;
+    if (ownRels) removePart(ctx, ownRels);
+    removePart(ctx, name);
+    ctx.silentParts.add(name.toLowerCase());
+  }
+  addFinding(ctx, 'XLSX_PIVOT_REMOVED', orphans[0], { n: orphans.length });
+}
+
+export function xlsxRulesClean(ctx) {
+  if (ctx.family !== 'xlsx') return true;
+  if (orphanPivotTables(ctx).length > 0) return false;
+  const { tree } = relsTreeFor(ctx, ctx.main);
+  const rels = tree ? readRelationships(tree) : [];
+  return scanStyleIndexes(ctx, rels, false) === 0;
+}
+
+registerCheck('familyRules', xlsxRulesClean);

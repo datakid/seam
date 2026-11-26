@@ -144,8 +144,18 @@ test('content types: an override added for a non-ASCII part is written percent-e
   assert(names.includes('/docProps/extra-%C3%BC.xml'), `got ${names.filter((n) => n.includes('extra')).join(',')}`);
 });
 
-function renameEntry(entries, from, to) {
-  return entries.map(([name, content]) => (name === from ? [to, content] : [name, content]));
+function flipLocalName(bytes, name, letterAt) {
+  const needle = Array.from(new TextEncoder().encode(name));
+  const out = bytes.slice();
+  for (let i = 0; i + needle.length <= out.length; i++) {
+    let same = true;
+    for (let j = 0; j < needle.length && same; j++) same = out[i + j] === needle[j];
+    if (same) {
+      out[i + letterAt] ^= 0x20;
+      return out;
+    }
+  }
+  throw new Error('name not found');
 }
 
 function outputNames(result) {
@@ -153,9 +163,9 @@ function outputNames(result) {
   return Object.keys(unzipSync(out));
 }
 
-test('part names: a part spelled differently from its references takes their spelling', async () => {
-  const entries = renameEntry(docxEntries(), 'docProps/core.xml', 'docProps/Core.xml');
-  const result = await run('sample.docx', pack(entries));
+test('part names: a damaged zip whose local header spells a part differently from its references gets the referenced spelling', async () => {
+  const damaged = flipLocalName(pack(docxEntries()), 'docProps/core.xml', 'docProps/'.length);
+  const result = await run('sample.docx', damaged);
   eq(result.outcome, 'repaired');
   const names = outputNames(result);
   assert(names.includes('docProps/core.xml'), 'uses the referenced spelling');
@@ -166,11 +176,18 @@ test('part names: a part spelled differently from its references takes their spe
 });
 
 test('part names: the repaired output is stable', async () => {
-  const entries = renameEntry(docxEntries(), 'docProps/core.xml', 'docProps/Core.xml');
-  const first = await run('sample.docx', pack(entries));
+  const damaged = flipLocalName(pack(docxEntries()), 'docProps/core.xml', 'docProps/'.length);
+  const first = await run('sample.docx', damaged);
   const out = first.output.bytes instanceof Uint8Array ? first.output.bytes : new Uint8Array(first.output.bytes);
   const second = await run('sample.docx', out);
   eq(second.outcome, 'noProblems');
+});
+
+test('part names: an intact zip keeps the spelling its author used and gets no finding', async () => {
+  const entries = docxEntries().map(([name, content]) => (name === 'docProps/core.xml' ? ['docProps/Core.xml', content] : [name, content]));
+  const result = await run('sample.docx', pack(entries));
+  eq(result.outcome, 'noProblems');
+  assert(!result.findings.some((f) => f.code === 'PART_NAME_CASE_FIXED'), 'no case finding');
 });
 
 test('part names: matching spellings produce no finding', async () => {
