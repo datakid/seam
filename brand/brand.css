@@ -1,4 +1,3 @@
-/* Identity board styles only. Not part of the app. */
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--paper); color: var(--ink);

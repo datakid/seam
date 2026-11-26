@@ -1,25 +1,16 @@
-/*
-  Seam — design tokens (SOURCE OF TRUTH)
-  Copy this file verbatim into the app as css/tokens.css.
-  Do not add colours outside this file. Do not change values without the owner's approval.
-  OKLCH is the source of truth. Supported in all target browsers (Chrome 111+, Safari 15.4+, Firefox 113+).
-*/
 :root {
   color-scheme: light;
 
-  /* Surfaces: warm paper, never pure grey */
   --paper:        oklch(98.6% 0.006 95);
   --paper-2:      oklch(96.4% 0.009 95);
   --surface:      oklch(100% 0 0);
   --line:         oklch(90.5% 0.008 272);
   --line-strong:  oklch(82% 0.012 272);
 
-  /* Ink: cool, slightly blue-violet near-black */
   --ink:   oklch(23% 0.025 272);
   --ink-2: oklch(42% 0.020 272);
   --ink-3: oklch(55% 0.016 272);
 
-  /* The Seam spectrum: decoration and progress ONLY, never body text */
   --seam-coral:  oklch(70% 0.19 28);
   --seam-amber:  oklch(82% 0.16 78);
   --seam-mint:   oklch(76% 0.15 165);
@@ -30,57 +21,48 @@
             var(--seam-mint) 66%,
             var(--seam-violet) 100%);
 
-  /* Light-chroma tints: big soft panels */
   --tint-coral:  oklch(96.5% 0.025 28);
   --tint-amber:  oklch(97% 0.035 85);
   --tint-mint:   oklch(96.5% 0.03 165);
   --tint-violet: oklch(96% 0.03 280);
 
-  /* Outcome colours: text colour on its tint must pass 4.5:1. Check, and darken L if needed. */
   --ok:           oklch(48% 0.12 160);  --ok-tint:      oklch(95.5% 0.04 160);
   --partial:      oklch(50% 0.12 65);   --partial-tint: oklch(96% 0.05 85);
   --salvage:      oklch(48% 0.17 285);  --salvage-tint: oklch(95.5% 0.035 285);
   --fail:         oklch(50% 0.18 27);   --fail-tint:    oklch(95.5% 0.035 27);
   --neutral:      oklch(42% 0.02 272);  --neutral-tint: oklch(95% 0.006 272);
 
-  /* Focus */
   --focus: oklch(60% 0.21 280);
 
-  /* Type (self-hosted woff2, SIL OFL) */
   --font-ui:   "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --fs-xs: 0.75rem;   /* 12 */
-  --fs-sm: 0.8125rem; /* 13 */
-  --fs-md: 0.9375rem; /* 15 — body */
-  --fs-lg: 1.125rem;  /* 18 */
-  --fs-xl: 1.5rem;    /* 24 */
-  --fs-2xl: 2.25rem;  /* 36 — the only display size */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-md: 0.9375rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 2.25rem;
 
   --lh-tight: 1.15;
   --lh-body: 1.5;
 
-  /* Space: 4px grid */
   --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
   --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
 
-  /* Shape */
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 16px;
   --r-xl: 24px;
 
-  /* Elevation: soft, warm, low */
   --shadow-1: 0 1px 0 oklch(23% 0.025 272 / 0.04), 0 1px 3px oklch(23% 0.025 272 / 0.06);
   --shadow-2: 0 2px 4px oklch(23% 0.025 272 / 0.04), 0 8px 24px oklch(23% 0.025 272 / 0.07);
 
-  /* Motion: calm. No bounce, no spring overshoot. */
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --dur-1: 120ms;
   --dur-2: 200ms;
   --dur-3: 320ms;
 
-  /* Seam line */
   --seam-thickness: 3px;
 }
 
