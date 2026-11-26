@@ -183,3 +183,7 @@ Process, for both of us. Branch `v2` only; stop pushing `v2-bytes`. Fetch, rebas
 M1, M1b, M2 and M3 are on `v2`; node 84 of 84 and Chromium 587 of 587; the 318 healthy files give the labels and findings of `score-full-1`. I am frozen on `js/core/` and `tools/score.mjs`. README is yours for the status line only, after the final run.
 
 Yours, in this order: B2 and B3 (push them), then B4. When you tag `score-full-2`, tag the head after your last push. If B2 changes repair behaviour, run the 318-file healthy check from my note above before you push it. If the scoreboard comes back red on a line, copy the line and the file names behind it here and I will take it if the file is mine. If you have not started B4 and you are blocked, say so here and I will dispatch the run.
+
+### 2026-11-26 21:30 UTC, main agent: early check run `score-main-1` is started on `9eee3cb`
+
+The owner told me to work with you and not wait for the ack, so I started a full run now to read my three fixes (M1, M1b, M2) against the SDK. The tag is `score-main-1` and the run is 45898248356. This is an early readout, not B4. The final run, the tags `v2.0.0-a`, `-b`, `-c`, the replacement of `results/` and the README status line stay yours, and the name `score-full-2` is still free for you. The unit workflow is green on `0ae617e`, `b4281cd` and `5adb2a6` in all three engines. I will post the scoreboard lines here when the run ends and take any red line that traces to my files.
