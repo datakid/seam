@@ -141,6 +141,8 @@ Departures from PLAN.md, with the reason for each.
 13. **Contrast override.** `--ink-3` on `--paper-2` measures 4.39:1 in the light theme. Report labels and part paths use `color-mix(in oklch, var(--ink-3), var(--ink) 18%)` in `app.css`. Tokens are unchanged.
 14. **Report file name.** The plan does not name it. It is `<original base name> (repair report).txt`.
 15. **Tools.** The plan names TodoWrite, WriteFileFromUrl and Playwright tools that were not available. npm, bash and Playwright were used instead.
+16. **Scoring of outputs the SDK cannot judge.** The plan counts every Repaired output that a judge rejects. An output that fails in the Open XML SDK with the same message as an original the SDK cannot open is listed under its own heading and left out of that count, and an output that opens is never counted as worse than an original that did not.
+17. **More finding codes.** `PART_NAME_CASE_FIXED`, `XLSX_STYLE_INDEX_CLEARED` and `XLSX_PIVOT_REMOVED`. Each has copy, a severity and a test.
 
 ## Known limits
 
@@ -151,6 +153,10 @@ Departures from PLAN.md, with the reason for each.
 - A slide with more than one layout relationship is left as it is.
 - A file that is valid and has a Content_Types entry that is not first in the ZIP is reported as No problems found; the order is only enforced on output.
 - Very large XML parts are checked by DOMParser on the main thread, which can pause the page briefly.
+- A part whose name differs only in case from the spelling its relationships and content type use is renamed to that spelling only when the ZIP itself was damaged. In an intact file the author's spelling is kept and the file is reported as No problems found.
+- Workbook rules cover style, font, fill and border indexes past the end of their lists, conditional format and table format references that point at missing formats, and pivot tables whose cache is gone. Word and PowerPoint files have no rules of this kind yet.
+- A damaged value inside an attribute (a flipped bit in a number or a colour, for example) is not corrected, because the schema table does not carry value types. The output can still carry Open XML SDK schema errors, and the report says so only through its label and tier.
+- The Open XML SDK cannot open a few valid originals, for example a package whose `[Content_Types].xml` uses a prefixed root element. Outputs that fail with the same message as their original are listed apart in the scoreboard and are not counted as rejected.
 - Tested in Chromium only. On the 1,139-case damaged set the median repair takes 62 ms, the 95th percentile 412 ms and the slowest 15.7 s (a 12 MB part), with peak JS heap up to 495 MB. Six 100 MB documents (a 4 MB main part plus a 96 MB image) damaged in the main part or the ZIP directory repaired in 3 to 7 seconds at 170 to 680 MB peak heap; the same file undamaged is checked in under 1 second.
 
 ## Remaining work
