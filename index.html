@@ -42,7 +42,7 @@
   <h1 class="headline" data-copy="headline"></h1>
   <p class="privacy" data-copy="privacy"></p>
   <section class="drop" id="drop">
-    <input type="file" id="file-input" class="file-input" multiple accept=".docx,.docm,.xlsx,.xlsm,.pptx,.pptm,.doc,.xls,.ppt" tabindex="-1">
+    <input type="file" id="file-input" class="file-input" aria-hidden="true" multiple accept=".docx,.docm,.xlsx,.xlsm,.pptx,.pptm,.doc,.xls,.ppt" tabindex="-1">
     <div class="drop-body">
       <p class="drop-label" id="drop-label"></p>
       <p class="drop-action"><span class="drop-or" id="drop-or" data-copy="drop.or"></span><button type="button" class="btn" id="choose" data-copy="drop.button"></button></p>
@@ -70,7 +70,7 @@
       <h2 id="scope-title" data-copy="scope.title"></h2>
       <button type="button" class="btn" id="close-scope" data-copy="btn.close"></button>
     </div>
-    <div class="sheet-body" id="scope-body"></div>
+    <div class="sheet-body" id="scope-body" tabindex="0" role="region" aria-labelledby="scope-title"></div>
   </div>
 </dialog>
 <script type="module" src="js/main.js"></script>

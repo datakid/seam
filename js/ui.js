@@ -149,7 +149,7 @@ export function createRenderer(list, actions) {
 
   function buildViewBlock(view) {
     const box = el('div', 'view');
-    box.appendChild(el('h3', null, copy.view.heading[view.kind]));
+    box.appendChild(el('h2', null, copy.view.heading[view.kind]));
     if (view.kind === 'document') {
       const list = el('ul', 'view-lines');
       for (const line of view.lines) list.appendChild(el('li', null, line));
@@ -201,7 +201,7 @@ export function createRenderer(list, actions) {
     const groups = groupFindings(result.findings);
     for (const key of ['loss', 'repaired', 'noted']) {
       if (groups[key].length === 0) continue;
-      panel.appendChild(el('h3', null, copy.report.groups[key]));
+      panel.appendChild(el('h2', null, copy.report.groups[key]));
       const ul = el('ul');
       for (const f of groups[key]) {
         const li = el('li', key);
@@ -213,7 +213,11 @@ export function createRenderer(list, actions) {
       panel.appendChild(ul);
     }
     if (result.preview) {
-      panel.appendChild(el('pre', 'preview', result.preview));
+      const pre = el('pre', 'preview', result.preview);
+      pre.tabIndex = 0;
+      pre.setAttribute('role', 'region');
+      pre.setAttribute('aria-label', copy.report.previewTitle);
+      panel.appendChild(pre);
     } else if (result.view) {
       panel.appendChild(buildViewBlock(result.view));
     }

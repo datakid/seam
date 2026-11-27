@@ -122,14 +122,14 @@ test('ui: expanding a row shows the report with grouped findings and actions', a
     eq(main.getAttribute('aria-expanded'), 'true');
     const report = row.querySelector('.report');
     assert(!report.hidden, 'expanded');
-    const headings = Array.from(report.querySelectorAll('h3')).map((h) => h.textContent);
+    const headings = Array.from(report.querySelectorAll('h2')).map((h) => h.textContent);
     assert(headings.includes('Lost') && headings.includes('Repaired'), headings.join(','));
     assert(report.textContent.includes('Passed structural and content checks.'), 'verify line');
     const buttons = Array.from(report.querySelectorAll('.btn')).map((b) => b.textContent);
     eq(buttons, ['Download repaired file', 'Export text (.txt)', 'Export sheets (.csv)', 'Copy report', 'Save report (.txt)', 'Add another copy', 'Use a healthy file from the same source']);
     const grid = report.querySelector('.view-grid');
     assert(grid && grid.querySelector('caption').textContent !== '' && grid.querySelectorAll('td').length > 0, 'workbook preview shows a grid');
-    assert(Array.from(report.querySelectorAll('h3')).some((h) => h.textContent === 'First rows of each sheet'), 'preview heading');
+    assert(Array.from(report.querySelectorAll('h2')).some((h) => h.textContent === 'First rows of each sheet'), 'preview heading');
   } finally {
     app.close();
   }
@@ -291,6 +291,30 @@ test('ui: Save report downloads the text report and Copy report writes it to the
     buttons.find((b) => b.textContent === 'Save report (.txt)').click();
     const text = await app.captured[app.captured.length - 1].text();
     assert(text.includes('Outcome: Repaired') && text.includes('Rebuilt the ZIP directory'), text);
+  } finally {
+    app.close();
+  }
+});
+
+test('ui: the page has landmarks, hidden pickers, an unbroken heading order and keyboard-reachable scroll areas', async () => {
+  const app = await openApp();
+  try {
+    add(app, mixed());
+    await settled(app, 6);
+    for (const main of app.doc.querySelectorAll('.row-main')) main.click();
+    const pickers = Array.from(app.doc.querySelectorAll('input[type=file]'));
+    assert(pickers.length === 2, 'two pickers');
+    for (const input of pickers) {
+      assert(input.getAttribute('aria-hidden') === 'true' && input.tabIndex === -1, 'picker hidden from assistive technology');
+      assert(input.closest('main'), 'picker inside a landmark');
+    }
+    const levels = Array.from(app.doc.querySelectorAll('h1, h2, h3, h4')).filter((h) => h.offsetParent !== null || h.closest('dialog[open]')).map((h) => Number(h.tagName[1]));
+    assert(levels[0] === 1, 'starts at h1');
+    for (let i = 1; i < levels.length; i++) assert(levels[i] - levels[i - 1] <= 1, `heading jump at ${i}: ${levels.join(',')}`);
+    const pre = app.doc.querySelector('.preview');
+    assert(pre && pre.tabIndex === 0 && pre.getAttribute('role') === 'region' && pre.getAttribute('aria-label') === 'Recovered text', 'preview is a focusable named region');
+    const body = app.doc.getElementById('scope-body');
+    assert(body.tabIndex === 0 && body.getAttribute('role') === 'region' && body.getAttribute('aria-labelledby') === 'scope-title', 'scope body is a focusable named region');
   } finally {
     app.close();
   }

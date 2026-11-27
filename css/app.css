@@ -333,7 +333,7 @@ button, select, input { font: inherit; color: inherit; }
 .report { padding: var(--s-5); background: var(--paper-2); border-top: 1px solid var(--line); }
 .report-file { margin: 0 0 var(--s-2); font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-2); overflow-wrap: anywhere; }
 .report-summary { margin: 0; color: var(--ink); font-size: var(--fs-md); }
-.report h3 {
+.report h2 {
   margin: var(--s-4) 0 var(--s-2);
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
@@ -364,13 +364,13 @@ button, select, input { font: inherit; color: inherit; }
 }
 .report ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; counter-reset: slide; }
 .report .view-slides li { grid-template-columns: 3ch minmax(0, 1fr); counter-increment: slide; }
-.report .view-slides li::before { content: counter(slide); width: auto; height: auto; border-radius: 0; transform: none; background: none; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-3); }
-.report .view-slides li.untitled { color: var(--ink-3); }
+.report .view-slides li::before { content: counter(slide); width: auto; height: auto; border-radius: 0; transform: none; background: none; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-2); }
+.report .view-slides li.untitled { color: var(--ink-2); }
 .view-grid { width: 100%; margin: var(--s-3) 0 0; border-collapse: collapse; table-layout: fixed; font-size: var(--fs-xs); }
 .view-grid caption { padding: 0 0 var(--s-1); text-align: start; font-family: var(--font-mono); color: color-mix(in oklch, var(--ink-3), var(--ink) 18%); overflow-wrap: anywhere; }
 .view-grid td { padding: var(--s-1) var(--s-2); border: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .view-wrap { overflow-x: auto; }
-.view-more { margin: var(--s-2) 0 0; font-size: var(--fs-sm); color: var(--ink-3); }
+.view-more { margin: var(--s-2) 0 0; font-size: var(--fs-sm); color: var(--ink-2); }
 .report-note { margin: var(--s-4) 0 0; font-size: var(--fs-sm); color: var(--ink-2); }
 .actions { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: var(--s-4); }
 

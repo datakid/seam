@@ -83,7 +83,8 @@ copyInput.multiple = true;
 copyInput.accept = $('file-input').getAttribute('accept');
 copyInput.className = 'file-input';
 copyInput.tabIndex = -1;
-document.body.appendChild(copyInput);
+copyInput.setAttribute('aria-hidden', 'true');
+$('main').appendChild(copyInput);
 let copyTarget = null;
 let copyMode = 'copy';
 copyInput.addEventListener('change', () => {
