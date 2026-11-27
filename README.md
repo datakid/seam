@@ -55,7 +55,7 @@ Open http://localhost:8000/tests/ in a browser. The runner prints `PASS` and `FA
 | `theme.test.js` | Contrast (WCAG AA) in light and dark, theme resolution |
 | `ui.test.js` | The real page in an iframe: drop, workers, rows, reports, downloads, Download all, limits, Clear, theme, live region |
 
-The tests were run in Chromium (Playwright). Firefox and Safari were not run.
+The tests run in Chromium locally, and in Chromium, Firefox and WebKit in CI (the `unit` workflow, Playwright). Safari itself was not run.
 
 ## Evidence and development tooling
 
