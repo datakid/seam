@@ -147,6 +147,51 @@ export function createRenderer(list, actions) {
     return ref;
   }
 
+  function buildViewBlock(view) {
+    const box = el('div', 'view');
+    box.appendChild(el('h3', null, copy.view.heading[view.kind]));
+    if (view.kind === 'document') {
+      const list = el('ul', 'view-lines');
+      for (const line of view.lines) list.appendChild(el('li', null, line));
+      box.appendChild(list);
+    } else if (view.kind === 'workbook') {
+      for (const sheet of view.sheets) {
+        const table = el('table', 'view-grid');
+        table.appendChild(el('caption', null, sheet.name));
+        const body = el('tbody');
+        for (const row of sheet.rows) {
+          const tr = el('tr');
+          for (const cell of row) tr.appendChild(el('td', null, cell));
+          body.appendChild(tr);
+        }
+        table.appendChild(body);
+        box.appendChild(table);
+      }
+    } else {
+      const list = el('ol', 'view-slides');
+      for (const slide of view.slides) list.appendChild(el('li', slide.title ? null : 'untitled', slide.title || copy.view.untitled));
+      box.appendChild(list);
+    }
+    if (view.more > 0) box.appendChild(el('p', 'view-more', copy.view.more[view.kind](view.more)));
+    return box;
+  }
+
+  function exportButton(item, kind, label) {
+    const button = el('button', 'btn', label);
+    button.type = 'button';
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      const ok = await actions.exportOutput(item, kind);
+      button.disabled = false;
+      if (ok) return;
+      button.textContent = copy.view.exportEmpty;
+      setTimeout(() => {
+        button.textContent = label;
+      }, 1800);
+    });
+    return button;
+  }
+
   function buildReport(ref, item) {
     const result = item.result;
     const panel = ref.report;
@@ -169,6 +214,8 @@ export function createRenderer(list, actions) {
     }
     if (result.preview) {
       panel.appendChild(el('pre', 'preview', result.preview));
+    } else if (result.view) {
+      panel.appendChild(buildViewBlock(result.view));
     }
     if (result.output) {
       panel.appendChild(el('p', 'report-note', `${copy.verify.line(result)} ${copy.verify.advice}`));
@@ -188,6 +235,11 @@ export function createRenderer(list, actions) {
       extra.type = 'button';
       extra.addEventListener('click', () => actions.download(item, 'extraOutput'));
       buttons.appendChild(extra);
+    }
+    if (result.view && !result.preview) {
+      if (result.view.exports.text) buttons.appendChild(exportButton(item, 'text', copy.btn.exportText));
+      if (result.view.exports.csv) buttons.appendChild(exportButton(item, 'csv', copy.btn.exportCsv));
+      if (result.view.exports.media) buttons.appendChild(exportButton(item, 'media', copy.btn.exportMedia));
     }
     const copyButton = el('button', 'btn', copy.btn.copyReport);
     copyButton.type = 'button';

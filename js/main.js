@@ -114,6 +114,9 @@ renderer = createRenderer($('list'), {
   download(item, which) {
     queue.downloadOutput(item, which);
   },
+  exportOutput(item, kind) {
+    return queue.exportOutput(item, kind);
+  },
   async copyReport(item, button) {
     const text = textReport(item.name, item.size, item.result);
     try {

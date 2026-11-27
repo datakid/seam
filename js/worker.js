@@ -2,6 +2,8 @@ import { runPipeline } from './core/pipeline.js';
 import { failedResult } from './core/report.js';
 import { copy } from './copy.js';
 import { zipSync } from '../vendor/fflate.module.js';
+import { buildView } from './core/preview.js';
+import { buildExport } from './core/export.js';
 
 let counter = 0;
 const pending = new Map();
@@ -40,8 +42,35 @@ async function handleProcess(msg) {
     console.error(error && error.stack ? error.stack : error);
     result = failedResult('INTERNAL_ERROR', copy.reasons.internal);
   }
+  attachView(result);
   const transfer = detach(result);
   self.postMessage({ type: 'result', id: msg.id, result }, transfer);
+}
+
+function attachView(result) {
+  if (!result.output) return;
+  try {
+    const bytes = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+    result.view = buildView(bytes);
+  } catch (error) {
+    console.error(error && error.stack ? error.stack : error);
+    result.view = null;
+  }
+}
+
+function handleExport(msg) {
+  let made = null;
+  try {
+    made = buildExport(msg.kind, new Uint8Array(msg.buffer), msg.stem);
+  } catch (error) {
+    console.error(error && error.stack ? error.stack : error);
+  }
+  if (!made) {
+    self.postMessage({ type: 'exported', req: msg.req, ok: false });
+    return;
+  }
+  const buffer = made.bytes.buffer.slice(made.bytes.byteOffset, made.bytes.byteOffset + made.bytes.byteLength);
+  self.postMessage({ type: 'exported', req: msg.req, ok: true, name: made.name, mime: made.mime, buffer }, [buffer]);
 }
 
 function handleZip(msg) {
@@ -67,4 +96,5 @@ self.onmessage = (event) => {
     return;
   }
   if (msg.type === 'zip') handleZip(msg);
+  if (msg.type === 'export') handleExport(msg);
 };

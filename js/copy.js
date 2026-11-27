@@ -74,7 +74,26 @@ export const copy = {
     saveReport: 'Save report (.txt)',
     close: 'Close',
     addCopy: 'Add another copy',
-    addDonor: 'Use a healthy file from the same source'
+    addDonor: 'Use a healthy file from the same source',
+    exportText: 'Export text (.txt)',
+    exportCsv: 'Export sheets (.csv)',
+    exportMedia: 'Export images (.zip)'
+  },
+  view: {
+    heading: { document: 'First paragraphs', workbook: 'First rows of each sheet', presentation: 'Slide titles' },
+    more: {
+      document(n) {
+        return `${n} more ${plural(n, 'paragraph', 'paragraphs')} in the file.`;
+      },
+      workbook(n) {
+        return `${n} more ${plural(n, 'sheet', 'sheets')} in the file.`;
+      },
+      presentation(n) {
+        return `${n} more ${plural(n, 'slide', 'slides')} in the file.`;
+      }
+    },
+    untitled: 'No title',
+    exportEmpty: 'Nothing to export'
   },
   copied: 'Copied',
   status: { queued: 'Queued', working: 'Checking' },

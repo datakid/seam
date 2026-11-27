@@ -286,6 +286,27 @@ export function createQueue(handlers) {
     if (out) save(out.bytes, out.mime, out.name);
   }
 
+  function exportOutput(item, kind) {
+    const out = item.result && item.result.output;
+    if (!out) return Promise.resolve(false);
+    const stem = item.name.replace(/\.[^.]+$/, '');
+    return new Promise((resolve) => {
+      const worker = new Worker(workerUrl, { type: 'module' });
+      const finish = (ok) => {
+        worker.terminate();
+        resolve(ok);
+      };
+      worker.onmessage = (event) => {
+        if (event.data.type !== 'exported') return;
+        if (event.data.ok) save(event.data.buffer, event.data.mime, event.data.name);
+        finish(event.data.ok);
+      };
+      worker.onerror = () => finish(false);
+      const buffer = out.bytes.slice(0);
+      worker.postMessage({ type: 'export', req: 1, kind, stem, buffer }, [buffer]);
+    });
+  }
+
   function uniqueName(name, used) {
     if (!used.has(name)) {
       used.add(name);
@@ -349,5 +370,5 @@ export function createQueue(handlers) {
 
   ensureWorkers();
 
-  return { add, addCopies, addDonor, clear, downloadOutput, downloadAll, inject, items: () => items, save };
+  return { add, addCopies, addDonor, clear, downloadOutput, downloadAll, exportOutput, inject, items: () => items, save };
 }

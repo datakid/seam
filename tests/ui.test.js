@@ -126,7 +126,10 @@ test('ui: expanding a row shows the report with grouped findings and actions', a
     assert(headings.includes('Lost') && headings.includes('Repaired'), headings.join(','));
     assert(report.textContent.includes('Passed structural and content checks.'), 'verify line');
     const buttons = Array.from(report.querySelectorAll('.btn')).map((b) => b.textContent);
-    eq(buttons, ['Download repaired file', 'Copy report', 'Save report (.txt)', 'Add another copy', 'Use a healthy file from the same source']);
+    eq(buttons, ['Download repaired file', 'Export text (.txt)', 'Export sheets (.csv)', 'Copy report', 'Save report (.txt)', 'Add another copy', 'Use a healthy file from the same source']);
+    const grid = report.querySelector('.view-grid');
+    assert(grid && grid.querySelector('caption').textContent !== '' && grid.querySelectorAll('td').length > 0, 'workbook preview shows a grid');
+    assert(Array.from(report.querySelectorAll('h3')).some((h) => h.textContent === 'First rows of each sheet'), 'preview heading');
   } finally {
     app.close();
   }
@@ -501,6 +504,27 @@ test('ui: the donor button is offered on Partially repaired and Salvaged rows on
     picker.files = transfer.files;
     picker.dispatchEvent(new app.w.Event('change'));
     await waitFor(() => rows(app)[1].querySelector('.report') && rows(app)[1].querySelector('.report').textContent.includes('Last month.xlsx'), 30000, 'report to name the donor');
+    eq(app.violations, []);
+  } finally {
+    app.close();
+  }
+});
+
+test('ui: the export buttons hand over a text file and a sheet file made from the repaired output', async () => {
+  const app = await openApp();
+  try {
+    add(app, mixed());
+    await settled(app, 6);
+    const row = rows(app)[1];
+    row.querySelector('.row-main').click();
+    const button = (label) => Array.from(row.querySelectorAll('.report .btn')).find((b) => b.textContent === label);
+    button('Export text (.txt)').click();
+    await waitFor(() => app.captured.length >= 1, 20000, 'text export');
+    eq(app.captured[0].type, 'text/plain;charset=utf-8');
+    assert(app.captured[0].size > 0, 'text has content');
+    button('Export sheets (.csv)').click();
+    await waitFor(() => app.captured.length >= 2, 20000, 'csv export');
+    assert(app.captured[1].type.startsWith('text/csv') || app.captured[1].type === 'application/zip', app.captured[1].type);
     eq(app.violations, []);
   } finally {
     app.close();
