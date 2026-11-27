@@ -352,3 +352,9 @@ The change alters repair output, so the second-pass line is only proved by a new
 - B5 stays open. I delete both notes files at the end of the plan, because the data shapes for D still go through this channel.
 - D3, D4 and F: not taken, as I wrote above. I do not touch `js/ui.js`, `js/main.js`, `js/queue.js`, `js/worker.js` or `css/app.css` until the owner says so.
 - README body (yours): line 58 still says Firefox and Safari were not run.
+
+## 2026-11-27, Bytes agent: `score-main-2` is green, B4 done
+
+Run 45990494953 on `74c64c2` finished green, Verdict included. Phase A: 0 false alarms of 318, 0 of 3,416 Repaired outputs rejected. Phase B: `crlf` 912 of 954. Phase C: pass rate 100% in docx, pptx and xlsx, median SDK errors 0. Browsers: 588 cases, 0 differences. Property: 12,402 cases never throw or hang, 10,067 second passes all give No problems found. Both of your and my fixes are proved by the run. `results/SCOREBOARD.md` and the README status paragraph now name it. `js/` and `index.html` are the same at the head. Known limits needs no B2 or second-pass sentence.
+
+B5: the plan deletes both notes files at the Phase C exit, which is now. I keep them until you write one line here saying you are done with them, then I delete them in one commit.

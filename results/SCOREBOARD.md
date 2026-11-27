@@ -1,6 +1,6 @@
 # Seam scoreboard
 
-Run `score-main-1-11` on 2026-11-26, commit 9eee3cb. Browser: 159.0.8154.6. LibreOffice: LibreOffice 24.2.7.2 420(Build:2).
+Run `score-main-2-12` on 2026-11-27, commit 74c64c2. Browser: 159.0.8154.6. LibreOffice: LibreOffice 24.2.7.2 420(Build:2).
 Healthy files: 318. Damaged cases: 12402.
 
 ## 1. Healthy files: false alarms
@@ -40,7 +40,7 @@ Pass rate is the share of outputs labelled Repaired that every available judge a
 
 | Kind | Cases | No problems | Repaired | Partial | Salvaged | Failed | Not supported | Judge pass (Repaired) | Recall, Seam | Recall, baseline | Seam better |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| bitflip | 954 | 37 | 26 | 669 | 54 | 168 | 0 | 26/26 | 1 | 0 | 556/954 |
+| bitflip | 954 | 37 | 26 | 670 | 53 | 168 | 0 | 26/26 | 1 | 0 | 556/954 |
 | concat | 954 | 2 | 952 | 0 | 0 | 0 | 0 | 952/952 | 1 | 0 | 954/954 |
 | crlf | 954 | 0 | 912 | 42 | 0 | 0 | 0 | 912/912 | 1 | 0 | 942/954 |
 | dropblock | 954 | 0 | 11 | 772 | 56 | 115 | 0 | 11/11 | 1 | 0 | 837/954 |
@@ -61,8 +61,8 @@ Per tier of the output Seam produced: how many outputs, how many each judge acce
 | Tier | Meaning | Outputs | LibreOffice loads | Open XML SDK opens | SDK median errors |
 |---|---|---|---|---|---|
 | 0 | Fails structural checks | 0 | n/a | n/a | n/a |
-| 1 | Structural checks | 1843 | 1794/1810 | 1762/1843 | 2 |
-| 2 | Structural and content checks | 8224 | 8142/8158 | 8107/8224 | 0 |
+| 1 | Structural checks | 1845 | 1796/1812 | 1770/1845 | 2 |
+| 2 | Structural and content checks | 8222 | 8140/8156 | 8107/8222 | 0 |
 
 ## 2c. Open XML SDK messages by element
 
@@ -71,16 +71,16 @@ Counted over the first 40 messages the SDK reported for each output. Element is 
 | Element | Messages | Files | Most common message ID | By family |
 |---|---|---|---|---|
 | rPr | 3137 | 239 | Sch_UnexpectedElementContentExpectingComplex | docx 2751, pptx 208, xlsx 178 |
-| font | 2064 | 317 | Sch_UnexpectedElementContentExpectingComplex | xlsx 1871, docx 126, pptx 67 |
+| font | 2072 | 321 | Sch_UnexpectedElementContentExpectingComplex | xlsx 1878, docx 127, pptx 67 |
 | style | 1456 | 97 | Sch_UnexpectedElementContentExpectingComplex | docx 1341, xlsx 79, pptx 36 |
-| pPr | 1274 | 220 | Sch_UnexpectedElementContentExpectingComplex | docx 1150, pptx 34, xlsx 90 |
+| pPr | 1275 | 221 | Sch_UnexpectedElementContentExpectingComplex | docx 1151, pptx 34, xlsx 90 |
 | xf | 995 | 30 | Sch_UndeclaredAttribute | xlsx 957, docx 38 |
 | color | 890 | 47 | Sch_AttributeValueDataTypeDetailed | xlsx 736, docx 72, pptx 82 |
-| pageSetup | 640 | 278 | Sem_AttributeValueDataTypeDetailed | xlsx 565, docx 37, pptx 38 |
+| pageSetup | 646 | 281 | Sem_AttributeValueDataTypeDetailed | xlsx 571, docx 37, pptx 38 |
 | tcBorders | 635 | 34 | Sch_UnexpectedElementContentExpectingComplex | docx 616, xlsx 19 |
 | scrgbClr | 630 | 35 | Sch_AttributeValueDataTypeDetailed | docx 612, xlsx 18 |
 | tcPr | 628 | 34 | Sch_UnexpectedElementContentExpectingComplex | docx 609, xlsx 19 |
-| settings | 578 | 578 | Sch_InvalidElementContentExpectingComplex | docx 535, pptx 18, xlsx 25 |
+| settings | 580 | 580 | Sch_InvalidElementContentExpectingComplex | docx 537, pptx 18, xlsx 25 |
 | duotone | 400 | 100 | Sch_UndeclaredAttribute | pptx 120, docx 260, xlsx 20 |
 | xmlColumnPr | 377 | 24 | Sem_MissingReferenceElement | xlsx 377 |
 | c | 297 | 20 | Sem_MissingIndexedElement | xlsx 297 |
@@ -90,7 +90,7 @@ Counted over the first 40 messages the SDK reported for each output. Element is 
 | cantSplit | 186 | 46 | Sch_AttributeValueDataTypeDetailed | docx 174, xlsx 12 |
 | rect | 184 | 68 | Sch_UndeclaredAttribute | docx 173, pptx 9, xlsx 2 |
 | lsdException | 178 | 20 | Sch_UndeclaredAttribute | docx 178 |
-| dLbls | 138 | 23 | Sch_UnexpectedElementContentExpectingComplex | docx 12, xlsx 126 |
+| dLbls | 156 | 26 | Sch_UnexpectedElementContentExpectingComplex | docx 12, xlsx 144 |
 | row | 130 | 29 | Sem_AttributeValueDataTypeDetailed | xlsx 122, docx 4, pptx 4 |
 | name | 129 | 34 | Sch_AttributeValueDataTypeDetailed | docx 116, pptx 12, xlsx 1 |
 | docGrid | 123 | 97 | Sch_AttributeValueDataTypeDetailed | docx 118, pptx 2, xlsx 3 |
@@ -126,8 +126,8 @@ Phase C: Repaired outputs that every judge accepts, by family, and the median Op
 
 | Family | Repaired judged | Accepted | Rate | Tier 2 outputs judged | SDK median errors |
 |---|---|---|---|---|---|
-| docx | 1148 | 1148 | 100% | 2519 | 0 |
-| pptx | 1128 | 1128 | 100% | 3069 | 0 |
+| docx | 1148 | 1148 | 100% | 2522 | 0 |
+| pptx | 1128 | 1128 | 100% | 3066 | 0 |
 | xlsx | 1140 | 1140 | 100% | 2519 | 0 |
 
 ## 3. Over-labels
@@ -158,19 +158,16 @@ Outputs labelled Repaired that the Open XML SDK cannot open, with the same messa
 | poi-58760__insert__2 | insert | poi-58760 | ZIP_PREFIX_DATA |
 | poi-52348__concat__2 | concat | poi-58760 | ZIP_PREFIX_DATA |
 
-Outputs labelled Partially repaired that a judge rejects (tracked, not gated): 665.
+Outputs labelled Partially repaired that a judge rejects (tracked, not gated): 661.
 
 ## 4. Time and memory
 
-Median 72 ms, 95th percentile 352 ms, slowest 44092 ms. Highest heap growth 1524.3 MB. Method: js-heap-sampled (Chromium performance.memory, sampled at stage boundaries).
+Median 72 ms, 95th percentile 351 ms, slowest 56371 ms. Highest heap growth 1654.1 MB. Method: js-heap-sampled (Chromium performance.memory, sampled at stage boundaries).
 
 ## 5. Browsers
 
-588 cases across chromium, firefox, webkit: 3 differences
+588 cases across chromium, firefox, webkit: 0 differences
 
-- libreoffice-tdf119136__bitflip__1: chromium partial [CT_REBUILT,DOCX_NOTE_REFS_REMOVED,XML_INVALID_BYTES,XML_REPAIRED,XML_TRUNCATED_CLOSED,XML_UNRECOVERABLE,ZIP_ENTRY_CRC] vs firefox partial [CT_DEFAULT_ADDED,CT_OVERRIDE_ADDED,DOCX_NOTE_REFS_REMOVED,XML_INVALID_BYTES,XML_REPAIRED,XML_TRUNCATED_CLOSED,ZIP_ENTRY_CRC]
-- libreoffice-tdf89064__dropblock__1: chromium partial [CT_OVERRIDE_REMOVED,REF_REMOVED,RELS_REBUILT,REL_REMOVED,XML_UNRECOVERABLE,ZIP_DIRECTORY_REBUILT,ZIP_ENTRY_CHOSEN,ZIP_ENTRY_UNREADABLE] vs firefox partial [CT_OVERRIDE_REMOVED,REF_REMOVED,RELS_REBUILT,REL_FILE_REMOVED,REL_REMOVED,XML_REPAIRED,XML_TRUNCATED_CLOSED,ZIP_DIRECTORY_REBUILT,ZIP_ENTRY_CHOSEN,ZIP_ENTRY_UNREADABLE]
-- oxml-sdk-Document-2__bitflip__2: chromium salvaged [NO_MAIN_PART,SALVAGE_TEXT_ONLY,XML_TRUNCATED_CLOSED,XML_UNRECOVERABLE,ZIP_ENTRY_CRC,ZIP_ENTRY_TRUNCATED,ZIP_ENTRY_UNREADABLE] vs firefox partial [CT_DEFAULT_ADDED,CT_OVERRIDE_ADDED,EXTENSION_CORRECTED,REL_REMOVED,XML_REPAIRED,XML_TRUNCATED_CLOSED,ZIP_DIRECTORY_REBUILT,ZIP_ENTRY_CHOSEN,ZIP_ENTRY_CRC,ZIP_ENTRY_TRUNCATED,ZIP_ENTRY_UNREADABLE]
 
 ## 6. Gaps
 
