@@ -93,6 +93,7 @@ export const copy = {
       }
     },
     untitled: 'No title',
+    large: 'Too large to show a preview.',
     exportEmpty: 'Nothing to export'
   },
   copied: 'Copied',

@@ -16,10 +16,10 @@ export function mediaNames(names) {
 }
 
 export function buildView(bytes) {
-  if (bytes.length > LIMITS.maxBytes) return null;
   const names = packageNames(bytes);
   const kind = packageKind(names);
   if (!kind) return null;
+  if (bytes.length > LIMITS.maxBytes) return { kind, large: true, more: 0, exports: { text: false, csv: false, media: mediaNames(names).length > 0 } };
   const files = packageParts(bytes, (file) => XML_PARTS.test(file.name));
   if (!files) return null;
   const exports = { text: false, csv: false, media: mediaNames(names).length > 0 };

@@ -149,6 +149,10 @@ export function createRenderer(list, actions) {
 
   function buildViewBlock(view) {
     const box = el('div', 'view');
+    if (view.large) {
+      box.appendChild(el('p', 'view-more', copy.view.large));
+      return box;
+    }
     box.appendChild(el('h2', null, copy.view.heading[view.kind]));
     if (view.kind === 'document') {
       const list = el('ul', 'view-lines');

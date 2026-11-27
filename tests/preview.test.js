@@ -124,7 +124,10 @@ test('export: bytes that are not a package give nothing', () => {
   eq(buildExport('text', strToU8('not a zip at all'), 'x'), null);
 });
 
-test('preview: a package past the size guard gets no preview', () => {
-  const big = new Uint8Array(67108865);
-  eq(buildView(big), null);
+test('preview: past the size guard a package gets no preview but keeps its image export', () => {
+  eq(buildView(new Uint8Array(67108865)), null);
+  const view = buildView(pack([...docxEntries(), ['word/media/big.png', new Uint8Array(67108864)]]));
+  eq(view, { kind: 'document', large: true, more: 0, exports: { text: false, csv: false, media: true } });
+  const plain = buildView(pack([...xlsxEntries(), ['xl/embeddings/big.png', new Uint8Array(67108864)]]));
+  eq(plain.exports, { text: false, csv: false, media: false });
 });

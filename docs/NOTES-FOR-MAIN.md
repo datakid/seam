@@ -368,3 +368,25 @@ Shape: after the pipeline the worker sets `result.view` (`null` when there is no
 Checked: node 103 of 103, Chromium 612 of 612 including an end-to-end test that clicks the export buttons through the real worker. Against the scoring extractor on the 313 corpus files, 257 have every one of its tokens present in my text; the 56 others differ for reasons on its side (booleans as 1 and 0, text-box fallbacks counted twice, nested paragraphs joined). Largest corpus workbook (2.7 MB): view 251 ms, text export 1.3 s.
 
 For you, README body: the feature list can name the preview and the three exports. Memory and time at 200 MB are not measured; that is F.
+
+## 2026-11-27, Bytes agent: F1 accessibility done; F2 measured at 200 MB, one data-loss bug in your files
+
+F1 is pushed (`369975e`). axe-core 4.x on the empty page, the theme menu, the scope sheet, six collapsed rows and six expanded rows, light and dark, at 1000 and 360 px: 0 violations in all 20 states. Fixed: both file pickers are `aria-hidden` and sit inside `main`; report group headings are `h2` so the order is h1, h2; `.view-more` and the slide numbers use `--ink-2` (the `--ink-3` pair was 4.38:1 on the report panel); the recovered-text `pre` and `#scope-body` are focusable named regions. I did not touch `css/tokens.css`. One test in `tests/ui.test.js` guards all of it. Chromium 613 of 613.
+
+F2, measured in the real app (Chromium, 2 CPUs, 8 GB; time is from file chosen to label shown; peak is the sum of resident memory of every browser process):
+
+| File | Size | Label | Time | Peak |
+|---|---|---|---|---|
+| docx, 195 MB stored image, healthy | 195 MB | No problems found | 1.2 s | 0.7 GB |
+| same, ZIP directory removed | 195 MB | Repaired | 2.7 s | 1.1 GB |
+| same, cut at 60 % | 117 MB | Partially repaired | 1.2 s | 0.9 GB |
+| xlsx, one sheet of about 360 MB XML, healthy | 50 MB | No problems found | 60.7 s | 5.9 GB |
+| xlsx, one sheet of about 850 MB XML, healthy | 115 MB | Partially repaired | 10.1 s | 2.5 GB |
+
+The last row is a bug in `js/core/pipeline.js` and it deletes data from a healthy file. `new TextDecoder().decode()` of more than about 512 Mi bytes returns an empty string in Chromium without throwing (a JavaScript string cannot be longer). `decodeXml` gets `''`, `checkWellFormed` fails, `repairXml('')` has no root, and `processXml` reports `XML_UNRECOVERABLE`, removes the sheet and `XLSX_SHEET_REMOVED` removes it from the workbook. The user is told the file was partially repaired and gets a download without the sheet. The label contradicts guardrail "healthy false alarms 0". The 360 MB row is correct but is the cost of the same path: DOMParser takes about 10 s per 100 MB and the whole part lives as a string, a tree and a copy.
+
+Suggested fix, yours to shape: one constant, 64 MiB like `FULL_SCAN_LIMIT` in `identify.js`. In `processXml`, a part whose bytes are longer than it is not decoded, not parsed and not repaired: keep its bytes as they are and add a noted finding (for example `XML_TOO_LARGE_UNCHECKED` with the size in MB; the text says the part is too large to check and was kept as it is). `verifyPackage` and the schema, reference and sheet-removal steps must skip such a part the same way, so nothing removes it. A damaged part over the limit then keeps the existing partial and salvage paths on its raw bytes. If you want the label to stay honest, the verdict for a file that has such a part could be "No problems found" only when nothing else was found and the note is shown; that call is yours. My side: I add a test with a 70 MB sheet once your finding code exists, and I re-run the 360 and 850 MB files, which are in the scratchpad generator, `gen.mjs`.
+
+My own change for F2: a package past 64 MB used to get no `result.view`. It now gets `{ kind, large: true, more: 0, exports: { text: false, csv: false, media } }`, so the image export stays available (195 MB of images: 1.6 s, 1.7 GB peak) and the report says "Too large to show a preview." Text and sheet exports stay off there because they inflate every part into strings.
+
+Next for me: the offline service worker.
