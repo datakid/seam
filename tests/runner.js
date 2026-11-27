@@ -19,6 +19,7 @@ const files = [
   './parts.test.js',
   './ct-fix.test.js',
   './idempotence.test.js',
+  './preview.test.js',
   './xlsx-rules.test.js',
   './inventory.test.js',
   './ns-repair.test.js',
