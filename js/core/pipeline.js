@@ -17,6 +17,8 @@ import { checkTree } from './schema-fit.js';
 import { openedTable } from './schema-fill.js';
 import { rebuildRels } from './rels-rebuild.js';
 import { synthesizeMain } from './main-synth.js';
+import { partInventory, buildInventory } from './inventory.js';
+import { repairNamespaces } from './ns-repair.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
   repairRootRels, repairRels, repairContentTypes, reconcilePartNames, typeUntypedParts, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
@@ -57,6 +59,7 @@ function createContext(input) {
     format: null,
     main: null,
     slideCount: null,
+    inventory: {},
     orphans: []
   };
 }
@@ -112,6 +115,7 @@ function loadEntries(ctx, bytes, identity, copies) {
     entries = merged.entries;
     if (extras.some((read, i) => read !== null && merged.used[i + 1] && !read.endsEarly)) endsEarly = false;
   }
+  ctx.inventory.parts = partInventory(strict, entries);
   const autoShift = (strict.shift === undefined ? 0 : strict.shift) - prefix;
   ctx.strictIntact = strict.intact && prefix === 0 && autoShift === 0 && !identity.damagedStart;
   if (autoShift > 0 && !identity.prefixGarbage) addFinding(ctx, 'ZIP_PREFIX_DATA', null, { bytes: autoShift });
@@ -239,15 +243,22 @@ async function processXml(ctx, part, env) {
   const decoded = decodeXml(part.bytes);
   const holed = resolveHoles(decoded.text);
   const cleaned = cleanChars(holed.text);
-  let text = cleaned.text;
-  let changed = cleaned.changed || decoded.invalid > 0 || holed.holes > 0;
+  const named = repairNamespaces(cleaned.text);
+  let text = named.text;
+  let changed = cleaned.changed || decoded.invalid > 0 || holed.holes > 0 || named.count > 0;
   const found = [];
+  if (named.count > 0) found.push(['XML_NAMESPACE_FIXED', { n: named.count }]);
   if (decoded.invalid > 0) found.push(['XML_INVALID_BYTES', { n: decoded.invalid }]);
   if (holed.holes > 0) found.push(['XML_HOLE_DROPPED', { n: holed.holes, bytes: part.holeBytes }]);
   if (cleaned.changed) found.push(['XML_CHARS_REMOVED', { n: cleaned.removed + cleaned.escaped }]);
 
   if (!(await checkWellFormed(env, text))) {
     let repaired = repairXml(text);
+    const renamed = repairNamespaces(repaired.text);
+    if (renamed.count > 0) {
+      repaired = { ...repaired, text: renamed.text };
+      found.push(['XML_NAMESPACE_FIXED', { n: renamed.count }]);
+    }
     if ((!repaired.hasRoot || !(await checkWellFormed(env, repaired.text))) && (part.state === 'partial' || part.state === 'crcMismatch')) repaired = await cutBack(env, text, repaired);
     if (!repaired.hasRoot || !(await checkWellFormed(env, repaired.text))) {
       ctx.lost.set(part.name, text);
@@ -275,7 +286,7 @@ async function processXml(ctx, part, env) {
 
 const SUPERSEDED = new Set([
   'ZIP_ENTRY_TRUNCATED', 'ZIP_ENTRY_CRC', 'ZIP_ENTRY_UNREADABLE', 'ZIP_UNSUPPORTED_METHOD', 'ZIP_ENTRY_CHOSEN', 'MULTI_PART_FROM',
-  'XML_REENCODED', 'XML_INVALID_BYTES', 'XML_CHARS_REMOVED', 'XML_REPAIRED', 'XML_TRUNCATED_CLOSED', 'XML_UNRECOVERABLE', 'XML_HOLE_DROPPED'
+  'XML_REENCODED', 'XML_INVALID_BYTES', 'XML_CHARS_REMOVED', 'XML_REPAIRED', 'XML_TRUNCATED_CLOSED', 'XML_UNRECOVERABLE', 'XML_HOLE_DROPPED', 'XML_NAMESPACE_FIXED'
 ]);
 
 function forgetPart(ctx, name) {
@@ -626,6 +637,7 @@ async function execute(input, env, transfer) {
     output: { bytes: out, name: `${baseName(ctx.name)} (repaired).${ctx.format.ext}`, mime: OUTPUT_MIME[ctx.format.key] },
     extraOutput,
     preview,
+    inventory: buildInventory(ctx),
     verified: true,
     tier: tierFor(ctx, true)
   };

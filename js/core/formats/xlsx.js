@@ -133,6 +133,7 @@ export function applyXlsx(ctx) {
       kept.push({ ...entry, index });
     }
   });
+  ctx.inventory.sheets = { expected: entries.nodes.length, recovered: kept.length };
   if (kept.length === 0) return { salvage: 'noSheets' };
 
   if (removed.size > 0) {

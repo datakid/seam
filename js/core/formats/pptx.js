@@ -91,5 +91,6 @@ export function applyPptx(ctx) {
     }
   }
   ctx.slideCount = slides.length;
+  ctx.inventory.slides = { expected: slideNodes.length, recovered: slides.length };
   return {};
 }

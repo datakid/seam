@@ -20,6 +20,8 @@ const files = [
   './ct-fix.test.js',
   './idempotence.test.js',
   './xlsx-rules.test.js',
+  './inventory.test.js',
+  './ns-repair.test.js',
   './schema-close.test.js',
   './schema-fill.test.js',
   './schema-check.test.js',
