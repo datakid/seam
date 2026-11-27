@@ -55,6 +55,7 @@ export const SEVERITY = {
   PPTX_PRESENTATION_REBUILT: 'loss',
   ROOT_RELS_REBUILT: 'repaired',
   RELS_REBUILT: 'repaired',
+  RELS_ROOT_FIXED: 'repaired',
   PPTX_SLIDE_ORDER_GUESSED: 'noted',
   ROOT_RELS_FIXED: 'repaired',
   REL_REMOVED: 'repaired',

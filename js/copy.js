@@ -239,6 +239,7 @@ export const copy = {
     CT_PART_TYPED: (d) => `Gave this part the generic content type ${d.type}, so the package stays valid. Its data was not changed.`,
     CT_UNKNOWN_PART: () => 'This part has no known content type. It was left as it is.',
     ROOT_RELS_REBUILT: () => 'Rebuilt the package relationships.',
+    RELS_ROOT_FIXED: () => 'Corrected the damaged first tag of a relationships list, so its relationships can be read again.',
     XLSX_WORKBOOK_REBUILT: (d) => `The workbook part was lost. A new one lists the ${d.n} ${plural(d.n, 'sheet', 'sheets')} that remain, named Sheet1, Sheet2 and so on. The original sheet names and any defined names are gone.`,
     PPTX_PRESENTATION_REBUILT: (d) => `The presentation part was lost. A new one lists the slide masters and ${d.n} ${plural(d.n, 'slide', 'slides')} that remain, in file order. The slide size was estimated as ${d.cx} by ${d.cy}, and sections and notes settings are gone.`,
     RELS_REBUILT: (d) => `Rebuilt ${d.n} ${plural(d.n, 'relationship', 'relationships')} of a part whose relationships were lost, from the names of the parts that remain.`,

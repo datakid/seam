@@ -18,6 +18,7 @@ const files = [
   './tiers.test.js',
   './parts.test.js',
   './ct-fix.test.js',
+  './idempotence.test.js',
   './xlsx-rules.test.js',
   './schema-close.test.js',
   './schema-fill.test.js',

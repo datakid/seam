@@ -406,6 +406,13 @@ export function repairRels(ctx) {
     }
     const tree = getTree(ctx, name);
     if (!tree) continue;
+    const relsRoot = documentElement(tree);
+    if (relsRoot && localName(relsRoot.name) !== 'Relationships') {
+      const colon = relsRoot.name.indexOf(':');
+      relsRoot.name = `${colon === -1 ? '' : relsRoot.name.slice(0, colon + 1)}Relationships`;
+      touch(ctx, name);
+      addFinding(ctx, 'RELS_ROOT_FIXED', name);
+    }
     const rels = readRelationships(tree);
     const removed = [];
     for (const rel of rels) {
@@ -465,12 +472,15 @@ function buildTypes(ctx) {
     }
   }
   const defaults = Array.from(exts).map((ext) => `<Default Extension="${ext}" ContentType="${CT_DEFAULTS[ext]}"/>`).join('');
-  const overrides = [`<Override PartName="/${encodePartName(ctx.main)}" ContentType="${CT_MAIN[ctx.format.key]}"/>`];
+  const typed = new Map();
   for (const name of ctx.index.names()) {
     if (name === ctx.main || name === '[Content_Types].xml') continue;
     const type = tableType(name);
-    if (type) overrides.push(`<Override PartName="/${encodePartName(name)}" ContentType="${type}"/>`);
+    if (type) typed.set(name.toLowerCase(), { name, type });
   }
+  for (const { part, row } of relationshipTypedParts(ctx).values()) typed.set(part.toLowerCase(), { name: part, type: row.contentType });
+  const overrides = [`<Override PartName="/${encodePartName(ctx.main)}" ContentType="${CT_MAIN[ctx.format.key]}"/>`];
+  for (const { name, type } of typed.values()) overrides.push(`<Override PartName="/${encodePartName(name)}" ContentType="${type}"/>`);
   return `${DECL}<Types xmlns="${CT_NS}">${defaults}${overrides.join('')}</Types>`;
 }
 
