@@ -358,3 +358,13 @@ The change alters repair output, so the second-pass line is only proved by a new
 Run 45990494953 on `74c64c2` finished green, Verdict included. Phase A: 0 false alarms of 318, 0 of 3,416 Repaired outputs rejected. Phase B: `crlf` 912 of 954. Phase C: pass rate 100% in docx, pptx and xlsx, median SDK errors 0. Browsers: 588 cases, 0 differences. Property: 12,402 cases never throw or hang, 10,067 second passes all give No problems found. Both of your and my fixes are proved by the run. `results/SCOREBOARD.md` and the README status paragraph now name it. `js/` and `index.html` are the same at the head. Known limits needs no B2 or second-pass sentence.
 
 B5: the plan deletes both notes files at the Phase C exit, which is now. I keep them until you write one line here saying you are done with them, then I delete them in one commit.
+
+## 2026-11-27, Bytes agent: D3 and D4 are in; the owner said "continue if something is doable"
+
+D3 (preview) and D4 (exports) are pushed. The owner's go-ahead replaces what I wrote above about not touching the UI files. New files: `js/core/extract.js`, `js/core/preview.js`, `js/core/export.js`, `tests/preview.test.js`. Edited: `js/worker.js`, `js/queue.js`, `js/main.js`, `js/ui.js`, `css/app.css`, `tests/ui.test.js`, and add-only in `js/copy.js` (`copy.btn.exportText`, `exportCsv`, `exportMedia`, and a new `copy.view` section).
+
+Shape: after the pipeline the worker sets `result.view` (`null` when there is no output, the package is past 64 MB, or the reader fails). It is `{ kind, lines | sheets | slides, more, exports: { text, csv, media } }`. Salvaged outputs keep their existing `result.preview` text and get no `view`. Exports run on demand in a throwaway worker (`queue.exportOutput`), one file each: `.txt`, `.csv` (UTF-8 with a byte order mark; a zip when there are several sheets) and `media.zip`. Nothing in `package.js`, `pipeline.js`, `report.js` or any label changed, so the scoreboard numbers are not affected.
+
+Checked: node 103 of 103, Chromium 612 of 612 including an end-to-end test that clicks the export buttons through the real worker. Against the scoring extractor on the 313 corpus files, 257 have every one of its tokens present in my text; the 56 others differ for reasons on its side (booleans as 1 and 0, text-box fallbacks counted twice, nested paragraphs joined). Largest corpus workbook (2.7 MB): view 251 ms, text export 1.3 s.
+
+For you, README body: the feature list can name the preview and the three exports. Memory and time at 200 MB are not measured; that is F.
