@@ -1,11 +1,11 @@
 # Seam scoreboard
 
-Run `local-n3` on 2026-11-25, commit c52f74f. Browser: 153.0.8010.0. LibreOffice: LibreOffice 24.2.7.2 420(Build:2).
-Healthy files: 300. Damaged cases: 1139.
+Run `score-main-1-11` on 2026-11-26, commit 9eee3cb. Browser: 159.0.8154.6. LibreOffice: LibreOffice 24.2.7.2 420(Build:2).
+Healthy files: 318. Damaged cases: 12402.
 
 ## 1. Healthy files: false alarms
 
-A false alarm is any label other than No problems found on a healthy file. Total: 0 of 300 (0%). On files LibreOffice also loads: 0 of 300.
+A false alarm is any label other than No problems found on a healthy file. Total: 0 of 318 (0%). On files LibreOffice also loads: 0 of 316.
 
 | Producer | Files | False alarms | Rate |
 |---|---|---|---|
@@ -14,6 +14,7 @@ A false alarm is any label other than No problems found on a healthy file. Total
 | other | 60 | 0 | 0% |
 | poi | 8 | 0 | 0% |
 | powerpoint | 57 | 0 | 0% |
+| python | 18 | 0 | 0% |
 | word | 56 | 0 | 0% |
 | wps | 2 | 0 | 0% |
 
@@ -26,12 +27,12 @@ Healthy by manifest but confirmed broken, repaired correctly, and not counted ab
 
 | File | Findings | Open XML SDK on the original |
 |---|---|---|
-| libreoffice-bad | EXTENSION_CORRECTED | not run |
-| libreoffice-bnc591147 | CT_DEFAULT_ADDED | not run |
-| poi-64450 | REL_REMOVED, XLSX_SST_COUNTS | not run |
-| poi-picture | REL_REMOVED, XLSX_SST_COUNTS, CT_OVERRIDE_REMOVED | not run |
+| libreoffice-bad | EXTENSION_CORRECTED | opens, 1 errors |
+| libreoffice-bnc591147 | CT_DEFAULT_ADDED | does not open |
+| poi-64450 | REL_REMOVED, XLSX_SST_COUNTS | does not open |
+| poi-picture | REL_REMOVED, XLSX_SST_COUNTS, CT_OVERRIDE_REMOVED | does not open |
 
-Quarantine candidates (healthy by manifest, not loaded by LibreOffice): none.
+Quarantine candidates (healthy by manifest, not loaded by LibreOffice): libreoffice-comment-in-footnote, libreoffice-tdf173266.
 
 ## 2. Damaged files by kind
 
@@ -39,19 +40,19 @@ Pass rate is the share of outputs labelled Repaired that every available judge a
 
 | Kind | Cases | No problems | Repaired | Partial | Salvaged | Failed | Not supported | Judge pass (Repaired) | Recall, Seam | Recall, baseline | Seam better |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| bitflip | 80 | 4 | 5 | 55 | 4 | 12 | 0 | 5/5 | 1 | n/a | n/a |
-| concat | 82 | 0 | 82 | 0 | 0 | 0 | 0 | 79/79 | 1 | n/a | n/a |
-| crlf | 87 | 0 | 82 | 5 | 0 | 0 | 0 | 81/81 | 1 | n/a | n/a |
-| dropblock | 96 | 0 | 1 | 74 | 5 | 16 | 0 | 1/1 | 1 | n/a | n/a |
-| head | 87 | 0 | 31 | 32 | 6 | 15 | 3 | 31/31 | 1 | n/a | n/a |
-| insert | 82 | 1 | 21 | 57 | 1 | 2 | 0 | 21/21 | 1 | n/a | n/a |
-| losttail | 100 | 0 | 1 | 81 | 2 | 16 | 0 | 1/1 | 1 | n/a | n/a |
-| padzero | 78 | 0 | 1 | 66 | 2 | 9 | 0 | 1/1 | 1 | n/a | n/a |
-| prefix | 87 | 0 | 87 | 0 | 0 | 0 | 0 | 86/86 | 1 | n/a | n/a |
-| suffix | 80 | 79 | 1 | 0 | 0 | 0 | 0 | 1/1 | 1 | n/a | n/a |
-| truncate | 95 | 0 | 0 | 73 | 0 | 22 | 0 | n/a | 1 | n/a | n/a |
-| zero4096 | 92 | 0 | 0 | 60 | 8 | 19 | 5 | n/a | 1 | n/a | n/a |
-| zero512 | 93 | 0 | 0 | 81 | 2 | 10 | 0 | n/a | 1 | n/a | n/a |
+| bitflip | 954 | 37 | 26 | 669 | 54 | 168 | 0 | 26/26 | 1 | 0 | 556/954 |
+| concat | 954 | 2 | 952 | 0 | 0 | 0 | 0 | 952/952 | 1 | 0 | 954/954 |
+| crlf | 954 | 0 | 912 | 42 | 0 | 0 | 0 | 912/912 | 1 | 0 | 942/954 |
+| dropblock | 954 | 0 | 11 | 772 | 56 | 115 | 0 | 11/11 | 1 | 0 | 837/954 |
+| head | 954 | 0 | 229 | 476 | 55 | 177 | 17 | 229/229 | 1 | 0 | 727/954 |
+| insert | 954 | 18 | 266 | 661 | 6 | 3 | 0 | 266/266 | 1 | 0 | 928/954 |
+| losttail | 954 | 0 | 15 | 747 | 23 | 169 | 0 | 15/15 | 1 | 0 | 754/954 |
+| padzero | 954 | 0 | 35 | 816 | 10 | 93 | 0 | 35/35 | 1 | 0 | 835/954 |
+| prefix | 954 | 0 | 954 | 0 | 0 | 0 | 0 | 954/954 | 1 | 0 | 954/954 |
+| suffix | 954 | 942 | 12 | 0 | 0 | 0 | 0 | 12/12 | 1 | 1 | 192/954 |
+| truncate | 954 | 0 | 4 | 695 | 28 | 227 | 0 | 4/4 | 1 | 0 | 736/954 |
+| zero4096 | 954 | 0 | 0 | 649 | 54 | 218 | 33 | n/a | 1 | 0 | 665/954 |
+| zero512 | 954 | 0 | 0 | 818 | 20 | 116 | 0 | n/a | 1 | 0 | 650/954 |
 
 ## 2b. Verification tiers
 
@@ -60,34 +61,62 @@ Per tier of the output Seam produced: how many outputs, how many each judge acce
 | Tier | Meaning | Outputs | LibreOffice loads | Open XML SDK opens | SDK median errors |
 |---|---|---|---|---|---|
 | 0 | Fails structural checks | 0 | n/a | n/a | n/a |
-| 1 | Structural checks | 177 | 172/172 | n/a | n/a |
-| 2 | Structural and content checks | 749 | 739/740 | n/a | n/a |
+| 1 | Structural checks | 1843 | 1794/1810 | 1762/1843 | 2 |
+| 2 | Structural and content checks | 8224 | 8142/8158 | 8107/8224 | 0 |
 
 ## 2c. Open XML SDK messages by element
 
-No per-message data. The judge records up to 40 messages per file; run it again to fill this table.
+Counted over the first 40 messages the SDK reported for each output. Element is the node the message names.
+
+| Element | Messages | Files | Most common message ID | By family |
+|---|---|---|---|---|
+| rPr | 3137 | 239 | Sch_UnexpectedElementContentExpectingComplex | docx 2751, pptx 208, xlsx 178 |
+| font | 2064 | 317 | Sch_UnexpectedElementContentExpectingComplex | xlsx 1871, docx 126, pptx 67 |
+| style | 1456 | 97 | Sch_UnexpectedElementContentExpectingComplex | docx 1341, xlsx 79, pptx 36 |
+| pPr | 1274 | 220 | Sch_UnexpectedElementContentExpectingComplex | docx 1150, pptx 34, xlsx 90 |
+| xf | 995 | 30 | Sch_UndeclaredAttribute | xlsx 957, docx 38 |
+| color | 890 | 47 | Sch_AttributeValueDataTypeDetailed | xlsx 736, docx 72, pptx 82 |
+| pageSetup | 640 | 278 | Sem_AttributeValueDataTypeDetailed | xlsx 565, docx 37, pptx 38 |
+| tcBorders | 635 | 34 | Sch_UnexpectedElementContentExpectingComplex | docx 616, xlsx 19 |
+| scrgbClr | 630 | 35 | Sch_AttributeValueDataTypeDetailed | docx 612, xlsx 18 |
+| tcPr | 628 | 34 | Sch_UnexpectedElementContentExpectingComplex | docx 609, xlsx 19 |
+| settings | 578 | 578 | Sch_InvalidElementContentExpectingComplex | docx 535, pptx 18, xlsx 25 |
+| duotone | 400 | 100 | Sch_UndeclaredAttribute | pptx 120, docx 260, xlsx 20 |
+| xmlColumnPr | 377 | 24 | Sem_MissingReferenceElement | xlsx 377 |
+| c | 297 | 20 | Sem_MissingIndexedElement | xlsx 297 |
+| pgMar | 248 | 38 | Sch_AttributeValueDataTypeDetailed | docx 241, xlsx 7 |
+| spcPct | 211 | 36 | Sch_AttributeValueDataTypeDetailed | docx 204, pptx 1, xlsx 6 |
+| axId | 208 | 52 | Sch_AttributeValueDataTypeDetailed | pptx 188, docx 12, xlsx 8 |
+| cantSplit | 186 | 46 | Sch_AttributeValueDataTypeDetailed | docx 174, xlsx 12 |
+| rect | 184 | 68 | Sch_UndeclaredAttribute | docx 173, pptx 9, xlsx 2 |
+| lsdException | 178 | 20 | Sch_UndeclaredAttribute | docx 178 |
+| dLbls | 138 | 23 | Sch_UnexpectedElementContentExpectingComplex | docx 12, xlsx 126 |
+| row | 130 | 29 | Sem_AttributeValueDataTypeDetailed | xlsx 122, docx 4, pptx 4 |
+| name | 129 | 34 | Sch_AttributeValueDataTypeDetailed | docx 116, pptx 12, xlsx 1 |
+| docGrid | 123 | 97 | Sch_AttributeValueDataTypeDetailed | docx 118, pptx 2, xlsx 3 |
+| phoneticPr | 121 | 65 | Sem_MissingIndexedElement | xlsx 121 |
 
 ## 2d. Phase exit gates
 
-Phase A: healthy false alarms 0 (gate 0); outputs labelled Repaired that a judge rejects 0 (gate 0).
+Phase A: healthy false alarms 0 (gate 0); outputs labelled Repaired that a judge rejects 0 (gate 0), not counting 19 that fail like their original.
 
-Phase B: `crlf` cases that reach Repaired with recall of at least 0.99: 82 of 87 (94.3%; gate 90%). The plan's +15 point median gate cannot be met because the median was already 1.000 before Phase B; the owner replaced it on 2026-11-25 with the share of outputs at recall 0.99 and the Repaired count per kind below, and no case losing more than 0.02 of recall without an explanation.
+Phase B: `crlf` cases that reach Repaired with recall of at least 0.99: 912 of 954 (95.6%; gate 90%). The plan's +15 point median gate cannot be met because the median was already 1.000 before Phase B; the owner replaced it on 2026-11-25 with the share of outputs at recall 0.99 and the Repaired count per kind below, and no case losing more than 0.02 of recall without an explanation.
 
 | Kind | Cases | Recall at least 0.99 | Repaired |
 |---|---|---|---|
-| bitflip | 80 | 76.3% | 5 |
-| concat | 82 | 100% | 82 |
-| crlf | 87 | 100% | 82 |
-| dropblock | 96 | 79.2% | 1 |
-| head | 87 | 78.2% | 31 |
-| insert | 82 | 91.5% | 21 |
-| losttail | 100 | 72% | 1 |
-| padzero | 78 | 84.6% | 1 |
-| prefix | 87 | 100% | 87 |
-| suffix | 80 | 100% | 1 |
-| truncate | 95 | 72.6% | 0 |
-| zero4096 | 92 | 71.7% | 0 |
-| zero512 | 93 | 82.8% | 0 |
+| bitflip | 954 | 67.1% | 26 |
+| concat | 954 | 100% | 952 |
+| crlf | 954 | 98.7% | 912 |
+| dropblock | 954 | 76.2% | 11 |
+| head | 954 | 74.6% | 229 |
+| insert | 954 | 95.3% | 266 |
+| losttail | 954 | 69.1% | 15 |
+| padzero | 954 | 80.1% | 35 |
+| prefix | 954 | 100% | 954 |
+| suffix | 954 | 100% | 12 |
+| truncate | 954 | 71.4% | 4 |
+| zero4096 | 954 | 70.2% | 0 |
+| zero512 | 954 | 79.1% | 0 |
 
 Against the end of Phase A (1139 cases): 26 gain more than 0.02 of recall, 1 lose more than 0.02, 0 of those without an explanation.
 
@@ -97,33 +126,56 @@ Phase C: Repaired outputs that every judge accepts, by family, and the median Op
 
 | Family | Repaired judged | Accepted | Rate | Tier 2 outputs judged | SDK median errors |
 |---|---|---|---|---|---|
-| docx | 110 | 110 | 100% | 0 | n/a |
-| pptx | 102 | 102 | 100% | 0 | n/a |
-| xlsx | 95 | 95 | 100% | 0 | n/a |
+| docx | 1148 | 1148 | 100% | 2519 | 0 |
+| pptx | 1128 | 1128 | 100% | 3069 | 0 |
+| xlsx | 1140 | 1140 | 100% | 2519 | 0 |
 
 ## 3. Over-labels
 
-Outputs labelled Repaired that a judge rejects: 0 of 307 judged.
+Outputs labelled Repaired that a judge rejects: 0 of 3416 judged.
 
-Outputs labelled Partially repaired that a judge rejects (tracked, not gated): 1.
+Outputs labelled Repaired that the Open XML SDK cannot open, with the same message as the original they were repaired from (the SDK cannot read that original, so it is blind on them; listed, not gated): 19.
+
+| File | Kind | Same message as | Findings |
+|---|---|---|---|
+| libreoffice-tdf148478_transitionMusic__prefix__2 | prefix | libreoffice-tdf148478_transitionMusic | ZIP_PREFIX_DATA |
+| libreoffice-tdf125300__concat__2 | concat | libreoffice-tdf148478_transitionMusic | ZIP_PREFIX_DATA, EXTENSION_CORRECTED |
+| poi-58760__crlf__2 | crlf | poi-58760 | TRANSFER_CRLF_REVERSED |
+| poi-58760__prefix__1 | prefix | poi-58760 | ZIP_PREFIX_DATA |
+| libreoffice-tdf125298_crossreflink_nonascii_charlimit__concat__2 | concat | poi-58760 | ZIP_PREFIX_DATA, EXTENSION_CORRECTED |
+| libreoffice-n777345__concat__0 | concat | libreoffice-tdf148478_transitionMusic | ZIP_PREFIX_DATA, EXTENSION_CORRECTED |
+| poi-58760__crlf__0 | crlf | poi-58760 | TRANSFER_CRLF_REVERSED |
+| libreoffice-tdf148478_transitionMusic__prefix__1 | prefix | libreoffice-tdf148478_transitionMusic | ZIP_PREFIX_DATA |
+| libreoffice-threadedComment__concat__1 | concat | libreoffice-tdf148478_transitionMusic | ZIP_PREFIX_DATA, EXTENSION_CORRECTED |
+| poi-58760__insert__1 | insert | poi-58760 | ZIP_PREFIX_DATA |
+| libreoffice-fdo63053__concat__2 | concat | poi-58760 | ZIP_PREFIX_DATA, EXTENSION_CORRECTED |
+| poi-58760__prefix__0 | prefix | poi-58760 | ZIP_PREFIX_DATA |
+| poi-picture__concat__2 | concat | poi-58760 | ZIP_PREFIX_DATA |
+| libreoffice-tdf148478_transitionMusic__prefix__0 | prefix | libreoffice-tdf148478_transitionMusic | ZIP_PREFIX_DATA |
+| poi-58760__crlf__1 | crlf | poi-58760 | TRANSFER_CRLF_REVERSED |
+| poi-58760__prefix__2 | prefix | poi-58760 | ZIP_PREFIX_DATA |
+| oxml-sdk-Document__concat__2 | concat | poi-58760 | ZIP_PREFIX_DATA, EXTENSION_CORRECTED |
+| poi-58760__insert__2 | insert | poi-58760 | ZIP_PREFIX_DATA |
+| poi-52348__concat__2 | concat | poi-58760 | ZIP_PREFIX_DATA |
+
+Outputs labelled Partially repaired that a judge rejects (tracked, not gated): 665.
 
 ## 4. Time and memory
 
-Median 62 ms, 95th percentile 435 ms, slowest 14716 ms. Highest heap growth 382 MB. Method: js-heap-sampled (Chromium performance.memory, sampled at stage boundaries).
+Median 72 ms, 95th percentile 352 ms, slowest 44092 ms. Highest heap growth 1524.3 MB. Method: js-heap-sampled (Chromium performance.memory, sampled at stage boundaries).
 
 ## 5. Browsers
 
-Not compared.
+588 cases across chromium, firefox, webkit: 3 differences
+
+- libreoffice-tdf119136__bitflip__1: chromium partial [CT_REBUILT,DOCX_NOTE_REFS_REMOVED,XML_INVALID_BYTES,XML_REPAIRED,XML_TRUNCATED_CLOSED,XML_UNRECOVERABLE,ZIP_ENTRY_CRC] vs firefox partial [CT_DEFAULT_ADDED,CT_OVERRIDE_ADDED,DOCX_NOTE_REFS_REMOVED,XML_INVALID_BYTES,XML_REPAIRED,XML_TRUNCATED_CLOSED,ZIP_ENTRY_CRC]
+- libreoffice-tdf89064__dropblock__1: chromium partial [CT_OVERRIDE_REMOVED,REF_REMOVED,RELS_REBUILT,REL_REMOVED,XML_UNRECOVERABLE,ZIP_DIRECTORY_REBUILT,ZIP_ENTRY_CHOSEN,ZIP_ENTRY_UNREADABLE] vs firefox partial [CT_OVERRIDE_REMOVED,REF_REMOVED,RELS_REBUILT,REL_FILE_REMOVED,REL_REMOVED,XML_REPAIRED,XML_TRUNCATED_CLOSED,ZIP_DIRECTORY_REBUILT,ZIP_ENTRY_CHOSEN,ZIP_ENTRY_UNREADABLE]
+- oxml-sdk-Document-2__bitflip__2: chromium salvaged [NO_MAIN_PART,SALVAGE_TEXT_ONLY,XML_TRUNCATED_CLOSED,XML_UNRECOVERABLE,ZIP_ENTRY_CRC,ZIP_ENTRY_TRUNCATED,ZIP_ENTRY_UNREADABLE] vs firefox partial [CT_DEFAULT_ADDED,CT_OVERRIDE_ADDED,EXTENSION_CORRECTED,REL_REMOVED,XML_REPAIRED,XML_TRUNCATED_CLOSED,ZIP_DIRECTORY_REBUILT,ZIP_ENTRY_CHOSEN,ZIP_ENTRY_CRC,ZIP_ENTRY_TRUNCATED,ZIP_ENTRY_UNREADABLE]
 
 ## 6. Gaps
 
 - Google: 0 of 5 files
 - Apple: 0 of 5 files
 - WPS: 2 of 5 files
-- python-docx, openpyxl or python-pptx: 0 of 5 files
-- Open XML SDK judge: not run
 - Office judge: not run
-- Browsers run: chromium
-- 5 outputs labelled Repaired have no judge verdict
-- 14 cases derived from files LibreOffice cannot load were not judged by LibreOffice
-- LibreOffice judge on healthy files: not run
+- 99 cases derived from files LibreOffice cannot load were not judged by LibreOffice

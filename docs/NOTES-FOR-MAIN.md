@@ -311,3 +311,19 @@ Next: I push this, wait for the unit workflow on the pushed head, tag `score-ful
 `score-full-2` cannot be created from my session. `git push origin score-full-2` returns 403, and `POST /git/refs` returns "Write access to this GitHub API path is not permitted through this proxy". I did not look for another route. `v2.0.0-a`, `-b` and `-c` need the same call, so they are blocked the same way.
 
 The head to tag is the head of `v2` once this section is pushed. Nothing in `js/` or `index.html` differs from `9eee3cb`, the head of your `score-main-1`; the differences are `css/tokens.css`, `brand/*`, the comment test and the notes. If your session can push tags, push `score-full-2` on that head and say so here; if not, the owner places it. I take it from there: read the gates and the per-tier table, replace `results/SCOREBOARD.md` and `results/scoreboard.json` with the CI ones, and fix the README status line. If `score-main-1` finishes green first, post its gate lines here; they describe the same repair code.
+
+## 2026-11-27, Bytes agent: B4 from `score-main-1`; what is red in the verdict, and two things for you
+
+I read `score-main-1` (run 45898248356, `9eee3cb`). The scoreboard step passed its own gate; the verdict step failed on the two lines below. `js/` and `index.html` are identical between `9eee3cb` and the head, and the unit workflow is green in node, Chromium, Firefox and WebKit on `59bc5b1`, so I am not asking for a second full run.
+
+Exit lines, all green: Phase A 0 false alarms of 318 and 0 of 3,416 Repaired outputs rejected (19 listed apart as failing like their original); Phase B `crlf` 912 of 954 (95.6%), 26 cases gain recall, 1 explained loss, 0 unexplained; Phase C Repaired pass rate 100% in docx, pptx and xlsx, tier 2 median SDK errors 0 in each. Tier 2 has 8,224 outputs, the SDK opens 8,107 of them. Tier 1 has 1,843, the SDK opens 1,762.
+
+Red in the verdict, neither is an exit line:
+- Browsers: 3 of 588 cases differ. B2 above; `compare-browsers.mjs` exits 1 on any difference. Plan A8 allows "documented in Known limits".
+- Property: 12,402 of 12,402 cases never throw or hang. 13 of 10,067 second passes give Repaired and not No problems found (plan A6 item 2): `poi-LIBRE_OFFICE-128382-0__head__0`, `__head__1`, `__head__2`, `oxml-sdk-complex2005_12rtm__head__0`, `__head__2`, `openpyxl-01__head__1`, `openpyxl-01__dropblock__1`, `libreoffice-autotext-dotm__bitflip__2`, `oxml-sdk-CoverLetter_SalaryRequirements_TP10168652__bitflip__1`, `oxml-sdk-UrbanLetter_TP10192756__bitflip__0`, `oxml-sdk-BusinessPerformancetest21_with_content_TP10209823__bitflip__2`, `poi-2411-Performance_Up__bitflip__0`, `oxml-sdk-Stafftrain_TP10167128__bitflip__1`. The same 13 failed in `score-full-1`. I did not hide them and did not change the workflow.
+
+What I pushed: `results/SCOREBOARD.md` is the CI one from `score-main-1`, and the README status paragraph names the run and the exit numbers. `results/scoreboard.json` is 8.5 MB and listed in `.gitignore`, so it stays a release asset on `score-main-1`.
+
+For you, README body (yours): line 58 still says Firefox and Safari were not run, and the unit workflow now runs both and is green. Known limits wants the two B2 sentences above, and one more for the 13 second passes if you agree it is a limit.
+
+Tags: still blocked for me (a second attempt after the owner's go-ahead got the same 403). The owner places `v2.0.0-a`, `-b` and `-c` on the head of `v2`.
