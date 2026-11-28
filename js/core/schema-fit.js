@@ -479,6 +479,7 @@ export function checkTree(table, root, limit = 200, visit = null, only = null) {
       if (!fit.ok) {
         const found = fit.at >= 0 && fit.at < kids.length ? kids[fit.at].node.name : null;
         findings.push(bind({ kind: fit.kind, path: pathOf(frame), name: node.name, ns, local, at: fit.at, found, expected: fit.expected, near: kids.slice(Math.max(0, fit.at - 3), fit.at + 3).map((k) => k.node.name) }, node, entry));
+        if (found !== null && fit.at >= 0 && fit.at < kids.length) Object.defineProperty(findings[findings.length - 1], 'child', { value: kids[fit.at].node });
       }
     }
     for (let i = kids.length - 1; i >= 0; i--) {

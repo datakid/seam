@@ -19,6 +19,7 @@ import { rebuildRels } from './rels-rebuild.js';
 import { synthesizeMain } from './main-synth.js';
 import { partInventory, buildInventory } from './inventory.js';
 import { repairNamespaces } from './ns-repair.js';
+import { trimSchema } from './schema-trim.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
   repairRootRels, repairRels, repairContentTypes, reconcilePartNames, typeUntypedParts, flushTrees, addFinding, getTree, referencedParts, sourceOfRels
@@ -578,6 +579,7 @@ async function execute(input, env, transfer) {
   sweepReferences(ctx);
   await completeSchema(ctx, env.schemaTable !== undefined ? async () => env.schemaTable : undefined);
   ctx.schemaTable = await loadSchemaTable(env);
+  trimSchema(ctx, ctx.schemaTable);
   flushTrees(ctx);
   if ((ctx.changed || !ctx.strictIntact || ctx.extCorrected) && typeUntypedParts(ctx)) flushTrees(ctx);
   if (ctx.changed) auditReferences(ctx);

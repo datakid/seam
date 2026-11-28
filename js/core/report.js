@@ -50,6 +50,8 @@ export const SEVERITY = {
   PART_NAME_CASE_FIXED: 'repaired',
   CT_ENTRIES_CLEANED: 'repaired',
   CT_PART_TYPED: 'repaired',
+  SCHEMA_REORDERED: 'repaired',
+  SCHEMA_NAMES_FIXED: 'repaired',
   SCHEMA_COMPLETED: 'repaired',
   SCHEMA_UNRESOLVED: 'loss',
   XLSX_WORKBOOK_REBUILT: 'loss',

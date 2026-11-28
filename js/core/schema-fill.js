@@ -35,7 +35,7 @@ function prefixFor(node, table, ns) {
   return null;
 }
 
-function keyOf(table, node) {
+export function keyOf(table, node) {
   return `${table.normalise(namespaceOf(node))}|${localName(node.name)}`;
 }
 
@@ -45,7 +45,7 @@ function leafKeys(table, item, out = new Set()) {
   return out;
 }
 
-function orderOf(table, entry) {
+export function orderOf(table, entry) {
   const order = new Map();
   const walk = (items) => {
     for (const item of items) {

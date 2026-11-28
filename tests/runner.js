@@ -23,6 +23,7 @@ const files = [
   './xlsx-rules.test.js',
   './inventory.test.js',
   './ns-repair.test.js',
+  './schema-trim.test.js',
   './schema-close.test.js',
   './schema-fill.test.js',
   './schema-check.test.js',
