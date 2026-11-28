@@ -129,6 +129,8 @@ test('ui: expanding a row shows the report with grouped findings and actions', a
     eq(buttons, ['Download repaired file', 'Export text (.txt)', 'Export sheets (.csv)', 'Copy report', 'Save report (.txt)', 'Add another copy', 'Use a healthy file from the same source']);
     const grid = report.querySelector('.view-grid');
     assert(grid && grid.querySelector('caption').textContent !== '' && grid.querySelectorAll('td').length > 0, 'workbook preview shows a grid');
+    const widths = new Set(Array.from(grid.querySelectorAll('tr')).map((tr) => tr.children.length));
+    eq(widths.size, 1);
     assert(Array.from(report.querySelectorAll('h2')).some((h) => h.textContent === 'First rows of each sheet'), 'preview heading');
   } finally {
     app.close();

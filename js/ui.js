@@ -163,9 +163,10 @@ export function createRenderer(list, actions) {
         const table = el('table', 'view-grid');
         table.appendChild(el('caption', null, sheet.name));
         const body = el('tbody');
+        const width = Math.max(1, ...sheet.rows.map((row) => row.length));
         for (const row of sheet.rows) {
           const tr = el('tr');
-          for (const cell of row) tr.appendChild(el('td', null, cell));
+          for (let i = 0; i < width; i++) tr.appendChild(el('td', null, row[i] === undefined ? '' : row[i]));
           body.appendChild(tr);
         }
         table.appendChild(body);
