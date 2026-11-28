@@ -163,3 +163,23 @@ export function snapNamespaces(root) {
   });
   return count;
 }
+
+const KNOWN_ENCODING = /^(utf-?8|utf-?16(le|be)?|ucs-?2|us-ascii|ascii|latin-?1|iso-8859-\d{1,2}|windows-125\d|cp125\d|shift_jis|euc-jp|euc-kr|gb2312|gbk|big5|koi8-r)$/i;
+
+export function repairDeclaration(text) {
+  if (!text.startsWith('<?xml')) return { text, count: 0 };
+  const end = text.indexOf('?>');
+  if (end === -1 || end > 400) return { text, count: 0 };
+  const decl = text.slice(0, end);
+  const at = decl.indexOf('encoding');
+  if (at === -1) return { text, count: 0 };
+  let q = at + 8;
+  while (q < decl.length && (decl[q] === ' ' || decl[q] === '=')) q++;
+  const quote = decl[q];
+  if (quote !== '"' && quote !== "'") return { text, count: 0 };
+  const close = decl.indexOf(quote, q + 1);
+  if (close === -1) return { text, count: 0 };
+  const value = decl.slice(q + 1, close);
+  if (KNOWN_ENCODING.test(value)) return { text, count: 0 };
+  return { text: `${decl.slice(0, q + 1)}UTF-8${decl.slice(close)}${text.slice(end)}`, count: 1 };
+}

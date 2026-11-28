@@ -41,6 +41,7 @@ export const SEVERITY = {
   XML_CHARS_REMOVED: 'repaired',
   XML_REPAIRED: 'repaired',
   XML_NAMESPACE_FIXED: 'repaired',
+  XML_DECLARATION_FIXED: 'repaired',
   CT_REBUILT: 'repaired',
   CT_DEFAULT_ADDED: 'repaired',
   CT_MAIN_FIXED: 'repaired',

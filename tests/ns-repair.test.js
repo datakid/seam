@@ -43,3 +43,23 @@ test('namespace repair: intact files get no namespace finding', async () => {
   const result = await run('sample.docx', pack(docxEntries()));
   eq(result.outcome, 'noProblems');
 });
+
+test('declaration repair: a damaged encoding name is corrected before the engine sees the part', async () => {
+  const entries = edit(docxEntries(), 'docProps/core.xml', (t) => t.replace(/encoding="[^"]*"/, 'encoding="WTF-8"'));
+  assert(entries.some(([n, c]) => n === 'docProps/core.xml' && c.includes('WTF-8')), 'fixture carries the damage');
+  const result = await run('sample.docx', pack(entries));
+  eq(result.outcome, 'repaired');
+  const fixed = result.findings.find((f) => f.code === 'XML_DECLARATION_FIXED');
+  assert(fixed && fixed.part === 'docProps/core.xml', 'reported on the part');
+  assert(!result.findings.some((f) => f.code === 'XML_UNRECOVERABLE'), 'nothing removed');
+  assert(files(result)['docProps/core.xml'].includes('encoding="UTF-8"'), 'declares UTF-8');
+  const out = result.output.bytes instanceof Uint8Array ? result.output.bytes : new Uint8Array(result.output.bytes);
+  const second = await run('sample.docx', out);
+  eq(second.outcome, 'noProblems');
+});
+
+test('declaration repair: a usual encoding name is not a finding', async () => {
+  const entries = edit(docxEntries(), 'docProps/core.xml', (t) => t.replace(/encoding="[^"]*"/, 'encoding="utf-8"'));
+  const result = await run('sample.docx', pack(entries));
+  eq(result.outcome, 'noProblems');
+});

@@ -245,6 +245,7 @@ export const copy = {
     XML_REPAIRED: xmlRepairText,
     XML_TRUNCATED_CLOSED: () => 'Content after this point was lost. The open elements were closed.',
     XML_NAMESPACE_FIXED: (d) => `Repaired ${d.n} damaged namespace ${plural(d.n, 'declaration', 'declarations')}.`,
+    XML_DECLARATION_FIXED: () => 'Corrected the text encoding named in the XML declaration to UTF-8.',
     XML_UNRECOVERABLE: () => 'This part could not be read as XML and was removed.',
     XML_HOLE_DROPPED: (d) => `About ${d.bytes} bytes of this part could not be read. The content around them was removed.`,
     CT_REBUILT: () => 'Rebuilt the content types list.',

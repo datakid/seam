@@ -116,3 +116,27 @@ test('root namespace: a root with an unknown name keeps its namespace', () => {
   const root = rootOf('<unknownRoot xmlns="http://example.com/anything/at/all"/>');
   assert.equal(snapNamespaces(root), 0);
 });
+
+test('declaration repair: a damaged encoding name becomes UTF-8', async () => {
+  const { repairDeclaration } = await import('../js/core/ns-repair.js');
+  const result = repairDeclaration('<?xml version="1.0" encoding="WTF-8" standalone="yes"?>\n<a/>');
+  assert.equal(result.count, 1);
+  assert.equal(result.text, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<a/>');
+});
+
+test('declaration repair: usual encoding names and missing declarations are left alone', async () => {
+  const { repairDeclaration } = await import('../js/core/ns-repair.js');
+  for (const name of ['UTF-8', 'utf-8', 'UTF-16', 'ISO-8859-1', 'windows-1252', 'US-ASCII']) {
+    const text = `<?xml version="1.0" encoding="${name}"?><a/>`;
+    assert.deepEqual(repairDeclaration(text), { text, count: 0 });
+  }
+  assert.deepEqual(repairDeclaration('<a/>'), { text: '<a/>', count: 0 });
+  assert.deepEqual(repairDeclaration('<?xml version="1.0"?><a/>'), { text: '<?xml version="1.0"?><a/>', count: 0 });
+});
+
+test('declaration repair: single quotes and spaces around the equals sign are handled', async () => {
+  const { repairDeclaration } = await import('../js/core/ns-repair.js');
+  const result = repairDeclaration("<?xml version='1.0' encoding = 'UTE-8'?><a/>");
+  assert.equal(result.count, 1);
+  assert.equal(result.text, "<?xml version='1.0' encoding = 'UTF-8'?><a/>");
+});

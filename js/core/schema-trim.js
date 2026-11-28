@@ -5,7 +5,7 @@ import { keyOf, orderOf, openedTable } from './schema-fill.js';
 import { PART_LIMIT } from './schema-check.js';
 import { snapNamespaces } from './ns-repair.js';
 
-const DAMAGE = new Set(['XML_TRUNCATED_CLOSED', 'XML_REPAIRED', 'XML_INVALID_BYTES', 'XML_HOLE_DROPPED', 'ZIP_ENTRY_TRUNCATED', 'ZIP_ENTRY_CRC']);
+const DAMAGE = new Set(['XML_TRUNCATED_CLOSED', 'XML_REPAIRED', 'XML_DECLARATION_FIXED', 'XML_INVALID_BYTES', 'XML_HOLE_DROPPED', 'ZIP_ENTRY_TRUNCATED', 'ZIP_ENTRY_CRC']);
 const MAX_PASSES = 6;
 const LIMIT = 200;
 

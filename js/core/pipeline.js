@@ -18,7 +18,7 @@ import { openedTable } from './schema-fill.js';
 import { rebuildRels } from './rels-rebuild.js';
 import { synthesizeMain } from './main-synth.js';
 import { partInventory, buildInventory } from './inventory.js';
-import { repairNamespaces } from './ns-repair.js';
+import { repairNamespaces, repairDeclaration } from './ns-repair.js';
 import { trimSchema } from './schema-trim.js';
 import {
   PartIndex, isXmlPath, resolveTarget, readRelationships, readContentTypes, contentTypeOf,
@@ -245,10 +245,12 @@ async function processXml(ctx, part, env) {
   const holed = resolveHoles(decoded.text);
   const cleaned = cleanChars(holed.text);
   const named = repairNamespaces(cleaned.text);
-  let text = named.text;
-  let changed = cleaned.changed || decoded.invalid > 0 || holed.holes > 0 || named.count > 0;
+  const declared = repairDeclaration(named.text);
+  let text = declared.text;
+  let changed = cleaned.changed || decoded.invalid > 0 || holed.holes > 0 || named.count > 0 || declared.count > 0;
   const found = [];
   if (named.count > 0) found.push(['XML_NAMESPACE_FIXED', { n: named.count }]);
+  if (declared.count > 0) found.push(['XML_DECLARATION_FIXED', {}]);
   if (decoded.invalid > 0) found.push(['XML_INVALID_BYTES', { n: decoded.invalid }]);
   if (holed.holes > 0) found.push(['XML_HOLE_DROPPED', { n: holed.holes, bytes: part.holeBytes }]);
   if (cleaned.changed) found.push(['XML_CHARS_REMOVED', { n: cleaned.removed + cleaned.escaped }]);
@@ -287,7 +289,7 @@ async function processXml(ctx, part, env) {
 
 const SUPERSEDED = new Set([
   'ZIP_ENTRY_TRUNCATED', 'ZIP_ENTRY_CRC', 'ZIP_ENTRY_UNREADABLE', 'ZIP_UNSUPPORTED_METHOD', 'ZIP_ENTRY_CHOSEN', 'MULTI_PART_FROM',
-  'XML_REENCODED', 'XML_INVALID_BYTES', 'XML_CHARS_REMOVED', 'XML_REPAIRED', 'XML_TRUNCATED_CLOSED', 'XML_UNRECOVERABLE', 'XML_HOLE_DROPPED', 'XML_NAMESPACE_FIXED'
+  'XML_REENCODED', 'XML_INVALID_BYTES', 'XML_CHARS_REMOVED', 'XML_REPAIRED', 'XML_TRUNCATED_CLOSED', 'XML_UNRECOVERABLE', 'XML_HOLE_DROPPED', 'XML_NAMESPACE_FIXED', 'XML_DECLARATION_FIXED'
 ]);
 
 function forgetPart(ctx, name) {
