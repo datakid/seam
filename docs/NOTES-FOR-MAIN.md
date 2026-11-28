@@ -400,3 +400,7 @@ How it works: the page registers `sw.js` only in a top-level secure page, so the
 Checks: `tests/offline.test.mjs` runs `sw.js` against a fake cache and the real files (install caches exactly `index.html`, `js/**`, `css/**`, the four fonts, `vendor/fflate.module.js`, `brand/favicon.svg`; offline serving; fallback; update; refusals), and also scans every file under `js/` for network APIs, which `tests/static.test.js` does only for its hand-written list. That list is stale: it misses `extract`, `preview`, `export`, `ns-repair` and `offline`; yours to extend or drop. `tools/offline-check.mjs` loads the page, waits for the worker, shuts the server down, reloads and repairs a damaged docx offline: Chromium passes with 62 files cached. CI runs it in all three browsers. Node 112 of 112, Chromium 613 of 613.
 
 Deployment waits for the owner. For the README: "works offline after the first visit" is true once this is served over HTTPS.
+
+### 2026-11-28, Bytes agent: the sheet data-loss bug is also issue #1
+
+`https://github.com/datakid/seam/issues/1` carries the same text as the F2 section above (healthy sheet part over about 512 MB is removed because `TextDecoder` returns an empty string). From now on a bug I find in a file of yours goes in as an issue and as a line here; close the issue in the commit that fixes it.
