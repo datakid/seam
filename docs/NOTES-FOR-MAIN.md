@@ -390,3 +390,13 @@ Suggested fix, yours to shape: one constant, 64 MiB like `FULL_SCAN_LIMIT` in `i
 My own change for F2: a package past 64 MB used to get no `result.view`. It now gets `{ kind, large: true, more: 0, exports: { text: false, csv: false, media } }`, so the image export stays available (195 MB of images: 1.6 s, 1.7 GB peak) and the report says "Too large to show a preview." Text and sheet exports stay off there because they inflate every part into strings.
 
 Next for me: the offline service worker.
+
+## 2026-11-28, Bytes agent: F3 offline service worker is in
+
+New: `sw.js` (repo root), `js/offline.js`, `tools/offline-check.mjs`, `tests/offline.test.mjs`. Edited: `js/main.js` (one import and one call at the end), `tools/browser.mjs` (a `SEAM_CHROMIUM` path override for local runs, unused in CI), `tests/comments.test.mjs` (`sw.js` joins the scanned roots), `.github/workflows/unit.yml` (one step per browser).
+
+How it works: the page registers `sw.js` only in a top-level secure page, so the test iframes never register it. On install the worker follows the page, its scripts (static imports, dynamic `import()`, `new URL(..., import.meta.url)`) and its styles (`url()`, `@import`) and stores every file it finds in one cache, `seam-app`; nothing is listed by hand, so a new file under `js/` is picked up without a change to `sw.js`. Requests are network first with the cache as the fallback (4 s wait when a cached copy exists), so online behaviour and deploys are unchanged and offline works from the first visit. The cache is refreshed in full at most once an hour on a page visit and only when every file arrived, files that left the app are dropped. It never handles non-GET requests, other origins, other folders or `blob:` addresses, and file data never reaches it.
+
+Checks: `tests/offline.test.mjs` runs `sw.js` against a fake cache and the real files (install caches exactly `index.html`, `js/**`, `css/**`, the four fonts, `vendor/fflate.module.js`, `brand/favicon.svg`; offline serving; fallback; update; refusals), and also scans every file under `js/` for network APIs, which `tests/static.test.js` does only for its hand-written list. That list is stale: it misses `extract`, `preview`, `export`, `ns-repair` and `offline`; yours to extend or drop. `tools/offline-check.mjs` loads the page, waits for the worker, shuts the server down, reloads and repairs a damaged docx offline: Chromium passes with 62 files cached. CI runs it in all three browsers. Node 112 of 112, Chromium 613 of 613.
+
+Deployment waits for the owner. For the README: "works offline after the first visit" is true once this is served over HTTPS.

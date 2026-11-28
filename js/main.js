@@ -3,6 +3,7 @@ import { applyCopy, buildScope, setupScope, createRenderer, summaryCounts, setup
 import { copy } from './copy.js';
 import { createQueue, canAddCopy, canAddDonor, LIMITS } from './queue.js';
 import { textReport, baseName, finding } from './core/report.js';
+import { registerOffline } from './offline.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -205,3 +206,5 @@ function demoEntries() {
 }
 
 if (new URLSearchParams(location.search).get('demo') === '1') queue.inject(demoEntries());
+
+registerOffline();

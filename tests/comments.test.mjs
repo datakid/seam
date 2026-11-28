@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { findComments, COMMENT_EXTENSIONS } from './support/find-comments.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const ROOTS = ['index.html', 'js', 'css', 'brand', 'tests', 'tools', '.github'];
+const ROOTS = ['index.html', 'sw.js', 'js', 'css', 'brand', 'tests', 'tools', '.github'];
 const SKIP = new Set(['node_modules', 'vendor', 'bin', 'obj', '.git']);
 
 function walk(path, out) {
