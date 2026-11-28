@@ -11,27 +11,6 @@ for (let c = 48; c <= 57; c++) PART[c] = 1;
 PART[45] = 1;
 PART[46] = 1;
 
-function startCode(c) {
-  return (
-    (c >= 0xc0 && c <= 0xd6) ||
-    (c >= 0xd8 && c <= 0xf6) ||
-    (c >= 0xf8 && c <= 0x2ff) ||
-    (c >= 0x370 && c <= 0x37d) ||
-    (c >= 0x37f && c <= 0x1fff) ||
-    (c >= 0x200c && c <= 0x200d) ||
-    (c >= 0x2070 && c <= 0x218f) ||
-    (c >= 0x2c00 && c <= 0x2fef) ||
-    (c >= 0x3001 && c <= 0xd7ff) ||
-    (c >= 0xf900 && c <= 0xfdcf) ||
-    (c >= 0xfdf0 && c <= 0xfffd) ||
-    (c >= 0x10000 && c <= 0xeffff)
-  );
-}
-
-function partCode(c) {
-  return startCode(c) || c === 0xb7 || (c >= 0x300 && c <= 0x36f) || (c >= 0x203f && c <= 0x2040);
-}
-
 function isSpace(c) {
   return c === 0x20 || c === 0x09 || c === 0x0a || c === 0x0d;
 }
@@ -40,21 +19,18 @@ function validCode(c) {
   return c === 0x09 || c === 0x0a || c === 0x0d || (c >= 0x20 && c <= 0xd7ff) || (c >= 0xe000 && c <= 0xfffd) || (c >= 0x10000 && c <= 0x10ffff);
 }
 
+let wide = false;
+
 function nameEnd(s, i, n, first) {
   let at = i;
   while (at < n) {
-    let c = s.charCodeAt(at);
-    let width = 1;
-    if (c >= 0xd800 && c <= 0xdbff) {
-      const low = s.charCodeAt(at + 1);
-      if (low >= 0xdc00 && low <= 0xdfff) {
-        c = (c - 0xd800) * 0x400 + (low - 0xdc00) + 0x10000;
-        width = 2;
-      }
+    const c = s.charCodeAt(at);
+    if (c >= 128) {
+      wide = true;
+      return at;
     }
-    const ok = c < 128 ? (at === i && first ? START[c] === 1 : PART[c] === 1) : at === i && first ? startCode(c) : partCode(c);
-    if (!ok) break;
-    at += width;
+    if (!(at === i && first ? START[c] === 1 : PART[c] === 1)) break;
+    at++;
   }
   return at;
 }
@@ -106,7 +82,7 @@ function reference(s, i, n) {
     } else {
       for (;;) {
         const c = s.charCodeAt(at);
-        if (c < 48 || c > 57) break;
+        if (!(c >= 48 && c <= 57)) break;
         value = value * 10 + (c - 48);
         if (value > 0x10ffff) return -1;
         digits++;
@@ -138,6 +114,7 @@ function splitName(name) {
 }
 
 export function strictWellFormed(text) {
+  wide = false;
   const s = text;
   const n = s.length;
   let i = 0;
@@ -223,6 +200,7 @@ export function strictWellFormed(text) {
 
     if (next === 63) {
       const targetEnd = nameEnd(s, i + 2, n, true);
+      if (wide) return unsure;
       if (targetEnd === i + 2) return bad('instruction', i);
       const target = s.slice(i + 2, targetEnd);
       if (target.length === 3 && target.toLowerCase() === 'xml') return bad('declaration position', i);
@@ -251,6 +229,7 @@ export function strictWellFormed(text) {
 
     if (stack.length === 0 && rootSeen) return bad('content after the root', i);
     const nameStop = nameEnd(s, i + 1, n, true);
+    if (wide) return unsure;
     if (nameStop === i + 1) return bad('start tag', i);
     const name = s.slice(i + 1, nameStop);
     let at = nameStop;
@@ -273,6 +252,7 @@ export function strictWellFormed(text) {
       }
       if (at === before) return bad('attribute spacing', at);
       const attrEnd = nameEnd(s, at, n, true);
+      if (wide) return unsure;
       if (attrEnd === at) return bad('attribute name', at);
       const attrName = s.slice(at, attrEnd);
       at = attrEnd;

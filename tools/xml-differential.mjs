@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { unzipSync, strFromU8 } from '../vendor/fflate.module.js';
 import { serve } from './serve.mjs';
@@ -136,7 +136,7 @@ function around(text, at) {
 
 function record(item) {
   const key = `${item.dom ? 'oracle-ok' : 'oracle-bad'}|${item.reason}`;
-  if (allowed.has(key)) {
+  if (allowed.has(key) || (browserName === 'webkit' && oracle === 'dom' && !item.dom && /not a valid URI/.test(item.message))) {
     stats.tolerated++;
     return;
   }
@@ -166,7 +166,9 @@ async function runSaxes(list) {
   let unsure = 0;
   let good = 0;
   for (const text of list) {
+    if (process.env.XD_TRACE) writeFileSync(process.env.XD_TRACE, text);
     const verdict = strictWellFormed(text);
+    if (process.env.XD_TRACE) writeFileSync(`${process.env.XD_TRACE}.checked`, text);
     if (verdict === null) {
       unsure++;
       continue;

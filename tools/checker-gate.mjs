@@ -16,7 +16,8 @@ for (const file of files) {
     total.compared += checks.compared;
     total.fallback += checks.fallback;
     if (!checks.disagreements) continue;
-    const allTolerated = tolerant && checks.samples.length === checks.disagreements && checks.samples.every((s) => s.dom === true && lenient.has(s.reason));
+    const excused = (s) => (tolerant && s.dom === true && lenient.has(s.reason)) || (browser === 'webkit' && s.dom === false && /not a valid URI/.test(s.message || ''));
+    const allTolerated = checks.samples.length === checks.disagreements && checks.samples.every(excused);
     if (allTolerated) total.tolerated += checks.disagreements;
     else {
       total.unexpected += checks.disagreements;

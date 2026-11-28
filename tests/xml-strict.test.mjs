@@ -26,7 +26,6 @@ const TABLE = [
   ['<a><![CDATA[ < & ]] > ]]></a>', OK],
   ['<a><!-- a - b --></a>', OK],
   ['<a>é中\u{1F600}</a>', OK],
-  ['<é中 é="1"/>', OK],
   ['<a xmlns="urn:x"><b/></a>', OK],
   ['<a xmlns="urn:x"><b xmlns=""/></a>', OK],
   ['<p:a xmlns:p="urn:x"><p:b p:c="1"/></p:a>', OK],
@@ -57,6 +56,11 @@ const TABLE = [
   ['<a>&#xD800;</a>', BAD],
   ['<a>&#x110000;</a>', BAD],
   ['<a>&#65</a>', BAD],
+  ['<a>&#65', BAD],
+  ['<a>&#x4', BAD],
+  ['<a b="&#65', BAD],
+  ['<a>&', BAD],
+  ['<a>&am', BAD],
   ['<a>&#X41;</a>', BAD],
   ['<a>& </a>', BAD],
   ['<a>]]></a>', BAD],
@@ -91,6 +95,10 @@ const TABLE = [
   ['<a>\udc00</a>', UNSURE],
   ['<?xml version="1.1"?><a/>', UNSURE],
   ['<?xml version="1.0" encoding="ISO-8859-1"?><a/>', UNSURE],
+  ['<\u00e9\u4e2d \u00e9="1"/>', UNSURE],
+  ['<a\u00a0b/>', UNSURE],
+  ['<a \u{1F600}="1"/>', UNSURE],
+  ['<?x\u00e9 data?><a/>', UNSURE],
   ['<xml:a/>', UNSURE],
   ['<a xmlns:xml="urn:x"/>', UNSURE],
   ['<a xmlns="http://www.w3.org/XML/1998/namespace"/>', UNSURE]
@@ -122,6 +130,18 @@ test('xml-strict: deep nesting and long runs do not overflow or slow down', () =
   assert.equal(strictWellFormed(wide).ok, true);
   const names = `<r xmlns:p="u">${'<p:c p:a="1"/>'.repeat(100000)}</r>`;
   assert.equal(strictWellFormed(names).ok, true);
+});
+
+test('xml-strict: every prefix of a document ends in a verdict, and only the whole document is well formed', () => {
+  const document = '<?xml version="1.0" encoding="UTF-8"?>\n<p:a xmlns:p="urn:x" xmlns="urn:y" k="v &amp; &#65; &#x42;"><!--c--><p:b p:c=\'1\'>t &lt; <![CDATA[x]]></p:b><?pi d?><d/></p:a>';
+  for (let length = 0; length < document.length; length++) {
+    const verdict = strictWellFormed(document.slice(0, length));
+    assert.ok(verdict !== null && verdict.ok === false, `prefix ${length}`);
+  }
+  assert.equal(strictWellFormed(document).ok, true);
+  for (let length = 0; length <= document.length; length++) {
+    for (const tail of ['&', '&#', '&#x', '&#6', '<', '</', '<!', '<!-', '<!--', '<![CDATA[', '<?', '"', "'"]) strictWellFormed(document.slice(0, length) + tail);
+  }
 });
 
 test('xml-check: a definite verdict never reaches the fallback, an undecided one always does', async () => {

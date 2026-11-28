@@ -26,10 +26,13 @@ window.seamRun = async (sourceUrl, name, outId) => {
     if (now > peak) peak = now;
   };
   const checks = { strict: 0, fallback: 0, compared: 0, disagreements: [] };
+  let lastMessage = '';
   const domCheck = async (text) => {
     sample();
     const doc = new DOMParser().parseFromString(text, 'application/xml');
-    return doc.getElementsByTagName('parsererror').length === 0;
+    const error = doc.getElementsByTagName('parsererror')[0];
+    lastMessage = error ? (error.textContent || '').slice(0, 140) : '';
+    return !error;
   };
   const mode = new URLSearchParams(location.search).get('checker') || 'strict';
   const judge = {
@@ -40,7 +43,7 @@ window.seamRun = async (sourceUrl, name, outId) => {
       const dom = await domCheck(text);
       if (verdict !== null) {
         checks.compared++;
-        if (verdict.ok !== dom && checks.disagreements.length < 5) checks.disagreements.push({ dom, reason: verdict.reason || 'ok', at: verdict.at === undefined ? null : verdict.at, length: text.length, around: verdict.at === undefined ? text.slice(0, 120) : text.slice(Math.max(0, verdict.at - 60), verdict.at + 60) });
+        if (verdict.ok !== dom && checks.disagreements.length < 5) checks.disagreements.push({ dom, message: lastMessage, reason: verdict.reason || 'ok', at: verdict.at === undefined ? null : verdict.at, length: text.length, around: verdict.at === undefined ? text.slice(0, 120) : text.slice(Math.max(0, verdict.at - 60), verdict.at + 60) });
         if (verdict.ok !== dom) checks.disagreements.count = (checks.disagreements.count || 0) + 1;
       } else checks.fallback++;
       return dom;
