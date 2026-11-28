@@ -1,4 +1,6 @@
 import { runPipeline } from '../../js/core/pipeline.js';
+import { strictWellFormed } from '../../js/core/xml-strict.js';
+import { makeWellFormed } from '../../js/core/xml-check.js';
 
 function heapBytes() {
   return performance.memory ? performance.memory.usedJSHeapSize : 0;
@@ -23,14 +25,28 @@ window.seamRun = async (sourceUrl, name, outId) => {
     const now = heapBytes();
     if (now > peak) peak = now;
   };
-  const env = {
-    isWellFormed: async (text) => {
-      sample();
-      const doc = new DOMParser().parseFromString(text, 'application/xml');
-      return doc.getElementsByTagName('parsererror').length === 0;
-    },
-    progress: sample
+  const checks = { strict: 0, fallback: 0, compared: 0, disagreements: [] };
+  const domCheck = async (text) => {
+    sample();
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    return doc.getElementsByTagName('parsererror').length === 0;
   };
+  const mode = new URLSearchParams(location.search).get('checker') || 'strict';
+  const judge = {
+    dom: domCheck,
+    strict: makeWellFormed(domCheck, checks),
+    both: async (text) => {
+      const verdict = strictWellFormed(text);
+      const dom = await domCheck(text);
+      if (verdict !== null) {
+        checks.compared++;
+        if (verdict.ok !== dom && checks.disagreements.length < 5) checks.disagreements.push({ dom, reason: verdict.reason || 'ok', at: verdict.at === undefined ? null : verdict.at, length: text.length, around: verdict.at === undefined ? text.slice(0, 120) : text.slice(Math.max(0, verdict.at - 60), verdict.at + 60) });
+        if (verdict.ok !== dom) checks.disagreements.count = (checks.disagreements.count || 0) + 1;
+      } else checks.fallback++;
+      return dom;
+    }
+  }[mode];
+  const env = { isWellFormed: judge, progress: sample };
   const started = performance.now();
   const result = await runPipeline({ name, size: buffer.byteLength, buffer, lastModified: 0 }, env);
   const ms = performance.now() - started;
@@ -54,7 +70,8 @@ window.seamRun = async (sourceUrl, name, outId) => {
     outputs,
     ms: Math.round(ms),
     peakMB: Math.max(0, Math.round(((peak - base) / 1048576) * 10) / 10),
-    heapMethod: performance.memory ? 'js-heap-sampled' : 'unavailable'
+    heapMethod: performance.memory ? 'js-heap-sampled' : 'unavailable',
+    checks: { mode, strict: checks.strict, fallback: checks.fallback, compared: checks.compared, disagreements: checks.disagreements.count || 0, samples: checks.disagreements }
   };
 };
 

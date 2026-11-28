@@ -33,3 +33,4 @@ jobs:
       - run: node tools/corpus-fetch.mjs --set property
       - run: node tools/run-suite.mjs --browser ${{ matrix.browser }}
       - run: node tools/offline-check.mjs --browser ${{ matrix.browser }}
+      - run: node tools/xml-differential.mjs --browser ${{ matrix.browser }} --cases 40000 --seed 11

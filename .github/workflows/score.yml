@@ -159,6 +159,8 @@ jobs:
       - run: npm run corpus
       - run: node tools/damage-run.mjs --out results/work/browser-sample --sample 0.05 --seeds 3
       - run: node tools/run-seam.mjs --in results/work/browser-sample/files --out results/work/browser-${{ matrix.browser }} --browser ${{ matrix.browser }} --pages 2
+      - run: node tools/run-seam.mjs --in results/work/browser-sample/files --out results/work/checker-${{ matrix.browser }} --browser ${{ matrix.browser }} --pages 2 --checker both
+      - run: node tools/checker-gate.mjs ${{ matrix.browser }} results/work/checker-${{ matrix.browser }}/seam.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

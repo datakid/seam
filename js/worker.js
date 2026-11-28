@@ -4,6 +4,7 @@ import { copy } from './copy.js';
 import { zipSync } from '../vendor/fflate.module.js';
 import { buildView } from './core/preview.js';
 import { buildExport } from './core/export.js';
+import { makeWellFormed } from './core/xml-check.js';
 
 let counter = 0;
 const pending = new Map();
@@ -32,7 +33,7 @@ function detach(result) {
 
 async function handleProcess(msg) {
   const env = {
-    isWellFormed: checker(msg.id),
+    isWellFormed: makeWellFormed(checker(msg.id)),
     progress: (stage, pct) => self.postMessage({ type: 'progress', id: msg.id, stage, pct })
   };
   let result;

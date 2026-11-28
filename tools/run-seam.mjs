@@ -16,7 +16,7 @@ function listFiles(dir) {
   return out.sort();
 }
 
-export async function runSeam({ input, output, browserName = 'chromium', timeoutMs = 60000, pages = 2, resume = false, onProgress = null, only = null }) {
+export async function runSeam({ input, output, browserName = 'chromium', timeoutMs = 60000, pages = 2, resume = false, onProgress = null, only = null, checker = 'strict' }) {
   const inputDir = resolve(input);
   const outputDir = resolve(output);
   const outputsDir = join(outputDir, 'outputs');
@@ -43,7 +43,7 @@ export async function runSeam({ input, output, browserName = 'chromium', timeout
   async function freshPage() {
     const page = await browser.newPage();
     page.on('pageerror', () => {});
-    await page.goto(`${server.url}/tools/harness/`);
+    await page.goto(`${server.url}/tools/harness/?checker=${checker}`);
     await page.waitForFunction('window.seamReady === true');
     return page;
   }
@@ -105,6 +105,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     input,
     output,
     browserName: flag('browser', 'chromium'),
+    checker: flag('checker', 'strict'),
     timeoutMs: Number(flag('timeout', '60000')),
     pages: Number(flag('pages', '2')),
     resume: args.includes('--resume'),
