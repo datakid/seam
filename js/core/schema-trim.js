@@ -3,6 +3,7 @@ import { getTree, touch, addFinding } from './package.js';
 import { checkTree } from './schema-fit.js';
 import { keyOf, orderOf, openedTable } from './schema-fill.js';
 import { PART_LIMIT } from './schema-check.js';
+import { snapNamespaces } from './ns-repair.js';
 
 const DAMAGE = new Set(['XML_TRUNCATED_CLOSED', 'XML_REPAIRED', 'XML_INVALID_BYTES', 'XML_HOLE_DROPPED', 'ZIP_ENTRY_TRUNCATED', 'ZIP_ENTRY_CRC']);
 const MAX_PASSES = 6;
@@ -125,6 +126,7 @@ export function trimSchema(ctx, table) {
   const opened = openedTable(table);
   let moved = 0;
   let renamed = 0;
+  let spelled = 0;
   let parts = 0;
   for (const name of names) {
     const part = ctx.parts.get(name);
@@ -132,7 +134,10 @@ export function trimSchema(ctx, table) {
     const tree = getTree(ctx, name);
     const root = tree ? documentElement(tree) : null;
     if (!root) continue;
+    const spaces = snapNamespaces(root);
+    spelled += spaces;
     const result = trimTree(opened, tree);
+    if (spaces > 0) touch(ctx, name);
     if (result.moved + result.renamed === 0) continue;
     touch(ctx, name);
     parts++;
@@ -141,5 +146,6 @@ export function trimSchema(ctx, table) {
   }
   if (moved > 0) addFinding(ctx, 'SCHEMA_REORDERED', null, { n: moved, parts });
   if (renamed > 0) addFinding(ctx, 'SCHEMA_NAMES_FIXED', null, { n: renamed, parts });
+  if (spelled > 0) addFinding(ctx, 'XML_NAMESPACE_FIXED', null, { n: spelled });
   return { checked: true, moved, renamed };
 }

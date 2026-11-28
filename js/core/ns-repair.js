@@ -1,4 +1,4 @@
-import { decodeEntities, escapeAttr, localName } from './xml-repair.js';
+import { decodeEntities, escapeAttr, localName, prefixOf } from './xml-repair.js';
 import { CT_NS, PKG_REL_NS, REL_NS } from './constants.js';
 
 const OX = 'http://schemas.openxmlformats.org/';
@@ -75,8 +75,8 @@ const START_TAG = /<([A-Za-z_][^\s/>]*)((?:\s[^<>]*)?)>/g;
 const DECLARATION = /(\s)(xmlns(?::[^\s=]+)?)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 const MAX_DISTANCE = 3;
 
-function distance(a, b) {
-  if (Math.abs(a.length - b.length) > MAX_DISTANCE) return MAX_DISTANCE + 1;
+function distance(a, b, limit = MAX_DISTANCE) {
+  if (Math.abs(a.length - b.length) > limit) return limit + 1;
   let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
     const row = [i];
@@ -85,18 +85,18 @@ function distance(a, b) {
       row[j] = Math.min(previous[j] + 1, row[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
       if (row[j] < best) best = row[j];
     }
-    if (best > MAX_DISTANCE) return MAX_DISTANCE + 1;
+    if (best > limit) return limit + 1;
     previous = row;
   }
   return previous[b.length];
 }
 
-function nearest(value) {
+function nearest(value, limit = MAX_DISTANCE) {
   let best = null;
-  let bestDistance = MAX_DISTANCE + 1;
+  let bestDistance = limit + 1;
   let tie = false;
   for (const known of KNOWN) {
-    const d = distance(value, known);
+    const d = distance(value, known, limit);
     if (d < bestDistance) {
       best = known;
       bestDistance = d;
@@ -105,7 +105,7 @@ function nearest(value) {
       tie = true;
     }
   }
-  return best !== null && !tie && bestDistance <= MAX_DISTANCE ? best : null;
+  return best !== null && !tie && bestDistance <= limit ? best : null;
 }
 
 function isValid(name, decoded) {
@@ -142,4 +142,24 @@ export function repairNamespaces(text) {
     return fixed === attrs ? tag : `<${name}${fixed}>`;
   });
   return { text: out, count };
+}
+
+export function snapNamespaces(root) {
+  if (!root) return 0;
+  const rootLocal = localName(root.name);
+  const own = prefixOf(root.name) || '';
+  const expected = ROOT_DEFAULTS[rootLocal] || null;
+  let count = 0;
+  root.attrs = root.attrs.map(([name, value]) => {
+    if (name !== 'xmlns' && !name.startsWith('xmlns:')) return [name, value];
+    const decoded = decodeEntities(value);
+    if (decoded.length === 0 || KNOWN.includes(decoded)) return [name, value];
+    const prefix = name === 'xmlns' ? '' : name.slice(6);
+    const ownDeclaration = prefix === own && expected !== null && !decoded.includes('purl.oclc.org/ooxml');
+    const target = ownDeclaration ? expected : nearest(decoded, 2);
+    if (target === null || target === decoded) return [name, value];
+    count++;
+    return [name, escapeAttr(target)];
+  });
+  return count;
 }

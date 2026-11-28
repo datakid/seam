@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { repairNamespaces } from '../js/core/ns-repair.js';
+import { repairNamespaces, snapNamespaces } from '../js/core/ns-repair.js';
+import { parseTree, documentElement, getAttr } from '../js/core/xml-repair.js';
 
 const CT_NS = 'http://schemas.openxmlformats.org/package/2006/content-types';
 const PKG_REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships';
@@ -62,4 +63,56 @@ test('namespace repair: the result is stable', () => {
 test('namespace repair: a distant value is not snapped to a known namespace', () => {
   const result = repairNamespaces('<root><x xmlns:q="http://example.com/some thing/else"/></root>');
   assert.ok(result.text.includes('http://example.com/something/else'));
+});
+
+const PRESENTATION_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+
+function rootOf(text) {
+  return documentElement(parseTree(text));
+}
+
+test('root namespace: a flipped letter in the relationships namespace is restored', () => {
+  const root = rootOf('<Relationships xmlns="http://schemas.laenxmlformats.lrg/package/2006/relationships"/>');
+  assert.equal(snapNamespaces(root), 1);
+  assert.equal(getAttr(root, 'xmlns'), PKG_REL_NS);
+});
+
+test('root namespace: a prefixed presentation root is restored', () => {
+  const root = rootOf('<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/xain"/>');
+  assert.equal(snapNamespaces(root), 1);
+  assert.equal(getAttr(root, 'xmlns:p'), PRESENTATION_NS);
+});
+
+test('root namespace: a damaged year is restored', () => {
+  const root = rootOf('<theme xmlns="http://schemas.openxmlformats.org/drawingml/2106/main"/>');
+  assert.equal(snapNamespaces(root), 1);
+  assert.equal(getAttr(root, 'xmlns'), 'http://schemas.openxmlformats.org/drawingml/2006/main');
+});
+
+test('root namespace: a damaged second declaration snaps to the one known namespace within two letters', () => {
+  const root = rootOf(`<p:sld xmlns:p="${PRESENTATION_NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationshiqs"/>`);
+  assert.equal(snapNamespaces(root), 1);
+  assert.equal(getAttr(root, 'xmlns:r'), 'http://schemas.openxmlformats.org/officeDocument/2006/relationships');
+});
+
+test('root namespace: a Strict OOXML namespace is left alone', () => {
+  const root = rootOf('<sldLayout xmlns="http://purl.oclc.org/ooxml/presentationml/main"/>');
+  assert.equal(snapNamespaces(root), 0);
+  assert.equal(getAttr(root, 'xmlns'), 'http://purl.oclc.org/ooxml/presentationml/main');
+});
+
+test('root namespace: known and unknown extension namespaces are left alone', () => {
+  const root = rootOf(`<p:sld xmlns:p="${PRESENTATION_NS}" xmlns:ext="http://example.com/some/extension" xmlns:w16="http://schemas.microsoft.com/office/word/2018/wordml"/>`);
+  assert.equal(snapNamespaces(root), 0);
+});
+
+test('root namespace: a heavily damaged namespace on a root with a known name is restored', () => {
+  const root = rootOf('<Relationships xmlns="http://schemas.openxmlformats.org/package/200Tnaspncaspncaspncass"/>');
+  assert.equal(snapNamespaces(root), 1);
+  assert.equal(getAttr(root, 'xmlns'), PKG_REL_NS);
+});
+
+test('root namespace: a root with an unknown name keeps its namespace', () => {
+  const root = rootOf('<unknownRoot xmlns="http://example.com/anything/at/all"/>');
+  assert.equal(snapNamespaces(root), 0);
 });
